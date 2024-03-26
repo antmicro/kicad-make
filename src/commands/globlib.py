@@ -1,40 +1,63 @@
 #!/usr/bin/python3
+
 import argparse
 import json
 import logging
 import os
-from typing import Dict, List, Tuple
-
-from kiutils.items.common import Property
-from kiutils.items.schitems import SchematicSymbol
-from kiutils.items.fpitems import FpText
-from kiutils.libraries import LibTable
-from kiutils.schematic import Schematic
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from kiutils.board import Board
-from kiutils.symbol import SymbolLib
+from kiutils.footprint import Footprint
+from kiutils.items.fpitems import FpText
+from kiutils.items.schitems import SchematicSymbol
+from kiutils.libraries import LibTable
+from kiutils.schematic import Schematic
+from kiutils.symbol import Symbol, SymbolLib
 
 from common.kicad_project import KicadProject
-from common.kmake_helper import get_property, set_property
+from common.kmake_helper import get_property
 
 log = logging.getLogger(__name__)
+
+UniSymbol = Union[SchematicSymbol, Symbol]
+
+
+class SymbolEntry:
+    def __init__(self, symbol: Symbol, library_name: str) -> None:
+        self.symbol: Symbol = symbol
+        self.library_name: str = library_name
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     globlib_parser = subparsers.add_parser("globlib", help="Link symbols and footprints to global libraries.")
     globlib_parser.add_argument(
-        "-a",
-        "--all",
+        "--include-kicad-lib",
         action="store_true",
         help="Use also KiCad official libraries (if installed).",
     )
     globlib_parser.add_argument(
-        "-s", "--sch", action="store", nargs="*", help="Specify list of schematic files to update."
+        "--exclude-pcb",
+        action="store_true",
+        help="Do not propagate footprint links from schematic to PCB",
     )
     globlib_parser.add_argument(
-        "--exclude-pcb",
-        action="store_false",
-        help="Do not propagate footprint links from schematic to PCB.",
+        "--update-all",
+        action="store_true",
+        help="Include symbols that already link to global libraries",
+    )
+    globlib_parser.add_argument(
+        "--update-properties",
+        action="store_true",
+        help="Update all properties of symbols/footprints based on global library",
+    )
+    globlib_parser.add_argument(
+        "-s",
+        "--sch",
+        action="store",
+        nargs="*",
+        help="Specify list of schematic files to update",
+        type=Path,
     )
     globlib_parser.set_defaults(func=run)
 
@@ -43,12 +66,15 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     globlib_project(kicad_project, args)
 
 
-def get_sym_lib_mapping(args: argparse.Namespace) -> Dict[str, str]:
-    libtable = LibTable.from_file(os.path.expanduser("~/.config/kicad/7.0/sym-lib-table"))
-    if not args.all:  # if not using original KiCad libraries, remove them from list
-        libtable.libs = [lib for lib in libtable.libs if "${KICAD7_SYMBOL_DIR}" not in lib.uri]
-    else:
-        libtable.libs = sorted(libtable.libs, key=lambda x: "${KICAD7_SYMBOL_DIR}" not in x.uri, reverse=True)
+def get_lib_mapping(include_kicad_lib: bool, lib_table_file: str, lib_dir: str) -> Dict[str, str]:
+    """Returns dict mapping symbol library names to paths based on user's kicad config."""
+    libtable = LibTable.from_file(os.path.expanduser("~/.config/kicad/7.0/" + lib_table_file))
+    if not include_kicad_lib:  # if not using original KiCad libraries, remove them from list
+        libtable.libs = [lib for lib in libtable.libs if lib_dir not in lib.uri]
+
+    # Sort so that kicad libaries are last
+    libtable.libs = sorted(libtable.libs, key=lambda x: lib_dir not in x.uri, reverse=True)
+
     with open(os.path.expanduser("~/.config/kicad/7.0/kicad_common.json"), encoding="utf-8") as kicad_conf:
         for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
             os.environ[envvar] = val
@@ -56,200 +82,210 @@ def get_sym_lib_mapping(args: argparse.Namespace) -> Dict[str, str]:
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.libs}
 
 
-def get_symbol_name(schematic_symbol: SchematicSymbol) -> str:
-    symbol_name = schematic_symbol.libId.split(":", 1)
+def get_symbol_name(symbol: UniSymbol) -> str:
+    symbol_name = symbol.libId.split(":", 1)
     if len(symbol_name) == 1:
-        return schematic_symbol.libId
+        return symbol.libId
     return symbol_name[1]
 
 
-def get_schematic_symbol_name(schematic_symbol: SchematicSymbol) -> str:
-    symbol_name = schematic_symbol.libId.split(":", 1)
-    if len(symbol_name) == 1:
-        return schematic_symbol.libId
-    return symbol_name[1]
-
-
-def get_global_symbol_list(lib_mapping: Dict[str, str]) -> Dict[str, List[str]]:
-    sym_list = dict()
-    for lib in lib_mapping:
-        lib_name = lib
-        path = lib_mapping[lib_name]
+def get_global_symbol_list(lib_mapping: Dict[str, str]) -> Dict[str, Tuple[str, UniSymbol]]:
+    sym_list: dict[str, Tuple[str, UniSymbol]] = {}
+    for lib_name, path in lib_mapping.items():
         if not os.path.exists(path):
-            log.warning(f"Library {lib_name} indicates file that does not exist. Library will be omitted.")
+            log.warning(f"Library {lib_name} points to file that does not exist. Library will be omitted.")
             continue
         sym_library = SymbolLib.from_file(path)
         log.debug(f"Parsing global library: {lib_name}")
-        for sym in sym_library.symbols:
-            try:
-                sym_name = sym.libId.split(":")[1]
-            except IndexError:
-                sym_name = sym.libId
-            # sym_list.update({sym_name: [lib_name, sym]})
-            sym_list.update(
-                {
-                    sym_name: [
-                        lib_name,
-                        get_property(sym.properties, "Footprint").value,
-                        get_property(sym.properties, "MPN"),
-                    ]
-                }
-            )
-            log.debug(f"Found symbol: {sym_name}")
+        for symbol in sym_library.symbols:
+            sym_name = get_symbol_name(symbol)
+            sym_list[sym_name] = (lib_name, symbol)
     return sym_list
 
 
-def add_to_failed_list(
-    schematic_symbol: SchematicSymbol,
-    failures: Dict[str, List[str]],
-) -> None:
-    if schematic_symbol.libId not in failures:  # if symbol still not added to failures list, add it
-        failed_compnent = {
-            schematic_symbol.libId: [
-                get_property(schematic_symbol.properties, "Footprint").value,
-                get_property(schematic_symbol.properties, "Reference").value,
-            ]
-        }
-        failures.update(failed_compnent)  # add to failure list
-    else:
-        failures[schematic_symbol.libId].append(get_property(schematic_symbol.properties, "Reference").value)
-
-
-def fallback_search(
-    schematic_symbol: SchematicSymbol,
-    symbol_name: str,
-    global_symbols: Dict[str, List[str]],
-    renames: Dict[str, str],
-    failures: Dict[str, List[str]],
-) -> Tuple[bool, str]:
-    mpn = get_property(schematic_symbol.properties, "MPN")
-
-    matching_symbol_names: List[str] = []
-
-    if mpn is None:
-        return False, symbol_name
-
-    for sym_name, sym_prop in global_symbols.items():
-        sym_property: Property = sym_prop[2]
-        if sym_property is None:
+def get_global_footprint_list(lib_mapping: Dict[str, str]) -> Dict[str, Tuple[str, Footprint]]:
+    fp_list: dict[str, Tuple[str, Footprint]] = {}
+    for lib_name, path in lib_mapping.items():
+        if not os.path.exists(path):
+            log.warning(f"Library {lib_name} points to file that does not exist. Library will be omitted.")
             continue
-        if not isinstance(sym_property, Property):
-            continue
-        if sym_property.value == mpn.value:
-            matching_symbol_names.append(sym_name)
+        log.debug(f"Parsing global library: {lib_name}")
+        for file in os.scandir(path):
+            if not file.is_file():
+                continue
+            if not file.name.endswith(".kicad_mod"):
+                continue
+            name = file.name.removesuffix(".kicad_mod")
+            fp_list[name] = (lib_name, Footprint.from_file(file.path))
+    return fp_list
 
-    if not len(matching_symbol_names):
-        log.warning("Symbol: %s not found in global libraries. Added to failure list.", symbol_name)
-        add_to_failed_list(schematic_symbol, failures)
-        return False, symbol_name
 
-    if len(matching_symbol_names) >= 2:
+def search_by_mpn(
+    local_symbol: UniSymbol,
+    global_symbols: Dict[str, Tuple[str, UniSymbol]],
+) -> Optional[Tuple[str, UniSymbol]]:
+    local_mpn = get_property(local_symbol.properties, "MPN")
+    local_name = get_symbol_name(local_symbol)
+
+    if local_mpn is None or local_mpn.value == "":
+        log.warning("Symbol: %s has no mpn to match.", local_name)
+        return None
+
+    matching_symbols: List[Tuple[str, UniSymbol]] = []
+
+    for _, (global_lib_name, global_symbol) in global_symbols.items():
+        global_mpn = get_property(global_symbol.properties, "MPN")
+        if global_mpn is not None and global_mpn.value == local_mpn.value:
+            matching_symbols.append((global_lib_name, global_symbol))
+
+    if not matching_symbols:
+        log.warning("Symbol: %s not found in global libraries.", local_name)
+        return None
+
+    if len(matching_symbols) >= 2:
         log.warning(
-            "Multiple replacements found for %s with same MPN %s",
-            symbol_name,
-            mpn.value,
+            "Multiple replacements found for symbol named: %s with MPN: %s",
+            local_name,
+            local_mpn.value,
         )
-        add_to_failed_list(schematic_symbol, failures)
-        return False, symbol_name
+        return None
 
-    new_symbol_name = matching_symbol_names[0]
-
-    renames.update({symbol_name: new_symbol_name})
-
-    log.info(
-        "Symbol found using MPN - renaming: %s -> %s",
-        symbol_name,
-        new_symbol_name,
-    )
-    return True, new_symbol_name
+    return matching_symbols[0]
 
 
-def globlib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> int:
-    library_mapping = get_sym_lib_mapping(args)
-    log.debug("Mapping: %s", library_mapping)
+def update_props(
+    local_symbol: UniSymbol,
+    global_symbol: UniSymbol,
+    global_lib: str,
+    all_props: bool,
+) -> None:
+    local_symbol.libId = f"{global_lib}:{global_symbol.libId}"
+    for global_property in global_symbol.properties:
+        for local_property in local_symbol.properties:
+            if local_property.key == "Reference":
+                continue
+            if (local_property.key != "Footprint") and not all_props:
+                continue
+            if local_property.key == global_property.key:
+                local_property.value = global_property.value
+
+
+def get_sch_paths_based_on_args(args: argparse.Namespace, ki_pro: KicadProject) -> List[Path]:
+    schematic_paths = [Path(file).resolve() for file in ki_pro.all_sch_files]
+    if args.sch is not None:
+        whitelist = [file.resolve() for file in args.sch]
+        schematic_paths = [path for path in schematic_paths if path in whitelist]
+    return schematic_paths
+
+
+def find_global_symbol(
+    local_symbol: UniSymbol, global_symbols: dict[str, Tuple[str, UniSymbol]]
+) -> Optional[Tuple[str, UniSymbol]]:
+    local_symbol_name = get_symbol_name(local_symbol)
+    log.debug("Processing symbol: %s", local_symbol_name)
+
+    if local_symbol_name in global_symbols:
+        global_symbol_name = local_symbol_name
+        global_symbol_lib = global_symbols[global_symbol_name][0]
+        global_symbol = global_symbols[global_symbol_name][1]
+        log.debug("Symbol with name: %s found in global library: %s", global_symbol_name, global_symbol_lib)
+    else:
+        result = search_by_mpn(local_symbol, global_symbols)
+        if result is not None:
+            global_symbol_lib, global_symbol = result
+            log.debug("Symbol with libId: %s found in global library by MPN", local_symbol.libId)
+        else:
+            log.warning("Symbol with libId: %s wasn't found in global library", local_symbol.libId)
+            return None
+
+    return global_symbol_lib, global_symbol
+
+
+def should_symbol_be_globlibed(symbol: UniSymbol, global_libraries: Iterable[str], update_all: bool) -> bool:
+    split = symbol.libId.split(":")
+    if len(split) <= 1:  # If there is no : in libId, symbol is locally edited and shouldn't be globlibed
+        return False
+    if split[0] in global_libraries and not update_all:
+        return False
+    return True
+
+
+def globlib_project_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> list[UniSymbol]:
+    library_mapping = get_lib_mapping(args.include_kicad_lib, "sym-lib-table", "${KICAD7_SYMBOL_DIR}")
+    log.debug("Libary name to path mapping: %s", library_mapping)
+
     log.info("Generating global symbol list.")
     global_symbols = get_global_symbol_list(library_mapping)
-    failures: Dict[str, List[str]] = dict()
-    sym_instances_dict = dict()
-    success_count = 0
-    for schematic_path in ki_pro.all_sch_files:
-        if args.sch is not None:
-            schematic_name = schematic_path.replace(ki_pro.dir + "/", "")
-            if schematic_name not in args.sch:
-                continue
+
+    failures: list[UniSymbol] = []
+
+    for schematic_path in get_sch_paths_based_on_args(args, ki_pro):
         log.info("Processing schematic: %s", schematic_path)
-        schematic = Schematic().from_file(schematic_path)
-        renames: Dict[str, str] = dict()
-        for schematic_symbol in schematic.schematicSymbols:
-            library = schematic_symbol.libId.split(":")[0]
-            symbol_name = get_schematic_symbol_name(schematic_symbol)
-            new_symbol_name = symbol_name
-            if library is None:
-                continue
-            log.debug("Processing:  %s from lib: %s", symbol_name, library)
-            if library not in library_mapping:  # if current library is not in global libraries
-                if symbol_name not in global_symbols:  # if symbol name not found in global library
-                    # if symbol can not be found by name, search by MPN
-                    (found, new_symbol_name) = fallback_search(
-                        schematic_symbol, symbol_name, global_symbols, renames, failures
-                    )
-                    if not found:
-                        continue
+        schematic = Schematic().from_file(str(schematic_path))
 
-                symbol_global_library_name = global_symbols[new_symbol_name][0]  # get global symbol library name
-                symbol_global_library_path = library_mapping[symbol_global_library_name]
-                log.debug("Symbol name: %s found in global library: %s", new_symbol_name, symbol_global_library_name)
-                log.debug("Global library path: %s", symbol_global_library_path)
-                schematic_symbol.libId = symbol_global_library_name + ":" + new_symbol_name
-                new_fp = global_symbols[new_symbol_name][1]
-                set_property(schematic_symbol, "Footprint", new_fp)
-                sym_instances_dict.update({new_symbol_name: new_fp})
-                success_count += 1
-
-        log.info("Re-linking schematic lib symbols")
-        loc_libsymbols = schematic.libSymbols  # library of symbols in schematic
-        for symbol in loc_libsymbols:
-            library = symbol.libId.split(":")[0]
-            try:
-                symbol_name = symbol.libId.split(":")[1]
-            except IndexError:
-                symbol_name = symbol.libId
-            if library is None:
+        for local_symbol in schematic.schematicSymbols:
+            if not should_symbol_be_globlibed(local_symbol, library_mapping.keys(), args.update_all):
                 continue
-            if library not in library_mapping:  # if current library is not in global libraries
-                new_symbol_name = symbol_name
-                ren = False
-                if symbol_name not in global_symbols:
-                    if symbol_name in renames:
-                        ren = True
-                        new_symbol_name = renames[symbol_name]
-                if ren or symbol_name in global_symbols:
-                    for unit in symbol.units:
-                        unit.libId = unit.libId.replace(symbol_name, new_symbol_name)
-                    symbol_global_library_name = global_symbols[new_symbol_name][0]  # get global symbol library name
-                    symbol.libId = symbol_global_library_name + ":" + new_symbol_name
-                    new_fp = global_symbols[new_symbol_name][1]
-                    set_property(symbol, "Footprint", new_fp)
+            result = find_global_symbol(local_symbol, global_symbols)
+            if result is None:
+                failures.append(local_symbol)
+                continue
+            update_props(local_symbol, result[1], result[0], args.update_properties)
+
+        for local_symbol in schematic.libSymbols:
+            if not should_symbol_be_globlibed(local_symbol, library_mapping.keys(), args.update_all):
+                continue
+            result = find_global_symbol(local_symbol, global_symbols)
+            if result is None:
+                failures.append(local_symbol)
+                continue
+            update_props(local_symbol, result[1], result[0], args.update_properties)
+
         schematic.to_file()
-    main_schematic = Schematic().from_file(os.path.abspath(ki_pro.sch_root))
-    for sym_instance in main_schematic.symbolInstances:
-        if sym_instance.value in sym_instances_dict:
-            sym_instance.footprint = sym_instances_dict[sym_instance.value]
-    main_schematic.to_file()
-    # cleanup_schematic_lib_symbols(ki_pro)
-    if len(failures) != 0:
-        log.warning("List of symbols not found in global library:")
-        for fail in failures:  # printing failures
-            log.warning(f"{fail} \r\n\t\t   - fp  : {failures[fail][0]} \r\n\t\t   - ref : {failures[fail][1:]} ")
-        log.warning(f"Failed to restore links: {len(failures)}")
-    log.info(f"Successfully restored links: {success_count}")
-    return len(failures)
+    return failures
+
+
+def update_fp_props(source: SchematicSymbol, ref: str, fp: Footprint, update_all: bool) -> Tuple[bool, bool]:
+    changed = False
+    found = False
+    for item in fp.graphicItems:
+        if not isinstance(item, FpText):
+            continue
+        if item.type != "reference":
+            continue
+        if item.text != ref:
+            continue
+        ofp = fp.libId
+        nfp = get_property(source.properties, "Footprint").value
+        fp.libId = nfp
+        if nfp != ofp:
+            log.debug("Changed %s footprint: %s -> %s", ref, ofp, nfp)
+            changed = True
+        for new_prop in source.properties:
+            for fkey in fp.properties.keys():
+                if new_prop.key == fkey and update_all:
+                    # if all_props false, update only footprint
+                    fp.properties[fkey] = new_prop.value
+        for item in fp.graphicItems:
+            if not isinstance(item, FpText):
+                continue
+            if item.type != "value":
+                continue
+            item.text = get_property(source.properties, "Value").value
+            break
+        break
+    return (found, changed)
 
 
 def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
-    changed = 0
+    changes = 0
+    log.info("Loading Footprints ...")
+    lib_mapping = get_lib_mapping(args.include_kicad_lib, "fp-lib-table", "${KICAD7_FOOTPRINT_DIR}")
+    fp_list = get_global_footprint_list(lib_mapping)
+    log.info("Loading PCB ...")
     pcb = Board().from_file(ki_pro.pcb_file)
     log.info("Updating footprint links")
+
     for schematic_path in ki_pro.all_sch_files:
         if args.sch is not None:
             schematic_name = schematic_path.replace(ki_pro.dir + "/", "")
@@ -261,31 +297,32 @@ def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             ref = get_property(schematic_symbol.properties, "Reference").value
             log.debug("Processing:  %s", ref)
             for fp in pcb.footprints:
-                for item in fp.graphicItems:
-                    if not isinstance(item, FpText):
-                        continue
-                    if item.type != "reference":
-                        continue
-                    if item.text == ref:
-                        ofp = fp.libId
-                        nfp = get_property(schematic_symbol.properties, "Footprint").value
-                        fp.libId = nfp
-                        if nfp != ofp:
-                            log.debug("Changed %s footprint: %s -> %s", ref, ofp, nfp)
-                            changed += 1
-                        break  # breaks also from above loop
-                else:
-                    continue
-                break
+                (found, changed) = update_fp_props(schematic_symbol, ref, fp, args.update_properties)
+                if changed:
+                    changes += 1
+                if found:
+                    break
+    # bellow iteration has 2 purposes: 1. to globlib footprints that are not in schematic; 2. to update 3D model links
+    for fp in pcb.footprints:
+        for globname, (globlib, globfp) in fp_list.items():
+            if globname != fp.entryName:
+                continue
+            if fp.libraryNickname not in lib_mapping:
+                changes += 1
+                fp.libId = globlib + ":" + globname
+            fp.models = globfp.models
     pcb.to_file()
-    log.info("Footprint links updated: %d", changed)
+    log.info("Footprint links updated: %d", changes)
 
 
 def globlib_project(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.info("Start restoring links to global libraries.")
-    failures_count = globlib_symbols(kicad_project, args)
-    if args.exclude_pcb:
+    failures = globlib_project_symbols(kicad_project, args)
+    if not args.exclude_pcb:
         globlib_footprints(kicad_project, args)
-    if not failures_count:
+
+    if not failures:
         log.info("All links in symbols were updated successfully.")
         log.info("Use “rm -rf ./lib” to remove local libs")
+    else:
+        log.error("There were %i failures while finding global symbols.", len(failures))
