@@ -4,3 +4,6 @@
 [submodule "tests/test-designs/cm4-baseboard"]
 	path = tests/test-designs/cm4-baseboard
 	url = https://github.com/antmicro/cm4-baseboard.git
+[submodule "tests/test-designs/sdi-mipi-bridge-hw"]
+	path = tests/test-designs/sdi-mipi-bridge-hw
+	url = https://github.com/antmicro/sdi-mipi-bridge-hw
