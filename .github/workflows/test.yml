@@ -1,0 +1,51 @@
+name: CI
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  style-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install dependencies
+        run: pip install black mypy ruff
+      - name: Run Black
+        run: black --check src
+      - name: Run mypy
+        run: mypy .
+      - name: Run ruff
+        run: ruff check .
+
+  tests:
+    runs-on: ubuntu-latest
+    container:
+      image: kicad/kicad:7.0.11
+      options: --user root
+    needs:
+      - style-check
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
+      - name: Install dependencies
+        run: |
+          apt update
+          apt install -y python3-pip
+          pip install --break-system-packages ".[dev]"
+      - name: Run tests
+        run: |
+          pytest --cov-report term --cov=src

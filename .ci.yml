@@ -1,0 +1,273 @@
+variables:
+  DESIGNS_PATH: $CI_PROJECT_DIR/tests/designs
+  DEBIAN_FRONTEND: 'noninteractive'
+
+include:
+  - project: repositories/antmicro-pcb-release-ci-template
+    ref: main
+    file: .ci.yml
+
+stages:
+  - build_docs
+  - test
+  - build
+  - build_docker
+  - test_docker
+  - deploy
+
+build-kmake:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: build
+  script:
+    - apt update
+    - apt install -qqy python3 python3-pip git
+    - python3 -m pip wheel -w dist .
+  artifacts:
+    paths:
+      - dist
+  only:
+    - main
+    - merge_requests
+
+.build-kmake-docker-image:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  dependencies:
+    - build-kmake
+  variables:
+    DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
+  before_script:
+    - apt -qqy update > /dev/null
+    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates > /dev/null
+    - cgroupfs-mount
+  script:
+    - mkdir -p "$DOCKER_DATA_ROOT"
+    - dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
+    - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
+    - trap "kill $(cat /var/run/docker.pid)" EXIT
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $CI_REGISTRY_IMAGE/$IMAGE_NAME .
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE_NAME
+
+build-kmake-docker-image-testing-kicad7:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: build_docker
+  variables:
+   KICAD_VERSION: "kicad7"
+   IMAGE_NAME: "kmake-testing:${CI_COMMIT_REF_SLUG}-${KICAD_VERSION}"
+  extends: .build-kmake-docker-image
+
+build-kmake-docker-image-testing-kicad8:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: build_docker
+  variables:
+   KICAD_VERSION: "kicad8"
+   IMAGE_NAME: "kmake-testing:${CI_COMMIT_REF_SLUG}-${KICAD_VERSION}"
+  extends: .build-kmake-docker-image
+  only:
+    - main
+    - merge_requests
+
+.test-commands: &test-commands
+  variables:
+   GIT_DEPTH: 1
+  script:
+    - apt update
+    - apt install -y git
+    - git submodule update --init --recursive tests/test-designs
+    - pip3 install --break-system-packages -e ".[dev]"
+    - pytest --cov-report term --cov-report html:htmlcov --cov=src
+  artifacts:
+    expire_in: 2 week
+    paths:
+      - htmlcov
+      - tests/results
+      - dist
+
+test-kicad7-docker:
+  stage: test_docker
+  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  tags: ['ace-x86_64']
+  extends: .test-commands
+  only:
+    - main
+    - merge_requests
+
+test-kicad8-docker:
+  stage: test_docker
+  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad8
+  tags: ['ace-x86_64']
+  variables:
+   SCALENODE_CPU: 4
+   SCALENODE_RAM: 8000
+   SCALENODE_DISK: 30
+  extends: .test-commands
+  allow_failure: true
+  only:
+    - main
+    - merge_requests
+
+.test-setup: &test-setup
+  image: python:3.11
+  stage: test
+  before_script:
+    - pip3 install -e ".[dev]"
+
+black:
+  <<: *test-setup
+  script:
+    - black --check src
+
+mypy:
+  <<: *test-setup
+  script:
+    - mypy .
+
+ruff:
+  <<: *test-setup
+  script:
+    - ruff check .
+
+ohp-check:
+  stage: test_docker
+  when: never
+
+blend-check:
+  stage: test_docker
+  when: never
+
+assembly-release:
+  stage: test_docker
+  when: never
+
+debug:
+  stage: test_docker
+  when: never
+
+documentation-release:
+  stage: test_docker
+  when: never
+
+ohp-release:
+  stage: test_docker
+  dependencies: []
+  when: never
+
+gerber2blend-board:
+  stage: test_docker
+  dependencies: []
+  when: never
+
+customer-release:
+  stage: test_docker
+  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  tags: ["ace-x86_64"]
+  variables: null
+  when: always
+  only:
+    - main
+    - merge_requests
+
+production-release:
+  stage: test_docker
+  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  when: always
+  only:
+    - main
+    - merge_requests
+
+build-docs:
+  image: $CI_DOCS_DOCKER_IMAGE
+  stage: build_docs
+  tags: ['ace-x86_64']
+  before_script:
+    - pip3 install -r docs/requirements.txt
+    # We need to be able to load kmake to generate usage docs,
+    # but we don't really need it working properly
+    # create dummy pcbnew, so we don't have to install kicad
+    - echo -e "class BOARD:\n    pass\nclass FOOTPRINT:\n    pass" > /tmp/pcbnew.py
+    # install kmake as it is required to generate usage page
+    - pip3 install .
+  script:
+    - cd docs
+    - PYTHONPATH="/tmp/" make html latexpdf
+    - cp build/latex/*.pdf build/html/
+    - tar cf ../$CI_DOCS_ARCHIVE -C build/html/ .
+  artifacts:
+    paths:
+      - $CI_DOCS_ARCHIVE
+  only:
+    - main
+    - merge_requests
+
+deploy-docs:
+  image: $CI_DOCS_DOCKER_IMAGE
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+    - build-docs
+  stage: deploy
+  tags: ['docs']
+  script: echo 'Deploying docs'
+  artifacts:
+    paths:
+      - $CI_DOCS_ARCHIVE
+  only:
+    refs:
+      - main
+      - master
+
+deploy-kmake-kicad7:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: deploy
+  variables:
+    KICAD_VERSION: "kicad7"
+    IMAGE_NAME: "kmake:${CI_COMMIT_REF_SLUG}"
+  extends: .build-kmake-docker-image
+  only:
+    refs:
+      - main
+      - master
+
+deploy-kmake-kicad8:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: deploy
+  dependencies:
+    - build-kmake
+    - test-kicad8-docker
+  variables:
+    KICAD_VERSION: "kicad8"
+    IMAGE_NAME: "kmake-kicad8:${CI_COMMIT_REF_SLUG}"
+  extends: .build-kmake-docker-image
+  only:
+    refs:
+      - main
+      - master
+
+deploy-kmake-kicad7-manual:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: deploy
+  variables:
+    KICAD_VERSION: "kicad7"
+    IMAGE_NAME: "kmake:${CI_COMMIT_REF_SLUG}"
+  extends: .build-kmake-docker-image
+  when: manual
+
+deploy-kmake-kicad8-manual:
+  image: "d2s://external/docker/debian:bookworm"
+  tags: ['ace-x86_64']
+  stage: deploy
+  dependencies:
+    - build-kmake
+    - test-kicad8-docker
+  variables:
+    KICAD_VERSION: "kicad8"
+    IMAGE_NAME: "kmake-kicad8:${CI_COMMIT_REF_SLUG}"
+  extends: .build-kmake-docker-image
+  when: manual

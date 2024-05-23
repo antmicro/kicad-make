@@ -1,0 +1,19 @@
+*.pyc
+__pycache__
+*.swp
+*.tmp
+tmp
+.pylintrc
+dist
+
+#Ingore external modules
+ext_modules
+
+tests/results
+tests/test_logo
+htmlcov
+
+#Ignore pip build with -e flag
+build/
+*.egg-info/
+

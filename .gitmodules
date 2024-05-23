@@ -1,0 +1,6 @@
+[submodule "tests/test-designs/jetson-orin-baseboard"]
+	path = tests/test-designs/jetson-orin-baseboard
+	url = https://github.com/antmicro/jetson-orin-baseboard.git
+[submodule "tests/test-designs/cm4-baseboard"]
+	path = tests/test-designs/cm4-baseboard
+	url = https://github.com/antmicro/cm4-baseboard.git
