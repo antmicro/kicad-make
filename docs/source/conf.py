@@ -26,7 +26,7 @@ from antmicro_sphinx_utils.defaults import numfig_format
 # -- General configuration -----------------------------------------------------
 
 # General information about the project.
-project = "Kmake documentation"
+project = "KiCad Make (kmake) documentation"
 basic_filename = "kmake-docs--doctype"
 authors = "Antmicro"
 copyright = f"{authors}, {datetime.now().year}"

@@ -1,4 +1,4 @@
-# kmake
+# KiCad Make (kmake)
 
 Copyright (c) 2019-2024 [Antmicro](https://www.antmicro.com)
 
@@ -10,7 +10,7 @@ It uses the KiCad CLI where possible and [kiutils](https://github.com/mvnmgrx/ki
 
 ## Documentation
 
-Visit the [`kmake` documentation](https://antmicro.github.io/kmake/) for more information about usage and development of `kmake`.
+Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for more information about usage and development of `kmake`.
 
 ## Installation
 
