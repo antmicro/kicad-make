@@ -135,10 +135,6 @@ ohp-check:
   stage: test_docker
   when: never
 
-blend-check:
-  stage: test_docker
-  when: never
-
 assembly-release:
   stage: test_docker
   when: never
