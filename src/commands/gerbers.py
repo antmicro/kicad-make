@@ -1,7 +1,5 @@
 import argparse
-import glob
 import logging
-import os
 from datetime import datetime as dt
 from typing import List, Optional
 
@@ -163,17 +161,11 @@ def export_gerbers(
         gerbers_export_cli_command.extend(["--disable-aperture-macros"])
     if board_plot_params:
         gerbers_export_cli_command.extend(["--board-plot-params"])
+    if not protel_names:
+        gerbers_export_cli_command.extend(["--no-protel-ext"])
 
     run_kicad_cli(gerbers_export_cli_command, verbose)
     log.info("Exported gerbers to : %s", kicad_project.fab_dir)
-
-    if protel_names:
-        return
-
-    log.info("Renaming gerbers to *.gbr extenstion")
-    for gerber_file in glob.glob(f"{kicad_project.fab_dir}/*.g*"):
-        gerber_name, _ = os.path.splitext(gerber_file)
-        os.rename(gerber_file, f"{gerber_name}.gbr")
 
 
 def export_drill(
