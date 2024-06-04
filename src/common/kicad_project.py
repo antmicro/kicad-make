@@ -115,10 +115,13 @@ class KicadProject:
             self.pcb_file = ""
             return
 
-        if len(found_pcb_files) > 1:
-            log.warning(f"More than 1 .kicad_pcb file detected. Using {found_pcb_files[0]}")
+        if os.path.exists(self.name + ".kicad_pcb"):
+            self.pcb_file = self.name + ".kicad_pcb"
+        else:
+            self.pcb_file = found_pcb_files[0]
 
-        self.pcb_file = found_pcb_files[0]
+        if len(found_pcb_files) > 1:
+            log.warning(f"More than 1 .kicad_pcb file detected. Using {self.pcb_file}")
 
     def get_dru_file_name_from_dir(self, _dir: str = "") -> None:
         """Get .kicad_dru file name from directory `dir`"""

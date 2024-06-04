@@ -20,4 +20,5 @@ from . import (
     stackup_export,
     step,
     wireframe,
+    pcb_filter,
 )
