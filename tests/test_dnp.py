@@ -9,18 +9,17 @@ from git import Repo
 from typing import List
 
 from common.kicad_project import KicadProject
-from common.kmake_helper import get_property
+from common.kmake_helper import get_property, set_property
 
 TEST_COMMAND = "dnp"
 TEST_DIR = Path(__file__).parent.resolve()
 
 # path to test design repository
 TARGET = TEST_DIR / "test-designs" / "cm4-baseboard"
-REF_OUTS = TEST_DIR / "reference-outputs" / "jetson-orin-baseboard" / "dnp"
 
 
 class DnpTest(unittest.TestCase):
-    def template_command(self, arguments: List[str]) -> None:
+    def run_test_command(self, arguments: List[str]) -> None:
         "Template for running commands"
         self.args = kmake.parse_arguments([TEST_COMMAND] + arguments)
         self.kpro = KicadProject()
@@ -37,7 +36,7 @@ class DnpTest(unittest.TestCase):
         """Return symbol designator"""
         return symbol.properties[0].value
 
-    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False) -> None:
+    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False, inbom: bool = False) -> None:
         """Check if symbol have DNP fields
 
         Parameters:
@@ -55,19 +54,19 @@ class DnpTest(unittest.TestCase):
             properties = symbol.properties
 
             if designator in components:
-                if dnp:
-                    self.assertIsNot(get_property(properties, "DNP"), None, "Symbol have no DNP property")
-                    self.assertEqual(symbol.inBom, False, "Symbol is not in BOM")
-                    self.assertEqual(symbol.dnp, True, "Symbol is DNP")
-                    components_checked += 1
+                if dnp_field:
+                    self.assertIsNot(get_property(properties, "DNP"), None, "Symbol have DNP property")
                 else:
-                    if dnp_field:
-                        self.assertIsNot(get_property(properties, "DNP"), None, "Symbol have DNP property")
-                    else:
-                        self.assertIs(get_property(properties, "DNP"), None, "Symbol have DNP property")
-                    self.assertEqual(symbol.inBom, True, "Symbol in BOM")
+                    self.assertIs(get_property(properties, "DNP"), None, "Symbol have DNP property")
+                if dnp:
+                    self.assertEqual(symbol.dnp, True, "Symbol is DNP")
+                else:
                     self.assertEqual(symbol.dnp, False, "Symbol is  not DNP")
-                    components_checked += 1
+                if inbom:
+                    self.assertEqual(symbol.inBom, False, "Symbol is not in BOM")
+                else:
+                    self.assertEqual(symbol.inBom, True, "Symbol in BOM")
+                components_checked += 1
 
         self.assertEqual(components_checked, len(components), "Not all components checked, internal test error")
 
@@ -132,19 +131,20 @@ class DnpTest(unittest.TestCase):
         """Test output for -l command (list malformed)"""
         self.reset_repo()
         with self.assertLogs(level=logging.WARNING) as log:
-            self.template_command(["-l"])
+            self.run_test_command(["-l"])
         self.assertIn(
-            "There are 42 schematic components that have their DNP properties malformed:",
+            "There are 3 schematic components that have their DNP properties malformed:",
             log.output[0][18:96],
         )
 
     def test_clean_symbol(self) -> None:
         "Test if dnp symbols have `Exlude from position file` and `Do not populate` fields set correctly"
         self.reset_repo()
-        self.check_symbol(["R407", "R409"], False, True)
+        self.check_symbol(["R407", "R409"], False, True, False)
+        self.check_symbol(["R410"], True, False, False)
         self.check_symbol(["C404", "C405"], False)
-        self.template_command([])
-        self.check_symbol(["R407", "R409"], True)
+        self.run_test_command([])
+        self.check_symbol(["R407", "R409", "R410"], True, True, True)
         self.check_symbol(["C404", "C405"], False)
 
     def test_clean_footprint(self) -> None:
@@ -152,7 +152,7 @@ class DnpTest(unittest.TestCase):
         self.reset_repo()
         self.check_footprint(["R407"], False)
         self.check_footprint(["R406"], False)
-        self.template_command([])
+        self.run_test_command([])
         self.check_footprint(["R407"], True)
         self.check_footprint(["R406"], False)
 
@@ -160,16 +160,19 @@ class DnpTest(unittest.TestCase):
         "Test if solder pasted was removed and restored from DNP components"
         self.reset_repo()
         self.check_paste(["R407"], False)
-        self.template_command(["--remove-dnp-paste"])
+        self.check_paste(["C404"], False)
+        self.run_test_command(["--remove-dnp-paste"])
         self.check_paste(["R407"], True)
-        self.template_command(["--restore-dnp-paste"])
+        self.check_paste(["C404"], False)
+        self.run_test_command(["--restore-dnp-paste"])
         self.check_paste(["R407"], False)
+        self.check_paste(["C404"], False)
 
         self.reset_repo()
         self.check_paste(["R407"], False)
-        self.template_command(["-rp"])
+        self.run_test_command(["-rp"])
         self.check_paste(["R407"], True)
-        self.template_command(["-sp"])
+        self.run_test_command(["-sp"])
         self.check_paste(["R407"], False)
 
     def reset_repo(self) -> None:
@@ -178,11 +181,29 @@ class DnpTest(unittest.TestCase):
         kicad_project_repo.git.reset("--hard", "HEAD")
         kicad_project_repo.git.clean("-fd")
 
+        # Plant few imperfections in project files
+        sch = kiutils.schematic.Schematic().from_file(TARGET / "ethernet.kicad_sch")
+        for s in sch.schematicSymbols:
+            ref = self.get_symbold_designator(s)
+            if ref == "R407" or ref == "R409":
+                set_property(s, "DNP", "DNP")
+                s.dnp = False
+                s.inBom = True
+            if ref == "R410":
+                s.properties = [p for p in s.properties if p.key != "DNP"]  # remove DNP field
+                s.dnp = True
+                s.inBom = True
+        sch.to_file()
+
+        pcb = kiutils.board.Board().from_file(TARGET / "cm4-baseboard.kicad_pcb")
+        for fp in pcb.footprints:
+            ref = self.get_footprint_designator(fp)
+            if ref == "R407":
+                fp.attributes.excludeFromBom = False
+                fp.attributes.excludeFromPosFiles = False
+        pcb.to_file()
+
     def setUp(self) -> None:
-        """Change test target repository to usb-c power adapter"""
-        kicad_project_repo = Repo(TARGET)
-        kicad_project_repo.git.checkout("9fdc57a384d96a465e2a33f6bf8a0344309e18f7")
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
+        self.reset_repo()
         os.chdir(TARGET)
 
