@@ -145,7 +145,13 @@ debug:
 
 documentation-release:
   stage: test_docker
-  when: never
+  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  tags: ["ace-x86_64"]
+  variables: null
+  when: always
+  only:
+    - main
+    - merge_requests
 
 ohp-release:
   stage: test_docker
