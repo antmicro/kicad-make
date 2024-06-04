@@ -20,6 +20,28 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
 
 def rename(kicad_project: KicadProject, new_name: str) -> None:
+
+    whitelist = [
+        ".kicad_pro",
+        ".kicad_pcb",
+        ".kicad_sch",
+        ".kicad_mod",
+        ".kicad_sym",
+        ".kicad_prl",
+        ".kicad_dru",
+        ".md",
+        ".txt",
+        ".rst",
+        ".json",
+        ".csv",
+        ".gbr",
+        ".svg",
+        ".xml",
+        "sym-lib-table",
+        "fp-lib-table",
+        "fp-cache-table",
+    ]
+
     for file_path in Path(kicad_project.dir).rglob("*"):
         file_path = file_path.relative_to(kicad_project.dir)
         # Skip hidden files/folders
@@ -27,11 +49,11 @@ def rename(kicad_project: KicadProject, new_name: str) -> None:
             continue
         log.info(f"Checking: {file_path}..")
 
-        if file_path.is_file():
+        if file_path.suffix in whitelist and file_path.is_file():
             with fileinput.input(files=file_path, inplace=True, encoding="latin-1") as file:
                 for _, line in enumerate(file):
                     new_line = line.replace(kicad_project.name, new_name)
-                    print(new_line)
+                    print(new_line, end="")
 
         if kicad_project.name in str(file_path):
             rename = str(file_path).replace(kicad_project.name, new_name)
