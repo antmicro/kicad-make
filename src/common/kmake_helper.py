@@ -22,15 +22,12 @@ def import_pcbnew() -> types.ModuleType:
     if is_venv():
         # pcbnew is always installed in global python side-packages
         # in relation to install path.
-        import distutils.sysconfig
+        import sysconfig
 
-        global_python_path = (
-            f'/{distutils.sysconfig.get_python_lib(plat_specific=False, standard_lib=False, prefix="")}'
-        )
-        sys.path.append(global_python_path)
+        global_python_path = sysconfig.get_paths()["stdlib"]
+        sys.path.append(f"{global_python_path}/site-packages")
         # debian-based distros use "dist-packages" instead of "site-packages"
-        if "site-packages" in global_python_path:
-            sys.path.append(global_python_path.replace("site-packages", "dist-packages"))
+        sys.path.append(f"{global_python_path}/dist-packages")
 
     pcbnew = __import__("pcbnew")
 
