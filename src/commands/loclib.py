@@ -173,10 +173,10 @@ def cleanup_schematic_lib_symbols(ki_pro: KicadProject) -> None:
         for sch_symbol in schematic.schematicSymbols:
             # Special case for symbols that have libId token
             # set when the symbol was edited in the schematic
-            if sch_symbol.libId:
-                if sch_symbol.libId not in sch_symbol_instances:
-                    sch_symbol_instances.append(sch_symbol.libId)
-                    log.warning("Altered schematic symbol: %s", sch_symbol.libId)
+            if sch_symbol.libName:
+                if sch_symbol.libName not in sch_symbol_instances:
+                    sch_symbol_instances.append(sch_symbol.libName)
+                    log.warning("Altered schematic symbol: %s", sch_symbol.libName)
 
             library = sch_symbol.libraryNickname
             if library is None:
