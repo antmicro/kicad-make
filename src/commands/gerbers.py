@@ -1,11 +1,9 @@
 import argparse
 import logging
-from datetime import datetime as dt
 from typing import List, Optional
 
 from git import Repo
 from git.exc import InvalidGitRepositoryError
-from kiutils.board import Board
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli, tag_gerbers
@@ -45,9 +43,6 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     common_layers = []  # comma separated list of layers names
 
-    if handle_web_width_bug(kicad_project):
-        return
-
     if not args.noedge:
         common_layers.append("Edge.Cuts")
 
@@ -78,33 +73,6 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     except InvalidGitRepositoryError:
         log.warning("Project is not in repository. Githash not added.")
         return
-
-
-def handle_web_width_bug(kicad_project: KicadProject) -> bool:
-    """KiCAD doesn't support exporting gerbers when web width is non-zero. Set it to zero for
-    board created before 2024. For boards created after 2024 throw an error so that user has to
-    change it manually or if KiCAD added support for it disable this function."""
-
-    if not len(kicad_project.pcb_file):
-        log.error("PCB file was not detected or does not exists")
-        return True
-
-    board = Board.from_file(str(kicad_project.pcb_file))
-
-    if board.setup.solderMaskMinWidth != 0 and board.setup.solderMaskMinWidth is not None:
-        if dt.strptime(board.version, "%Y%m%d") < dt.strptime("20240000", "%Y%m%d"):
-            log.warning(
-                "KiCAD currently doesn't support exporting gerbers with non-zero minimum solder mask web width"
-                "(currently set to {board.setup.solderMaskMinWidth})"
-            )
-            log.warning("Setting minumum solder mask web with to 0")
-            board.setup.solderMaskMinWidth = 0
-            board.to_file()
-            return False
-        log.error("Solder mask web width is non-zero which is unsupported, please set it to zero")
-        return True
-
-    return False
 
 
 def export_gerbers(

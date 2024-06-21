@@ -13,8 +13,6 @@ from kiutils.items.brditems import LayerToken, Via
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 
-from .gerbers import handle_web_width_bug
-
 log = logging.getLogger(__name__)
 
 
@@ -88,9 +86,6 @@ def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
     kicad_project.create_fab_dir()
     pcb_file = os.path.join(kicad_project.fab_dir, "impedance_map.kicad_pcb")
     board.to_file(pcb_file)
-
-    if handle_web_width_bug(kicad_project):
-        return
 
     log.info("Plotting gerbers")
     output_folder = Path(kicad_project.fab_dir) / "impedance_maps"
