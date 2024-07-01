@@ -15,6 +15,8 @@ from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
 
+BUILTIN_LOGO_PATH = Path(__file__).parent.parent / "logos"
+
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     logos_parser = subparsers.add_parser("logos", help="Adds selected logo to the schematic.")
@@ -41,7 +43,24 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     if args.list is True:
-        log.info(f'Available logos: {[f.parts[-1] for f in Path(args.path).glob("*")]}')
+        custom_path = [f.parts[-1] for f in Path(args.path).glob("*")]
+        built_in = [f.parts[-1] for f in BUILTIN_LOGO_PATH.glob("*")]
+        built_in_ok = []
+        built_in_masked = []
+
+        for logo in built_in:
+            if logo in custom_path:
+                built_in_ok.append(logo)
+            else:
+                built_in_masked.append(logo)
+
+        if len(custom_path) > 0:
+            log.info(f"Available logos (Custom path): {custom_path}")
+        if len(built_in_ok) > 0:
+            log.info(f"Available logos (Built-in): {built_in_ok}")
+        if len(built_in_masked) > 0:
+            log.info(f"Some Built-in logos are masked by custom-path logos: {built_in_masked}")
+
         exit(0)
 
     if not len(args.logo):
@@ -90,12 +109,13 @@ def read_logos(args: argparse.Namespace) -> List[Image]:
     logos: List[Image] = []
     for logo in args.logo:
         logo_path = Path(args.path) / logo
-        log.debug(f"{logo_path}")
+        if not logo_path.exists():
+            logo_path = BUILTIN_LOGO_PATH / logo
         try:
             with open(logo_path, "r", encoding="utf-8") as logo_file:
                 logos.append(Image.from_sexpr(parse_sexp(logo_file.read())))
         except IOError:
-            log.error(f"{logo} not found in {args.path}")
+            log.error(f"{logo} not found")
     return logos
 
 
