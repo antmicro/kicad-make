@@ -3,6 +3,7 @@ import kmake
 import os
 from pathlib import Path
 from git import Repo
+from typing import List
 
 from common.kicad_project import KicadProject
 
@@ -53,26 +54,22 @@ TEST_LOGO = """(image (at 107.95 270.51)
 )
 """
 
+
 class LogosTest(unittest.TestCase):
-    def setUp(self) -> None:
+    def inner(self, args: List[str], reflogo: str) -> None:
         kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
         kicad_project_repo.git.reset("--hard", "HEAD")
         kicad_project_repo.git.clean("-fd")
         os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        self.test_logo_path = TEST_DIR / "test_logo"
-        with open(self.test_logo_path, "w") as f:
-            f.write(TEST_LOGO)
-        self.args = kmake.parse_arguments([COMMAND, "test_logo", "-p", str(TEST_DIR)])
+        self.args = kmake.parse_arguments(args)
         self.kpro = KicadProject()
 
-    def test(self) -> None:
         self.args.func(self.kpro, self.args)
 
-    def tearDown(self) -> None:
         kicad_project_repo = Repo(f"{self.kpro.dir}")
-        changed_files = [ item.a_path for item in kicad_project_repo.index.diff(None) ]
+        changed_files = [item.a_path for item in kicad_project_repo.index.diff(None)]
         # Skip first line, it contains coordinates that will change
-        logo = "\n".join([line.strip() for line in TEST_LOGO.splitlines()[1:]])
+        logo = "\n".join([line.strip() for line in reflogo.splitlines()[1:]])
         for file in changed_files:
             with open(file, "r") as f:
                 file_contents = "\n".join([line.strip() for line in f.readlines()])
@@ -80,6 +77,17 @@ class LogosTest(unittest.TestCase):
 
         self.assertTrue(len(kicad_project_repo.untracked_files) == 0)
 
+    def test_logos_builtin_logo(self) -> None:
+        with open(f"{TEST_DIR}/../src/logos/oshw", "r") as f:
+            oshw_logo = f.read()
+            self.inner([COMMAND, "oshw"], oshw_logo)
 
-if __name__ == '__main__':
+    def test_logos_custom_path(self) -> None:
+        self.test_logo_path = TEST_DIR / "test_logo"
+        with open(self.test_logo_path, "w") as f:
+            f.write(TEST_LOGO)
+        self.inner([COMMAND, "test_logo", "-p", str(TEST_DIR)], TEST_LOGO)
+
+
+if __name__ == "__main__":
     unittest.main()

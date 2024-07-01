@@ -26,6 +26,9 @@ dependencies = [
 [tool.setuptools]
 package-dir = { "kmake" = "src" }
 
+[tool.setuptools.package-data]
+kmake = ["logos/*"]
+
 [project.optional-dependencies]
 dev = [
     "pytest",
@@ -61,3 +64,4 @@ disallow_untyped_defs = true
 pythonpath = [
   "./src"
 ]
+
