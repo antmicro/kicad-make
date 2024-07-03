@@ -30,7 +30,7 @@ Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for mo
     export PATH=$HOME/.local/bin:$PATH
     ```
 
-2. Install requirements
+1. Install requirements
 
     ```bash
     sudo apt install kicad python3 python3-pip
@@ -38,7 +38,13 @@ Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for mo
 
     > Note: Kmake requires also Python `pcbnew` module normally added to the Python modules path during [KiCad](https://www.kicad.org/) native installation.
 
-3. Clone `kmake` repository:
+1. Update `pip`
+
+    ```bash
+    python3 -m pip install --upgrade pip
+    ```
+
+1. Clone `kmake` repository:
 
     ```bash
     git clone https://github.com/antmicro/kmake
