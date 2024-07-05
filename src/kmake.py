@@ -24,6 +24,13 @@ def get_help_formatter() -> Callable:
     return lambda prog: argparse.HelpFormatter(prog, max_help_position=35)
 
 
+def dir_path(string: str) -> str:
+    if os.path.isdir(string):
+        return string
+
+    raise NotADirectoryError(string)
+
+
 def get_parser() -> argparse.ArgumentParser:
     """Create parser, import subparsers from commands/ext_modules and parse them
     Returns parsed arguments"""
@@ -43,6 +50,10 @@ Program must be run in project workdir.",
         action="store_true",
         dest="debug",
         help="increase verbosity, keep temp files",
+    )
+
+    parser.add_argument(
+        "--share-path", type=dir_path, action="store", default=None, help="path to local shared directory"
     )
 
     subparsers = parser.add_subparsers(
@@ -120,9 +131,9 @@ def main() -> None:
 
     no_log_subcommands = ["init-project"]
     if args.subcommand in no_log_subcommands:
-        kpro = KicadProject(disable_logging=True)
+        kpro = KicadProject(disable_logging=True, local_share_path=args.share_path)
     else:
-        kpro = KicadProject()
+        kpro = KicadProject(local_share_path=args.share_path)
     assert float(kpro.kicad_version) >= 8.0, "Kmake requires KiCad 8.0+ project file"
     # Run selected tool
     args.func(kpro, args)

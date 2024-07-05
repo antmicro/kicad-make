@@ -1,0 +1,6 @@
+{
+        "7E": "7E class design classification, min 0.125mm spacing/width/OAR, min 0.25mm toolsize",
+        "8E": "8E class design classification, min 0.100mm spacing/width/OAR, 18um base foil",
+        "12L_HDI": "12 layer HDI PCB, via size 0.2/0.5mm, track width and clereance 0.8mm"
+}
+

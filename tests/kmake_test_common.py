@@ -13,12 +13,14 @@ class KmakeTestCase:
     target_dir: Path
     test_cmd: str
     kpro: KicadProject
+    shared_dir: str
     TEST_DIR = Path(__file__).parent.resolve()
 
-    def __init__(self, test_cmd: str):
+    def __init__(self, test_cmd: str, shared_dir: str = ""):
         self.target_dir = KmakeTestCase.TEST_DIR / "test_project"
         self.test_cmd = test_cmd
         self.ref_dir = KmakeTestCase.TEST_DIR / "reference-outputs" / test_cmd
+        self.shared_dir = shared_dir
 
     def run_kmake_command(self, arguments: List[str]) -> None:
         "Template for running kmake commands"
@@ -49,7 +51,7 @@ class KmakeTestCase:
         self.project_repo.git.add(all=True)
         self.project_repo.index.commit("initial")
 
-        self.kpro = KicadProject()
+        self.kpro = KicadProject(local_share_path=self.shared_dir)
 
     def tearDown(self) -> None:
         """Check if Kicad files are not corrupted & remove tmp directory after test"""

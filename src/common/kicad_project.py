@@ -8,7 +8,7 @@ import typing
 import subprocess
 import json
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 import itertools
 import re
@@ -62,7 +62,7 @@ class KicadProject:
     sch_ext: str = "kicad_sch"
     pro_ext: str = "kicad_pro"
     pcb_ext: str = "kicad_pcb"
-    dru_ext: str = "kciad_dru"
+    dru_ext: str = "kicad_dru"
     sym_lib_ext: str = "kicad_sym"
     fp_lib_ext: str = "kicad_mod"
     vrml_ext: str = "vrml"
@@ -76,17 +76,20 @@ class KicadProject:
     relative_3d_model_path: str = "3d-models"
     local_sym_lib: SymbolLib
     local_fp_lib: typing.List[Footprint]
+    local_share_path: Path = Path(os.path.expandvars("$HOME/.local/share"))
 
     system_fp_lib_table = "/usr/share/kicad/template/fp-lib-table"
     system_sym_lib_table = "/usr/share/kicad/template/sym-lib-table"
 
-    def __init__(self, disable_logging: bool = False) -> None:
+    def __init__(self, disable_logging: bool = False, local_share_path: Optional[Path] = None) -> None:
         """Manage kicad files
 
         Parameters:
                 disable_logging (bool): do not log when no KiCad file exists
         """
         self.disable_logging = disable_logging
+        if local_share_path is not None:
+            self.local_share_path = Path(local_share_path)
 
         self.pro_file: str = ""
         self.pcb_file: str = ""
@@ -162,7 +165,7 @@ class KicadProject:
 
         if len(found_pcb_files) == 0:
             if not self.disable_logging:
-                log.error("No .kicad_pcb file detected. Exit.")
+                log.error("No .kicad_pcb file detected.")
             self.pcb_file = ""
             return
 
@@ -184,7 +187,7 @@ class KicadProject:
 
         if len(found_dru_files) > 1:
             log.error("More than 1 .kicad_dru file detected. Exit.")
-            sys.exit()
+            sys.exit(1)
         elif len(found_dru_files) == 1:
             self.dru_file = found_dru_files[0]
 
