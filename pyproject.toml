@@ -13,7 +13,7 @@ version = "7.0.0"
 license = {file = "LICENSE"}
 dependencies = [
     "coloredlogs",
-    "kiutils @ git+https://github.com/antmicro/kiutils.git@397f30e9aa464d82db6b18664728a9539b2675cd",
+    "kiutils @ git+https://github.com/antmicro/kiutils.git@e73e92d0595e9d2916c55756d7330aa6b8de5baa",
     "natsort==8.3.1",
     "termcolor",
     "Pillow",
