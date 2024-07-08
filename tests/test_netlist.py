@@ -30,8 +30,8 @@ class BomNetlist(unittest.TestCase):
 
         self.args.func(self.kpro, self.args)
 
-        ref = list(open(REF_OUTS / "netlist.net"))
-        tar = list(open(TARGET / "fab" / "netlist.net"))
+        ref = open(REF_OUTS / f"netlist-v{self.kpro.kicad_version.split('.')[0]}.net").readlines()
+        tar = open(TARGET / "fab" / "netlist.net").readlines()
 
         lines_to_remove = []
         uri_match = False
