@@ -58,6 +58,9 @@ build-kmake-docker-image-testing-kicad7:
    KICAD_VERSION: "kicad7"
    IMAGE_NAME: "kmake-testing:${CI_COMMIT_REF_SLUG}-${KICAD_VERSION}"
   extends: .build-kmake-docker-image
+  only:
+    - main
+    - merge_requests
 
 build-kmake-docker-image-testing-kicad8:
   image: "d2s://external/docker/debian:bookworm"
