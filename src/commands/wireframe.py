@@ -90,7 +90,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 values=True,
                 allow="J MH H MP".split(),
                 allow_other="MH H MP".split(),
-                allowed_layers="User.9,Edge.Cuts,User.Drawings",
+                allowed_layers="User.9,Edge.Cuts,User.Comments",
             ),
             ["top", "bottom", ""],
         ),
@@ -98,11 +98,10 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             "descriptions",
             dict(
                 stackup=True,
-                dimensions=True,
                 references=True,
                 values=True,
-                allow="J MH H MP SW TP D".split(),
-                allowed_layers="User.9,Edge.Cuts,User.Comments",
+                allow="J MH H MP SW TP D S".split(),
+                allowed_layers="User.9,Edge.Cuts,User.Drawings",
             ),
             ["top", "bottom"],
         ),
@@ -130,6 +129,8 @@ def export_wireframe(oname: str, filter_args: Dict[str, Any], sides: List[str], 
         with NamedTemporaryFile(suffix=".kicad_pcb") as fp:
             if side != "":
                 oname_side = f"{oname}_{side}"
+            else:
+                oname_side = f"{oname}"
 
             filter_args["outfile"] = fp.name
             filter_args["infile"] = ifile

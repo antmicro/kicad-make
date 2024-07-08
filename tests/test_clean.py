@@ -12,6 +12,7 @@ TEST_DIR = Path(__file__).parent.resolve()
 # path to test design repository
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 
+
 class ExampleTest(unittest.TestCase):
     def test_clean(self) -> None:
         # make sure test design repository doesn't have any changes
@@ -42,6 +43,7 @@ class ExampleTest(unittest.TestCase):
         os.chdir(JETSON_ORIN_BASEBOARD_DIR)
         # create files to clean
         from commands.clean import extensions_to_remove, files_to_remove, startswith_to_remove, endswith_to_remove
+
         for ext in extensions_to_remove:
             open(JETSON_ORIN_BASEBOARD_DIR / f"test{ext}", "w").close()
         for file in files_to_remove:
@@ -63,5 +65,6 @@ class ExampleTest(unittest.TestCase):
 
         self.assertFalse(kicad_project_repo.is_dirty(untracked_files=True))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

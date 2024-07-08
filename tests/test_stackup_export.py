@@ -11,6 +11,7 @@ TEST_DIR = Path(__file__).parent.resolve()
 # path to test design repository
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 
+
 class StackupExportTest(unittest.TestCase):
     def test_stackup_export(self) -> None:
         # make sure test design repository doesn't have any changes
@@ -72,6 +73,6 @@ class StackupExportTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/test_output_filename.csv"))
 
-if __name__ == '__main__':
-    unittest.main()
 
+if __name__ == "__main__":
+    unittest.main()

@@ -122,7 +122,7 @@ test-kicad8-docker:
 black:
   <<: *test-setup
   script:
-    - black --check src
+    - black --check .
 
 mypy:
   <<: *test-setup

@@ -13,6 +13,7 @@ TEST_DIR = Path(__file__).parent.resolve()
 # path to test design repository
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 
+
 class ImpedanceTest(unittest.TestCase):
     def setUp(self) -> None:
         # make sure test design repository doesn't have any changes
@@ -23,7 +24,7 @@ class ImpedanceTest(unittest.TestCase):
         # as kmake expects to be run from the root of the test repository
         os.chdir(JETSON_ORIN_BASEBOARD_DIR)
 
-    def run_kmake_command(self, args: List[str]|None = None) -> None:
+    def run_kmake_command(self, args: List[str] | None = None) -> None:
         command = [TEST_COMMAND]
         if args is not None:
             command.extend(args)
@@ -47,5 +48,6 @@ class ImpedanceTest(unittest.TestCase):
             self.assertTrue(file.suffix == ".gbr")
             self.assertIn("Ohm", file.name)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

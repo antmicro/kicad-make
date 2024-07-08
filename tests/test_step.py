@@ -11,6 +11,7 @@ TEST_DIR = Path(__file__).parent.resolve()
 # path to test design repository
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 
+
 class StepTest(unittest.TestCase):
     def test_step(self) -> None:
         # make sure test design repository doesn't have any changes
@@ -27,6 +28,6 @@ class StepTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(f"{self.kpro.step_model3d_dir}/{self.kpro.name}.step"))
 
-if __name__ == '__main__':
-    unittest.main()
 
+if __name__ == "__main__":
+    unittest.main()
