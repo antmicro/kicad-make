@@ -13,6 +13,7 @@ TEST_DIR = Path(__file__).parent.resolve()
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 RESULT_DIR = TEST_DIR / "results" / TEST_NAME
 
+
 class GerberTest(unittest.TestCase):
     def setUp(self) -> None:
         kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
@@ -26,7 +27,7 @@ class GerberTest(unittest.TestCase):
         self.args.func(self.kpro, self.args)
 
         kicad_project_repo = Repo(f"{self.kpro.dir}")
-        changed_files = [ item.a_path for item in kicad_project_repo.index.diff(None) ]
+        changed_files = [item.a_path for item in kicad_project_repo.index.diff(None)]
         RESULT_DIR.mkdir(exist_ok=True, parents=True)
         for file in changed_files:
             Path(file).rename(Path(RESULT_DIR) / Path(file).name)
@@ -39,7 +40,7 @@ class GerberTest(unittest.TestCase):
         self.args.func(self.kpro, self.args)
 
         kicad_project_repo = Repo(f"{self.kpro.dir}")
-        changed_files = [ item.a_path for item in kicad_project_repo.index.diff(None) ]
+        changed_files = [item.a_path for item in kicad_project_repo.index.diff(None)]
         RESULT_DIR.mkdir(exist_ok=True, parents=True)
         for file in changed_files:
             Path(file).rename(Path(RESULT_DIR) / Path(file).name)
@@ -47,5 +48,5 @@ class GerberTest(unittest.TestCase):
             Path(file).rename(Path(RESULT_DIR) / Path(file).name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -17,8 +17,9 @@ TEST_DIR = Path(__file__).parent.resolve()
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 RESULT_DIR = TEST_DIR / "results" / TEST_NAME
 
+
 class AuxoriginTest(unittest.TestCase):
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_no_argument(self, stdout: StringIO) -> None:
         kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
         kicad_project_repo.git.reset("--hard", "HEAD")
@@ -92,5 +93,5 @@ class AuxoriginTest(unittest.TestCase):
         self.assertEqual(board.setup.auxAxisOrigin, Position(29.75, 128.75))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

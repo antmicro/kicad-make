@@ -206,4 +206,3 @@ class DnpTest(unittest.TestCase):
     def setUp(self) -> None:
         self.reset_repo()
         os.chdir(TARGET)
-
