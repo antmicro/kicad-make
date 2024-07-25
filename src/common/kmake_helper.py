@@ -23,12 +23,20 @@ def is_in_path(name: str) -> bool:
 
 
 def run_kicad_cli(args: List[str], verbose: bool) -> None:
-    if not is_in_path(KICAD_CLI_NAME):
+    kicad_cli_args = []
+    try:
+        kicad_cli_cmd = os.environ["KMAKE_KICAD_CLI"]
+        kicad_cli_path = kicad_cli_cmd.split(" ")[0]
+        kicad_cli_args = kicad_cli_cmd.split(" ")[1:]
+    except KeyError:
+        kicad_cli_path = KICAD_CLI_NAME
+
+    if not is_in_path(kicad_cli_path):
         log.error(
-            f'Couldn\'t find "{KICAD_CLI_NAME}" in PATH. Make sure it is properly installed on your system. Exiting.'
+            f'Couldn\'t find "{kicad_cli_path}" in PATH. Make sure it is properly installed on your system. Exiting.'
         )
         sys.exit(1)
-    command = [KICAD_CLI_NAME]
+    command = [kicad_cli_path] + kicad_cli_args
     command.extend(args)
     log.info(f"Running command: {' '.join(command)}")
     stdout_redirect = None
