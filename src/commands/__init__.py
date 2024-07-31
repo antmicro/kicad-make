@@ -21,4 +21,5 @@ from . import (
     step,
     wireframe,
     pcb_filter,
+    kibuzzard_to_graphic,
 )

@@ -43,8 +43,8 @@ class GloblibTest(unittest.TestCase):
         """
         os.chdir(TARGET)
 
-        args = kmake.parse_arguments(["loclib"])
         kpro = KicadProject()
+        args = kmake.parse_arguments(["loclib"])
         args.func(kpro, args)
 
     def compare_symbols_libraries(self) -> None:
@@ -106,9 +106,11 @@ class GloblibTest(unittest.TestCase):
         target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
         target_pcb = Board().from_file(filepath=str(target_pcb_path))
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
+        target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
-        for footprint_lib in target_footprint_libs:
-            self.assertEqual(footprint_lib, "project-with-kicad-lib-footprints")
+        for footprint_lib, footprint_entry_name in zip(target_footprint_libs, target_footprint_entry_names):
+            if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are ommited by loclib and globlib
+                self.assertEqual(footprint_lib, "project-with-kicad-lib-footprints")
 
     def test_list_of_schematic(self) -> None:
         """
@@ -122,9 +124,11 @@ class GloblibTest(unittest.TestCase):
         target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
         target_pcb = Board().from_file(filepath=str(target_pcb_path))
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
+        target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
-        for footprint_lib in target_footprint_libs:
-            self.assertEqual(footprint_lib, "project-with-kicad-lib-footprints")
+        for footprint_lib, footprint_entry_name in zip(target_footprint_libs, target_footprint_entry_names):
+            if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are ommited by loclib and globlib
+                self.assertEqual(footprint_lib, "project-with-kicad-lib-footprints")
 
     def test_update_properties_symbols(self) -> None:
         """
