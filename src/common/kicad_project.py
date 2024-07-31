@@ -11,6 +11,7 @@ from typing import List
 
 from kiutils.symbol import SymbolLib
 from kiutils.footprint import Footprint
+from kiutils.libraries import LibTable
 
 from .kmake_helper import find_files_by_ext, KICAD_CLI_NAME
 
@@ -36,6 +37,9 @@ class KicadProject:
     local_sym_lib: SymbolLib
     local_fp_lib: typing.List[Footprint]
 
+    system_fp_lib_table = "/usr/share/kicad/template/fp-lib-table"
+    system_sym_lib_table = "/usr/share/kicad/template/sym-lib-table"
+
     def __init__(self, disable_logging: bool = False) -> None:
         """Manage kicad files
 
@@ -57,6 +61,9 @@ class KicadProject:
         self.comm_cfg_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/kicad_common.json")
         self.glob_fp_lib_table_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/fp-lib-table")
         self.glob_sym_lib_table_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/sym-lib-table")
+
+        self.env_var_name_sym_lib = f"KICAD{self.kicad_version[0]}_SYMBOL_DIR"
+        self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
 
         self.get_project_dir()
         self.get_pro_file_name_from_dir(self.dir)
@@ -183,3 +190,19 @@ class KicadProject:
     def create_3d_model_lib_dir(self) -> None:
         assert self.model_3d_lib_dir != "", "3d model lib dir cannot be empty"
         os.makedirs(self.model_3d_lib_dir, exist_ok=True)
+
+    def read_lib_table_file(self, name: str, global_lib: str) -> LibTable:
+        if os.path.exists(name):
+            log.debug(f"Using config from {name}")
+            return LibTable.from_file(name)
+        if os.path.exists(global_lib):
+            log.warning(f"Provided lib table ({name}) doesn't exist. Using global lib table")
+            return LibTable.from_file(global_lib)
+        log.error("Provided lib table doesn't exist and couldn't find global lib table")
+        exit(1)
+
+    def read_fp_lib_table_file(self, name: str) -> LibTable:
+        return self.read_lib_table_file(name, self.system_fp_lib_table)
+
+    def read_sym_lib_table_file(self, name: str) -> LibTable:
+        return self.read_lib_table_file(name, self.system_sym_lib_table)

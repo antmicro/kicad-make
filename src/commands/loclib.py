@@ -72,16 +72,12 @@ def dump_sheet_symbols_to_lib(ki_pro: KicadProject, args: argparse.Namespace) ->
 
 
 def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
-    libtable = LibTable.from_file(ki_pro.glob_sym_lib_table_path)
+    libtable = ki_pro.read_sym_lib_table_file(ki_pro.glob_sym_lib_table_path)
+
     if os.path.isfile("sym-lib-table"):
         local_libtable = LibTable.from_file("sym-lib-table")
         for lib_entry in local_libtable.libs:
             libtable.libs.append(lib_entry)
-
-    with open(ki_pro.comm_cfg_path, encoding="utf-8") as kicad_conf:
-        for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
-            os.environ[envvar] = val
-    os.environ["KIPRJMOD"] = os.path.abspath(".")
 
     # Filter non existing libs
     existing_libs = []
@@ -97,23 +93,29 @@ def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
 
 
 def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
-    libtable = LibTable.from_file(ki_pro.glob_fp_lib_table_path)
+    libtable = ki_pro.read_fp_lib_table_file(ki_pro.glob_fp_lib_table_path)
+
     if os.path.isfile("fp-lib-table"):
         local_libtable = LibTable.from_file("fp-lib-table")
         for lib_entry in local_libtable.libs:
             libtable.libs.append(lib_entry)
 
-    with open(ki_pro.comm_cfg_path, encoding="utf-8") as kicad_conf:
-        for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
-            os.environ[envvar] = val
-    os.environ["KIPRJMOD"] = os.path.abspath(".")
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.libs}
 
 
 def load_kicad_environ_vars(ki_pro: KicadProject) -> None:
-    with open(ki_pro.comm_cfg_path, encoding="utf-8") as kicad_conf:
-        for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
-            os.environ[envvar] = val
+    if os.path.exists(ki_pro.comm_cfg_path):
+        with open(ki_pro.comm_cfg_path, encoding="utf-8") as kicad_conf:
+            if "environment" in json.load(kicad_conf).items():
+                for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
+                    os.environ[envvar] = val
+            else:
+                os.environ[ki_pro.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
+                os.environ[ki_pro.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
+    else:
+        os.environ[ki_pro.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
+        os.environ[ki_pro.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
+        log.warning(f"KiCad Common file ({ki_pro.comm_cfg_path}) not found. Using default environment values.")
     os.environ["KIPRJMOD"] = os.path.abspath(".")
 
 
@@ -364,8 +366,6 @@ def loclib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
 def loclib_3d_models(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     ki_pro.create_3d_model_lib_dir()
 
-    load_kicad_environ_vars(ki_pro)
-
     local_footprints = os.listdir(ki_pro.fp_lib_dir)
 
     model_paths = []
@@ -528,7 +528,9 @@ def loclib_project(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     """Create local library from components used in schematic/pcb"""
     if args.cleanup:
         cleanup_schematic_lib_symbols(ki_pro)
-        exit(0)
+        return
+
+    load_kicad_environ_vars(ki_pro)
     kiprjmod_lib = loclib_symbols(ki_pro, args)
 
     # Dump symbols and footprints to library in project folder
