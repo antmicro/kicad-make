@@ -6,6 +6,7 @@ import sys
 import logging
 import typing
 import subprocess
+import json
 from pathlib import Path
 from typing import List
 
@@ -208,3 +209,19 @@ class KicadProject:
 
     def read_sym_lib_table_file(self, name: str) -> LibTable:
         return self.read_lib_table_file(name, self.system_sym_lib_table)
+
+    def load_kicad_environ_vars(self) -> None:
+
+        if os.path.exists(self.comm_cfg_path):
+            with open(self.comm_cfg_path, encoding="utf-8") as kicad_conf:
+                if "environment" in json.load(kicad_conf).items():
+                    for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
+                        os.environ[envvar] = val
+                else:
+                    os.environ[self.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
+                    os.environ[self.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
+        else:
+            os.environ[self.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
+            os.environ[self.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
+            log.warning(f"KiCad Common file ({self.comm_cfg_path}) not found. Using default environment values.")
+        os.environ["KIPRJMOD"] = os.path.abspath(".")

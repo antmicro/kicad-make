@@ -2,7 +2,6 @@
     .kicad_mod, .kicad_sym, .kicad_lib files"""
 
 import argparse
-import json
 import logging
 import os
 import shutil
@@ -101,22 +100,6 @@ def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
             libtable.libs.append(lib_entry)
 
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.libs}
-
-
-def load_kicad_environ_vars(ki_pro: KicadProject) -> None:
-    if os.path.exists(ki_pro.comm_cfg_path):
-        with open(ki_pro.comm_cfg_path, encoding="utf-8") as kicad_conf:
-            if "environment" in json.load(kicad_conf).items():
-                for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
-                    os.environ[envvar] = val
-            else:
-                os.environ[ki_pro.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
-                os.environ[ki_pro.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
-    else:
-        os.environ[ki_pro.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
-        os.environ[ki_pro.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
-        log.warning(f"KiCad Common file ({ki_pro.comm_cfg_path}) not found. Using default environment values.")
-    os.environ["KIPRJMOD"] = os.path.abspath(".")
 
 
 def get_symbol_name(__symbol: Symbol) -> str:
@@ -530,7 +513,7 @@ def loclib_project(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         cleanup_schematic_lib_symbols(ki_pro)
         return
 
-    load_kicad_environ_vars(ki_pro)
+    ki_pro.load_kicad_environ_vars()
     kiprjmod_lib = loclib_symbols(ki_pro, args)
 
     # Dump symbols and footprints to library in project folder

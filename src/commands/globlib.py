@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import argparse
-import json
 import logging
 import os
 from pathlib import Path
@@ -11,7 +10,6 @@ from kiutils.board import Board
 from kiutils.footprint import Footprint
 from kiutils.items.fpitems import FpText
 from kiutils.items.schitems import SchematicSymbol
-from kiutils.libraries import LibTable
 from kiutils.schematic import Schematic
 from kiutils.symbol import Symbol, SymbolLib
 
@@ -68,19 +66,19 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     globlib_project(kicad_project, args)
 
 
-def get_lib_mapping(include_kicad_lib: bool, lib_table_file: str, lib_dir: str) -> Dict[str, str]:
+def get_lib_mapping(
+    ki_pro: KicadProject, include_kicad_lib: bool, lib_table_file: str, system_table_file: str, lib_dir: str
+) -> Dict[str, str]:
     """Returns dict mapping symbol library names to paths based on user's kicad config."""
-    libtable = LibTable.from_file(os.path.expanduser("~/.config/kicad/7.0/" + lib_table_file))
+    libtable = ki_pro.read_lib_table_file(lib_table_file, system_table_file)
+
     if not include_kicad_lib:  # if not using original KiCad libraries, remove them from list
         libtable.libs = [lib for lib in libtable.libs if lib_dir not in lib.uri]
 
     # Sort so that kicad libaries are last
     libtable.libs = sorted(libtable.libs, key=lambda x: lib_dir not in x.uri, reverse=True)
 
-    with open(os.path.expanduser("~/.config/kicad/7.0/kicad_common.json"), encoding="utf-8") as kicad_conf:
-        for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
-            os.environ[envvar] = val
-    os.environ["KIPRJMOD"] = os.path.abspath(".")
+    ki_pro.load_kicad_environ_vars()
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.libs}
 
 
@@ -213,7 +211,13 @@ def should_symbol_be_globlibed(symbol: UniSymbol, global_libraries: Iterable[str
 
 
 def globlib_project_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> list[UniSymbol]:
-    library_mapping = get_lib_mapping(args.include_kicad_lib, "sym-lib-table", "${KICAD7_SYMBOL_DIR}")
+    library_mapping = get_lib_mapping(
+        ki_pro,
+        args.include_kicad_lib,
+        ki_pro.glob_sym_lib_table_path,
+        ki_pro.system_sym_lib_table,
+        ki_pro.env_var_name_sym_lib,
+    )
     log.debug("Libary name to path mapping: %s", library_mapping)
 
     log.info("Generating global symbol list.")
@@ -282,7 +286,13 @@ def update_fp_props(source: SchematicSymbol, ref: str, fp: Footprint, update_all
 def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     changes = 0
     log.info("Loading Footprints ...")
-    lib_mapping = get_lib_mapping(args.include_kicad_lib, "fp-lib-table", "${KICAD7_FOOTPRINT_DIR}")
+    lib_mapping = get_lib_mapping(
+        ki_pro,
+        args.include_kicad_lib,
+        ki_pro.glob_fp_lib_table_path,
+        ki_pro.system_fp_lib_table,
+        ki_pro.env_var_name_fp_lib,
+    )
     fp_list = get_global_footprint_list(lib_mapping)
     log.info("Loading PCB ...")
     pcb = Board().from_file(ki_pro.pcb_file)
