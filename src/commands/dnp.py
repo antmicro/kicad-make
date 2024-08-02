@@ -4,12 +4,13 @@ from typing import List
 
 import kiutils.items
 import kiutils.schematic
+from kiutils.board import Board
+from kiutils.footprint import Footprint
+from kiutils.items.fpitems import FpText
 from kiutils.items.schitems import SchematicSymbol
 
 from common.kicad_project import KicadProject
-from common.kmake_helper import get_property, import_pcbnew
-
-pcbnew = import_pcbnew()
+from common.kmake_helper import get_property
 
 log = logging.getLogger(__name__)
 
@@ -41,11 +42,29 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Restore solder paste on DNP components footprints.",
     )
+    parser.add_argument(
+        "-atp",
+        "--add-tht-paste",
+        dest="set_tht_paste",
+        action="store_true",
+        help="Add solder paste on THT components footprints.",
+    )
+    parser.add_argument(
+        "-rtp",
+        "--restore-tht-paste",
+        dest="reset_tht_paste",
+        action="store_true",
+        help="Restore no solder paste on THT components footprints.",
+    )
     parser.set_defaults(func=run)
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     # Read in all schematic files
+    assert not (
+        args.no_paste and args.set_paste
+    ), "Only one of [`--remove-dnp-paste`, `--restore-dnp-paste`] can be specified"
+
     schematics = []
     for sch_file in kicad_project.all_sch_files:
         schematics.append(kiutils.schematic.Schematic.from_file(sch_file))
@@ -58,7 +77,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     cleanup_count = sum(needs_cleanup(component) for component in components)
     cleanup_list = [get_property(comp.properties, "Reference").value for comp in components if needs_cleanup(comp)]
     if cleanup_count > 0 and args.list_broken:
-        log.warn(
+        log.warning(
             f"There are {cleanup_count} schematic components that "
             f'have their DNP properties malformed: [{" ".join(cleanup_list)}].'
         )
@@ -84,9 +103,9 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     # Update PCB footprints
     log.debug("Updating PCB")
 
-    board = pcbnew.LoadBoard(kicad_project.pcb_file)
-    update_pcb(references, board, args.no_paste, args.set_paste)
-    pcbnew.SaveBoard(kicad_project.pcb_file, board, True)
+    pcb = Board().from_file(kicad_project.pcb_file)
+    update_pcb(references, pcb, args.no_paste, args.set_paste, args.set_tht_paste, args.reset_tht_paste)
+    pcb.to_file()
 
 
 def get_dnp_components(schematics: kiutils.schematic) -> List[SchematicSymbol]:
@@ -147,62 +166,146 @@ def clean_up_component(component: SchematicSymbol) -> None:
 
 
 # Updates footprints on pcb
-def update_pcb(references: List[str], board: pcbnew.BOARD, dnp_remove_paste: bool, dnp_restore_paste: bool) -> None:  # type: ignore
-    if dnp_restore_paste:
+def update_pcb(
+    references: List[str],
+    board: Board,
+    remove_paste: bool,
+    restore_paste: bool,
+    tht_paste_add: bool,
+    tht_paste_restore: bool,
+) -> None:
+    if restore_paste:
         log.info("Restoring solder paste on DNP components")
-        restore_paste(board)
-    if dnp_remove_paste:
+    if remove_paste:
         log.info("Removing solder paste from DNP components")
 
-    for footprint in board.Footprints():
-        if footprint.GetReference() in references:
-            update_footprint(footprint, dnp_remove_paste)
+    for footprint in board.footprints:
+        if tht_paste_add:
+            add_tht_paste(footprint)
+        if tht_paste_restore:
+            remove_tht_paste(footprint)
+        if get_fp_ref(footprint) in references:
+            set_fp_dnp(footprint, remove_paste, restore_paste)
+        elif not footprint.attributes.boardOnly:
+            footprint.properties.pop("DNP", "")
+            footprint.attributes.excludeFromPosFiles = False
+            footprint.attributes.excludeFromBom = False
+            restore_fp_paste(footprint)
 
 
 # Updates footprint to have dnp field and appropriate attributes
-def update_footprint(footprint: pcbnew.FOOTPRINT, remove_paste: bool) -> None:  # type: ignore
-    footprint.SetProperty("DNP", "DNP")
-    attrs = footprint.GetAttributes()
-    attrs = attrs | pcbnew.FP_EXCLUDE_FROM_BOM
-    attrs = attrs | pcbnew.FP_EXCLUDE_FROM_POS_FILES
-    footprint.SetAttributes(attrs)
-
+def set_fp_dnp(footprint: Footprint, remove_paste: bool, restore_paste: bool) -> None:
+    footprint.properties.update({"DNP": "DNP"})
+    footprint.attributes.excludeFromPosFiles = True
+    footprint.attributes.excludeFromBom = True
     if remove_paste:
-        remove_paste_from_footprint(footprint)
+        remove_fp_paste(footprint)
+    if restore_paste:
+        restore_fp_paste(footprint)
 
 
-# Moves solder paste pads to User_6 and User_7 layers
-def remove_paste_from_footprint(footprint: pcbnew.FOOTPRINT) -> None:  # type: ignore
-    log.debug(f"Removing paste from {footprint.GetReference()}")
+# Moves solder paste pads to `User.6` and `User.7` layers
+def remove_fp_paste(footprint: Footprint) -> None:
+    log.debug(f"Removing paste from {get_fp_ref(footprint)}")
+    for pad in footprint.pads:
+        if "*.Paste" in pad.layers:
+            add_pad_layer(pad.layers, "User.6")
+            add_pad_layer(pad.layers, "User.7")
+            pad.layers.remove("*.Paste")
+        else:
+            if "F.Paste" in pad.layers:
+                add_pad_layer(pad.layers, "User.6")
+                pad.layers.remove("F.Paste")
+            if "B.Paste" in pad.layers:
+                add_pad_layer(pad.layers, "User.7")
+                pad.layers.remove("B.Paste")
 
-    for pad in footprint.Pads():
-        pad_mask = pad.GetLayerSet()
 
-        if pad_mask.Contains(pcbnew.F_Paste):
-            pad_mask.AddLayer(pcbnew.User_6)
-            pad_mask.RemoveLayer(pcbnew.F_Paste)
+# Restores all solder paste pads moved to `User.6` and `User.7` layers
+def restore_fp_paste(footprint: Footprint) -> None:
+    changed = 0
 
-        if pad_mask.Contains(pcbnew.B_Paste):
-            pad_mask.AddLayer(pcbnew.User_7)
-            pad_mask.RemoveLayer(pcbnew.B_Paste)
+    for pad in footprint.pads:
+        if "User.6" in pad.layers and "User.7" in pad.layers:
+            add_pad_layer(pad.layers, "*.Paste")
+            pad.layers.remove("User.6")
+            pad.layers.remove("User.7")
+            changed += 1
+        else:
+            if "User.6" in pad.layers:
+                add_pad_layer(pad.layers, "F.Paste")
+                pad.layers.remove("User.6")
+                changed += 1
+            if "User.7" in pad.layers:
+                add_pad_layer(pad.layers, "B.Paste")
+                pad.layers.remove("User.7")
+                changed += 1
+    if changed:
+        log.debug(f"Restored solder paste on {get_fp_ref(footprint)}")
 
-        pad.SetLayerSet(pad_mask)
+
+# Sets pads of THT components to have solder paste on pads
+def add_tht_paste(footprint: Footprint) -> None:
+    changed = 0
+    if footprint.attributes.type is None:
+        return
+    for pad in footprint.pads:
+        if pad.type != "thru_hole":
+            continue
+        if "*.Cu" in pad.layers:
+            add_pad_layer(pad.layers, "*.Paste")
+            add_pad_layer(pad.layers, "User.3")
+            add_pad_layer(pad.layers, "User.4")
+            changed += 1
+        else:
+            if "F.Cu" in pad.layers:
+                add_pad_layer(pad.layers, "F.Paste")
+                add_pad_layer(pad.layers, "User.3")
+            if "B.Cu" in pad.layers:
+                add_pad_layer(pad.layers, "B.Paste")
+                add_pad_layer(pad.layers, "User.4")
+
+    if changed != 0:
+        log.debug(f"Added solder paste on THT pins of {get_fp_ref(footprint)}")
 
 
-# Restores all solder paste pads moved to User_1 and User_2
-def restore_paste(board: pcbnew.BOARD):  # type: ignore
-    for footprint in board.GetFootprints():
-        log.debug(f"Restoring solder paste on {footprint.GetReference()}")
+# Remove solder paste from pads of THT components
+def remove_tht_paste(footprint: Footprint) -> None:
+    changed = 0
+    if footprint.attributes.type is None:
+        return
+    for pad in footprint.pads:
+        if pad.type != "thru_hole":
+            continue
+        if "User.3" in pad.layers and "User.4" in pad.layers:
+            pad.layers.remove("User.3")
+            pad.layers.remove("User.4")
+            pad.layers.remove("*.Paste")
+            changed += 1
+        else:
+            if "User.3" in pad.layers:
+                pad.layers.remove("User.3")
+                pad.layers.remove("F.Paste")
+                changed += 1
+            if "User.4" in pad.layers:
+                pad.layers.remove("User.4")
+                pad.layers.remove("B.Paste")
+                changed += 1
 
-        for pad in footprint.Pads():
-            pad_mask = pad.GetLayerSet()
+    if changed != 0:
+        log.debug(f"Removed solder paste from THT pins of {get_fp_ref(footprint)}")
 
-            if pad_mask.Contains(pcbnew.User_6):
-                pad_mask.AddLayer(pcbnew.F_Paste)
-                pad_mask.RemoveLayer(pcbnew.User_6)
 
-            if pad_mask.Contains(pcbnew.User_7):
-                pad_mask.AddLayer(pcbnew.B_Paste)
-                pad_mask.RemoveLayer(pcbnew.User_7)
+def get_fp_ref(footprint: Footprint) -> str:
+    for item in footprint.graphicItems:
+        if not isinstance(item, FpText):
+            continue
+        if item.type != "reference":
+            continue
+        return item.text
+    raise AssertionError("unreachable: KiCad footprint should always have `reference`")
 
-            pad.SetLayerSet(pad_mask)
+
+def add_pad_layer(lis: List[str], add: str) -> None:
+    if add not in lis:
+        lis.append(add)

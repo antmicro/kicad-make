@@ -5,15 +5,14 @@ import os
 import sys
 import logging
 import typing
+import subprocess
 from pathlib import Path
 from typing import List
 
 from kiutils.symbol import SymbolLib
 from kiutils.footprint import Footprint
 
-from .kmake_helper import import_pcbnew, find_files_by_ext
-
-pcbnew = import_pcbnew()
+from .kmake_helper import find_files_by_ext, KICAD_CLI_NAME
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +49,10 @@ class KicadProject:
         self.all_sch_files: List[str] = []
         self.sch_files: List[str] = []
 
-        self.kicad_version = ".".join(pcbnew.Version().split(".")[0:2])
+        self.kicad_version = subprocess.run(
+            [KICAD_CLI_NAME, "--version"], text=True, check=True, capture_output=True
+        ).stdout
+        self.kicad_version = ".".join(self.kicad_version.split(".")[0:2])
 
         self.comm_cfg_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/kicad_common.json")
         self.glob_fp_lib_table_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/fp-lib-table")

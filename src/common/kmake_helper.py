@@ -4,7 +4,6 @@ import logging
 import os
 import subprocess
 import sys
-import types
 
 from typing import List, Optional, Any
 
@@ -15,25 +14,6 @@ KICAD_CLI_NAME = "kicad-cli"
 
 def is_venv() -> bool:
     return hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
-
-
-def import_pcbnew() -> types.ModuleType:
-    original_sys_path = sys.path.copy()
-    if is_venv():
-        # pcbnew is always installed in global python side-packages
-        # in relation to install path.
-        import sysconfig
-
-        global_python_path = sysconfig.get_paths()["stdlib"]
-        sys.path.append(f"{global_python_path}/site-packages")
-        # debian-based distros use "dist-packages" instead of "site-packages"
-        sys.path.append(f"{global_python_path}/dist-packages")
-
-    pcbnew = __import__("pcbnew")
-
-    sys.path = original_sys_path
-
-    return pcbnew
 
 
 def is_in_path(name: str) -> bool:
