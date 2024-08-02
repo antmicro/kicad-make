@@ -35,9 +35,7 @@ Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for mo
     ```bash
     sudo apt install kicad python3 python3-pip
     ```
-
-    > Note: Kmake requires also Python `pcbnew` module normally added to the Python modules path during [KiCad](https://www.kicad.org/) native installation.
-
+    
 1. Update `pip`
 
     ```bash

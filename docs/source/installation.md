@@ -13,14 +13,11 @@ Kmake requires: `python3` and `python3-pip` installed.
     export PATH=$HOME/.local/bin:$PATH
     ```
 
-1. Install requrements
+1. Install requirements
 
     ```bash
     sudo apt install kicad python3 python3-pip
     ```
-
-    Kmake requires also python `pcbnew` module, which is normally added to python
-    modules path during [KiCad](https://www.kicad.org/) native installation.
 
 1. Update `pip`
 
