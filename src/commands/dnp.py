@@ -6,8 +6,10 @@ import kiutils.items
 import kiutils.schematic
 from kiutils.board import Board
 from kiutils.footprint import Footprint
+from kiutils.items.common import Effects, Property
 from kiutils.items.fpitems import FpText
 from kiutils.items.schitems import SchematicSymbol
+from kiutils.schematic import Schematic
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property
@@ -70,12 +72,12 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         schematics.append(kiutils.schematic.Schematic.from_file(sch_file))
 
     # Get all components that are marked DNP
-    components = get_dnp_components(schematics)
-    log.debug(f"Found {len(components)} schematic components marked DNP")
+    dnp_components = get_dnp_components(schematics)
+    log.debug(f"Found {len(dnp_components)} schematic components marked DNP")
 
     # Count components that need cleanup
-    cleanup_count = sum(needs_cleanup(component) for component in components)
-    cleanup_list = [get_property(comp.properties, "Reference").value for comp in components if needs_cleanup(comp)]
+    cleanup_count = sum(needs_cleanup(component) for component in dnp_components)
+    cleanup_list = [get_property(comp.properties, "Reference").value for comp in dnp_components if needs_cleanup(comp)]
     if cleanup_count > 0 and args.list_broken:
         log.warning(
             f"There are {cleanup_count} schematic components that "
@@ -86,7 +88,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         log.debug(f"[{' '.join(cleanup_list)}]")
         # Cleanup components
         log.info("Cleaning up schematic components")
-        for component in components:
+        for component in dnp_components:
             clean_up_component(component)
 
         # Save all changes to schematic files
@@ -97,8 +99,12 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     # Get references
     log.debug("Searching for components on PCB")
     references = []
-    for component in components:
-        references.append(get_property(component.properties, "Reference").value)
+    for component in dnp_components:
+        for instances in component.instances:
+            for path in instances.paths:
+                references.append(path.reference)
+
+    log.debug(f"DNP references from schematic {sorted(references)}")
 
     # Update PCB footprints
     log.debug("Updating PCB")
@@ -108,7 +114,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     pcb.to_file()
 
 
-def get_dnp_components(schematics: kiutils.schematic) -> List[SchematicSymbol]:
+def get_dnp_components(schematics: list[Schematic]) -> List[SchematicSymbol]:
     components = []
     for schematic in schematics:
         for symbol in schematic.schematicSymbols:
@@ -155,10 +161,10 @@ def clean_up_component(component: SchematicSymbol) -> None:
 
     prop = get_property(component.properties, "DNP", names_in=["dnp"])
     if prop is None:
-        prop = kiutils.items.common.Property()
+        prop = Property()
         component.properties.append(prop)
     if prop.effects is None:
-        prop.effects = kiutils.items.common.Effects()
+        prop.effects = Effects()
 
     prop.key = "DNP"
     prop.value = "DNP"
@@ -195,6 +201,7 @@ def update_pcb(
 
 # Updates footprint to have dnp field and appropriate attributes
 def set_fp_dnp(footprint: Footprint, remove_paste: bool, restore_paste: bool) -> None:
+    log.debug(f"Setting {get_fp_ref(footprint)} to DNP")
     footprint.properties.update({"DNP": "DNP"})
     footprint.attributes.excludeFromPosFiles = True
     footprint.attributes.excludeFromBom = True
