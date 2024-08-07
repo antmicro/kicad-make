@@ -149,10 +149,10 @@ def write_default(output_file: TextIO, groups: list[ComponentGroup]) -> None:
 
 def write_circuithub(output_file: TextIO, groups: list[ComponentGroup]) -> None:
     writer = csv.writer(output_file, lineterminator="\n", delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
-    writer.writerow(["reference designator", "manufacturer", "mpn", "fitted", "description", "quantity"])
+    writer.writerow(["Reference Designators", "Manufacturer", "Manufacturer Part Number", "DNP", "Description"])
     for group in groups:
         for ref in group.refs:
-            writer.writerow([ref, group.manufacturer, group.mpn, not group.dnp, group.description, 1])
+            writer.writerow([ref, group.manufacturer, group.mpn, "DNP" if group.dnp else "", group.description])
 
 
 def parse_netlist(net: kicad_netlist_reader.netlist) -> Tuple[List[ComponentGroup], bool]:
