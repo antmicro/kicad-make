@@ -36,13 +36,14 @@ class DnpTest(unittest.TestCase):
         """Return symbol designator"""
         return symbol.properties[0].value
 
-    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False, inbom: bool = False) -> None:
+    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False, inbom: bool = True) -> None:
         """Check if symbol have DNP fields
 
         Parameters:
             components: List of designator to check
             dnp: Define if component is DNP
             dnp_field: Allow component to have a DNP field (when dnp is set to False)
+            inbom: Define if component is in bom
         """
 
         scheet = kiutils.schematic.Schematic().from_file(filepath="ethernet.kicad_sch")
@@ -55,17 +56,17 @@ class DnpTest(unittest.TestCase):
 
             if designator in components:
                 if dnp_field:
-                    self.assertIsNot(get_property(properties, "DNP"), None, "Symbol have DNP property")
+                    self.assertIsNot(get_property(properties, "DNP"), None, "Symbol doesn't have DNP property")
                 else:
-                    self.assertIs(get_property(properties, "DNP"), None, "Symbol have DNP property")
+                    self.assertIs(get_property(properties, "DNP"), None, "Symbol has DNP property")
                 if dnp:
-                    self.assertEqual(symbol.dnp, True, "Symbol is DNP")
+                    self.assertTrue(symbol.dnp, "Symbol is not DNP")
                 else:
-                    self.assertEqual(symbol.dnp, False, "Symbol is  not DNP")
+                    self.assertFalse(symbol.dnp, "Symbol is DNP")
                 if inbom:
-                    self.assertEqual(symbol.inBom, False, "Symbol is not in BOM")
+                    self.assertTrue(symbol.inBom, "Symbol is not in BOM")
                 else:
-                    self.assertEqual(symbol.inBom, True, "Symbol in BOM")
+                    self.assertFalse(symbol.inBom, "Symbol is in BOM")
                 components_checked += 1
 
         self.assertEqual(components_checked, len(components), "Not all components checked, internal test error")
@@ -87,11 +88,11 @@ class DnpTest(unittest.TestCase):
             designator = self.get_footprint_designator(footprint)
             if designator in components:
                 if dnp:
-                    self.assertEqual(attributes.excludeFromPosFiles, True, f"{designator} Not excluded from pos files")
+                    self.assertEqual(attributes.excludeFromPosFiles, True, f"{designator} Not excluded from POS files")
                     self.assertEqual(attributes.excludeFromBom, True, f"{designator} Not excluded from BOM")
                     footprints_checked += 1
                 else:
-                    self.assertEqual(attributes.excludeFromPosFiles, False, f"{designator} Excluded from POS")
+                    self.assertEqual(attributes.excludeFromPosFiles, False, f"{designator} Excluded from POS files")
                     self.assertEqual(attributes.excludeFromBom, False, f"{designator} Excluded from BOM")
                     footprints_checked += 1
         self.assertEqual(footprints_checked, len(components), "Not all components checked internal test error")
@@ -133,19 +134,19 @@ class DnpTest(unittest.TestCase):
         with self.assertLogs(level=logging.WARNING) as log:
             self.run_test_command(["-l"])
         self.assertIn(
-            "There are 3 schematic components that have their DNP properties malformed:",
+            "There are 49 schematic components that have their DNP properties malformed:",
             log.output[0][18:96],
         )
 
     def test_clean_symbol(self) -> None:
-        "Test if dnp symbols have `Exlude from position file` and `Do not populate` fields set correctly"
+        "Test if dnp symbols have `Exlude from bill of materials` and `Do not populate` fields set correctly"
         self.reset_repo()
-        self.check_symbol(["R407", "R409"], False, True, False)
-        self.check_symbol(["R410"], True, False, False)
-        self.check_symbol(["C404", "C405"], False)
+        self.check_symbol(["R407", "R409"], False, True, True)
+        self.check_symbol(["R410"], True, False, True)
+        self.check_symbol(["C404", "C405"], False, False, True)
         self.run_test_command([])
-        self.check_symbol(["R407", "R409", "R410"], True, True, True)
-        self.check_symbol(["C404", "C405"], False)
+        self.check_symbol(["R407", "R409", "R410"], True, False, False)
+        self.check_symbol(["C404", "C405"], False, False, True)
 
     def test_clean_footprint(self) -> None:
         "Test if DNP footprints have `Exclude from pos files` and `Exclude from bill of material` fields set correctly"

@@ -160,6 +160,7 @@ def parse_netlist(net: kicad_netlist_reader.netlist) -> Tuple[List[ComponentGrou
 
     mismatched: Dict[str, List[str]] = {}
 
+    legacy_dnp = []
     for group in net.groupComponents():
         dnp_refs: list[str] = []
         populate_refs: list[str] = []
@@ -167,8 +168,10 @@ def parse_netlist(net: kicad_netlist_reader.netlist) -> Tuple[List[ComponentGrou
         example_component = ComponentGroup.from_component(group[0])
 
         for component in group:
-            # TODO: Take Do-not-populate property into account
             if component.getField("DNP") == "DNP":
+                dnp_refs.append(component.getRef())
+                legacy_dnp.append(component.getRef())
+            elif component.getDNP():
                 dnp_refs.append(component.getRef())
             else:
                 populate_refs.append(component.getRef())
@@ -181,7 +184,10 @@ def parse_netlist(net: kicad_netlist_reader.netlist) -> Tuple[List[ComponentGrou
             groups.append(dataclasses.replace(example_component, refs=populate_refs, dnp=False))
         if dnp_refs:
             groups.append(dataclasses.replace(example_component, refs=dnp_refs, dnp=True))
-
+    if legacy_dnp:
+        log.warning(str(len(legacy_dnp)) + " components use legacy DNP property:")
+        log.warning(str(legacy_dnp))
+        log.warning("Use `kmake dnp` to update them.")
     print_mismatched(mismatched)
 
     return groups, len(mismatched.keys()) <= 0

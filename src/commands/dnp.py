@@ -6,7 +6,6 @@ import kiutils.items
 import kiutils.schematic
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.common import Effects, Property
 from kiutils.items.fpitems import FpText
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic
@@ -100,10 +99,11 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.debug("Searching for components on PCB")
     references = []
     for component in dnp_components:
-        for instances in component.instances:
-            for path in instances.paths:
-                references.append(path.reference)
-
+        references.append(get_property(component.properties, "Reference").value)
+        for instance in component.instances:
+            for path in instance.paths:
+                if path.reference not in references:
+                    references.append(path.reference)
     log.debug(f"DNP references from schematic {sorted(references)}")
 
     # Update PCB footprints
@@ -143,13 +143,7 @@ def needs_cleanup(component: SchematicSymbol) -> bool:
     if component.inBom:
         return True
     prop = get_property(component.properties, "DNP", names_in=["dnp"])
-    if prop is None:
-        return True
-    if prop.key != "DNP":
-        return True
-    if prop.value != "DNP":
-        return True
-    if prop.effects.hide:
+    if prop is not None:
         return True
     return False
 
@@ -158,17 +152,10 @@ def needs_cleanup(component: SchematicSymbol) -> bool:
 def clean_up_component(component: SchematicSymbol) -> None:
     component.dnp = True
     component.inBom = False
-
+    # Replaces legacy DNP property with default kicad DNP checkbox
     prop = get_property(component.properties, "DNP", names_in=["dnp"])
-    if prop is None:
-        prop = Property()
-        component.properties.append(prop)
-    if prop.effects is None:
-        prop.effects = Effects()
-
-    prop.key = "DNP"
-    prop.value = "DNP"
-    prop.effects.hide = False
+    if prop:
+        component.properties.remove(prop)
 
 
 # Updates footprints on pcb
@@ -193,7 +180,6 @@ def update_pcb(
         if get_fp_ref(footprint) in references:
             set_fp_dnp(footprint, remove_paste, restore_paste)
         elif not footprint.attributes.boardOnly:
-            footprint.properties.pop("DNP", "")
             footprint.attributes.excludeFromPosFiles = False
             footprint.attributes.excludeFromBom = False
             restore_fp_paste(footprint)
@@ -202,7 +188,6 @@ def update_pcb(
 # Updates footprint to have dnp field and appropriate attributes
 def set_fp_dnp(footprint: Footprint, remove_paste: bool, restore_paste: bool) -> None:
     log.debug(f"Setting {get_fp_ref(footprint)} to DNP")
-    footprint.properties.update({"DNP": "DNP"})
     footprint.attributes.excludeFromPosFiles = True
     footprint.attributes.excludeFromBom = True
     if remove_paste:
