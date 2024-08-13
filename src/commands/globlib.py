@@ -56,13 +56,15 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--sch",
         action="store",
         nargs="*",
-        help="Specify list of schematic files to update",
+        help="Specify list of schematic files to update, this option also enables --exclude-pcb",
         type=Path,
     )
     globlib_parser.set_defaults(func=run)
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+    if args.sch is not None:
+        args.exclude_pcb = True
     globlib_project(kicad_project, args)
 
 
