@@ -4,31 +4,38 @@
 
 `kmake` repo structure:
 
-```text
+```bash
 .
+├── Dockerfile
 ├── docs
-│   ├── ...
-│   └── source
-│       ├── img
-│       │   └── ...
-│       ├── ...
-│       ├── installation.md
-│       └── index.md
+│   ├── Makefile
+│   ├── requirements.txt
+│   └── source
+│       ├── conf.py
+│       ├── ...
+│       └── usage.md
 ├── LICENSE
-├── README.md
 ├── pyproject.toml
-└── src
-    ├── commands
-    │   ├── __init__.py
-    │   ├── auxorigin.py
-    │   ├── ...
-    │   └── wireframe.py
-    ├── common
-    │   ├── kicad_project.py
-    │   └── kmake_helper.py
-    ├── ext_modules
-    │   └── example.py
-    └── kmake.py
+├── README.md
+├── src
+│   ├── commands
+│   │   ├── auxorigin.py
+│   │   ├── ...
+│   │   └── wireframe.py
+│   ├── common
+│   │   ├── __init__.py
+│   │   ├── kicad_project.py
+│   │   └── kmake_helper.py
+│   ├── __init__.py
+│   ├── kmake.py
+│   └── logos
+│       └── oshw
+└── tests
+    ├── designs
+    │   └── designs.list
+    ├── test_auxorigin.py
+    ├── ...
+    └── test_wireframe.py
 ```
 
 ## Commands
@@ -54,8 +61,8 @@ There are 4 levels of logging:
     "Saving PCB to file path_to_the_file"
 - `debug` - for information relevant to debugging, for example:
     "Processing footprint abc from library xyz".
-- `warning`
-- `error`
+- `warning` - for non critical fails, for example: "Symbol xyz has no mpn to match, it will be omitted"
+- `error` - for critical fails: "KiCad project not found"
 
 ## New command example
 
@@ -63,45 +70,43 @@ Sample `__init__.py` and `new_command.py` file contents:
 
 ```{tab} commands/__init__.py
 add following line to `__init__.py`
-
-    from . import new_command
-
+```python
+from . import new_command
 ```
 
 ```{tab} commands/new_command.py
-    """Minimal working command"""
-    import logging
+```python
+# Minimal working command
+import logging
+import argparse
+from common.kicad_project import KicadProject
 
-    from common.kicad_project import KicadProject
-
-    log = logging.getLogger(__name__)
-
-
-    def add_subparser(subparsers):
-        """Register parser and its arguments as subparser"""
-        new_function_parser = subparsers.add_parser(
-            "example", help=""
-        )
-        # Example argument
-        new_function_parser.add_argument(
-            "-p",
-            "--print",
-            dest="print",
-            action="store_true",
-            help="Prints hello message",
-        )
-        new_function_parser.set_defaults(func=run)
+log = logging.getLogger(__name__)
 
 
-    def main(project:KicadProject, args):
-        """Main module function"""
-        if args.print:
-            log.info(f"Hello from example, running in {project.dir}")
+def add_subparser(subparsers: argparse._SubParsersAction) -> None:
+    # Register parser and its arguments as subparser
+    new_function_parser = subparsers.add_parser("example", help="")
+    # Example argument
+    new_function_parser.add_argument(
+        "-p",
+        "--print",
+        dest="print",
+        action="store_true",
+        help="Prints hello message",
+    )
+    new_function_parser.set_defaults(func=run)
 
-    def run(project:KicadProject, args):
-        """Entry function for module"""
-        main(project, args)
 
+def main(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+    # Main module function
+    if args.print:
+        log.info(f"Hello from example, running in {kicad_project.dir}")
+
+
+def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+    # Entry function for module
+    main(kicad_project, args)
 
 ```
 
