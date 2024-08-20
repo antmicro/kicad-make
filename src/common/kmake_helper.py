@@ -9,8 +9,6 @@ from typing import List, Optional, Any
 
 log = logging.getLogger(__name__)
 
-KICAD_CLI_NAME = "kicad-cli"
-
 
 def is_venv() -> bool:
     return hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
@@ -22,20 +20,23 @@ def is_in_path(name: str) -> bool:
     return which(name) is not None
 
 
-def run_kicad_cli(args: List[str], verbose: bool) -> None:
-    kicad_cli_args = []
+def get_kicad_cli_command() -> tuple[str, List[str]]:
     try:
-        kicad_cli_cmd = os.environ["KMAKE_KICAD_CLI"]
-        kicad_cli_path = kicad_cli_cmd.split(" ")[0]
-        kicad_cli_args = kicad_cli_cmd.split(" ")[1:]
+        kicad_cli_name = os.environ["KMAKE_KICAD_CLI"]
+        kicad_cli_path = kicad_cli_name.split(" ")[0]
+        kicad_cli_args = kicad_cli_name.split(" ")[1:]
     except KeyError:
-        kicad_cli_path = KICAD_CLI_NAME
-
+        kicad_cli_path = "kicad-cli"
+        kicad_cli_args = []
     if not is_in_path(kicad_cli_path):
-        log.error(
+        raise FileNotFoundError(
             f'Couldn\'t find "{kicad_cli_path}" in PATH. Make sure it is properly installed on your system. Exiting.'
         )
-        sys.exit(1)
+    return kicad_cli_path, kicad_cli_args
+
+
+def run_kicad_cli(args: List[str], verbose: bool) -> None:
+    kicad_cli_path, kicad_cli_args = get_kicad_cli_command()
     command = [kicad_cli_path] + kicad_cli_args
     command.extend(args)
     log.info(f"Running command: {' '.join(command)}")

@@ -13,7 +13,7 @@ from kiutils.symbol import SymbolLib
 from kiutils.footprint import Footprint
 from kiutils.libraries import LibTable
 
-from .kmake_helper import find_files_by_ext, KICAD_CLI_NAME
+from .kmake_helper import find_files_by_ext, get_kicad_cli_command
 
 log = logging.getLogger(__name__)
 
@@ -53,8 +53,10 @@ class KicadProject:
         self.all_sch_files: List[str] = []
         self.sch_files: List[str] = []
 
+        # Get KiCad version
+        kicad_cli_name = get_kicad_cli_command()[0]
         self.kicad_version = subprocess.run(
-            [KICAD_CLI_NAME, "--version"], text=True, check=True, capture_output=True
+            [kicad_cli_name, "--version"], text=True, check=True, capture_output=True
         ).stdout
         self.kicad_version = ".".join(self.kicad_version.split(".")[0:2])
 
