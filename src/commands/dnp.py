@@ -285,18 +285,14 @@ def remove_tht_paste(footprint: Footprint) -> None:
         if pad.type != "thru_hole":
             continue
         if "User.3" in pad.layers and "User.4" in pad.layers:
-            pad.layers.remove("User.3")
-            pad.layers.remove("User.4")
-            pad.layers.remove("*.Paste")
+            remove_pad_layers(pad.layers, ["User.3", "User.4", "*.Paste", "User.6", "User.7"])
             changed += 1
         else:
             if "User.3" in pad.layers:
-                pad.layers.remove("User.3")
-                pad.layers.remove("F.Paste")
+                remove_pad_layers(pad.layers, ["User.3", "F.Paste", "User.6"])
                 changed += 1
             if "User.4" in pad.layers:
-                pad.layers.remove("User.4")
-                pad.layers.remove("B.Paste")
+                remove_pad_layers(pad.layers, ["User.4", "B.Paste", "User.7"])
                 changed += 1
 
     if changed != 0:
@@ -316,3 +312,9 @@ def get_fp_ref(footprint: Footprint) -> str:
 def add_pad_layer(lis: List[str], add: str) -> None:
     if add not in lis:
         lis.append(add)
+
+
+def remove_pad_layers(lis: List[str], remove: List[str]) -> None:
+    for layer in remove:
+        if layer in lis:
+            lis.remove(layer)
