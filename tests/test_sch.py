@@ -27,7 +27,7 @@ class SchTest(unittest.TestCase):
         self.args.func(self.kpro, self.args)
 
         self.assertTrue(os.path.exists(self.kpro.doc_dir))
-        self.assertTrue(os.path.exists(f"{self.kpro.doc_dir}/{self.kpro.name}.pdf"))
+        self.assertTrue(os.path.exists(f"{self.kpro.doc_dir}/{self.kpro.name}-schematic.pdf"))
 
     def test_sch_theme(self) -> None:
         # make sure test design repository doesn't have any changes
@@ -43,7 +43,7 @@ class SchTest(unittest.TestCase):
         self.args.func(self.kpro, self.args)
 
         self.assertTrue(os.path.exists(self.kpro.doc_dir))
-        self.assertTrue(os.path.exists(f"{self.kpro.doc_dir}/{self.kpro.name}.pdf"))
+        self.assertTrue(os.path.exists(f"{self.kpro.doc_dir}/{self.kpro.name}-schematic.pdf"))
         # TODO: check if the theme is applied to the pdf
         # TODO: kicad doesn't fail if the theme is not found, instead it uses the default theme
         # maybe we should add this check in `sch` command

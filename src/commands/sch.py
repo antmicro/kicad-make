@@ -24,7 +24,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     kicad_project.create_doc_dir()
     log.info("Generating schematic")
-    export_schematic(kicad_project.sch_root, f"{kicad_project.doc_dir}/{kicad_project.name}.pdf", args.theme)
+    export_schematic(kicad_project.sch_root, f"{kicad_project.doc_dir}/{kicad_project.name}-schematic.pdf", args.theme)
 
 
 def export_schematic(
