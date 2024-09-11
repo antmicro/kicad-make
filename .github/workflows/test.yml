@@ -31,9 +31,6 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
-    container:
-      image: kicad/kicad:7.0.11
-      options: --user root
     needs:
       - style-check
     steps:
@@ -43,9 +40,12 @@ jobs:
           fetch-depth: 1
       - name: Install dependencies
         run: |
-          apt update
-          apt install -y python3-pip
-          pip install --break-system-packages ".[dev]"
+          sudo apt-get update
+          pip install --upgrade pip
+          pip install ".[dev]"
+          sudo add-apt-repository --yes ppa:kicad/kicad-7.0-releases
+          sudo apt-get update
+          sudo apt-get install -y kicad kicad-symbols kicad-footprints
       - name: Run tests
         run: |
           pytest --cov-report term --cov=src
