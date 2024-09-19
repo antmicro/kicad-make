@@ -17,6 +17,18 @@ log = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class ComponentGroup:
+    """
+    Data class for storing components group
+
+    Attributes:
+        refs: list of reference designators
+        value: content of the `value` field
+        mpn: content of `mpn` field (manufacturer part number)
+        description: content of component description
+        footprint: footprint assigned to component
+        dnp: is component marked as dnp (do not populate)
+    """
+
     refs: list[str]
     value: str
     mpn: str
@@ -26,10 +38,16 @@ class ComponentGroup:
     dnp: bool
 
     def quantity(self) -> int:
+        """
+        Return quantity of components in group
+        """
         return len(self.refs)
 
     @classmethod
     def from_component(cls, c: kicad_netlist_reader.comp) -> Self:
+        """
+        Generate ComponentGroup from component
+        """
         footprint = c.getFootprint()
         if ":" in footprint:
             footprint = c.getFootprint().split(":")[1]
@@ -45,6 +63,16 @@ class ComponentGroup:
         )
 
     def has_same_fields(self, other: Self) -> bool:
+        """
+        Check if fields of components are the same as other component
+
+        Tested fields:
+            - value
+            - mpn
+            - manufacturer
+            - description
+        """
+
         if self.value != other.value:
             logging.debug("Compared components have different value: %s and %s", self.value, other.value)
             return False
@@ -67,6 +95,14 @@ class ComponentGroup:
         return True
 
     def is_blacklisted(self) -> bool:
+        """
+        Check if component is blacklisted
+
+        Blacklisted components:
+            - components with `TP` designator (testpoints)
+            - components with `MP` designator (mounting pads)
+            - components without designator
+        """
         if any("TP" in ref for ref in self.refs):
             return True
         if any("MP" in ref for ref in self.refs):
@@ -77,7 +113,51 @@ class ComponentGroup:
         return False
 
 
+@dataclasses.dataclass
+class ValidHeaders:
+    """
+    Data class with valid headers
+
+    Attributes:
+        reference: valid headers for reference designators column
+        quantity: valid headers for quantity column
+        value: valid headers for value column
+        footprint: valid headers for footprint column
+        mpn: valid header for manufacturer part number  column
+        dnp: valid header for do not populate column
+        description: valid header for description column
+    """
+
+    reference = ["Reference Designators", "Reference"]
+    quantity = ["Quantity"]
+    value = ["Value"]
+    footprint = ["Footprint"]
+    manufacturer = ["Manufacturer"]
+    mpn = ["Manufacturer Part Number", "MPN"]
+    dnp = ["DNP"]
+    description = ["Description"]
+
+    default_fields = ["Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"]
+
+    def get_all_headers(self) -> list[str]:
+        """
+        Return all valid headers
+        """
+        return (
+            self.reference
+            + self.quantity
+            + self.value
+            + self.footprint
+            + self.manufacturer
+            + self.mpn
+            + self.dnp
+            + self.description
+        )
+
+
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
+    """Create kmake bom subparser"""
+
     parser = subparsers.add_parser(
         "bom",
         help="Generate Bill-of-Materials (BOM)",
@@ -89,19 +169,28 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--dnp", action="store_true", help="Include ONLY DNP components.")
     group.add_argument("-a", "--all", action="store_true", help="Include populated and DNP components.")
-
     parser.add_argument("--no-ignore", action="store_true", help="Don't ignore blacklisted components.")
-
     parser.add_argument(
-        "--format",
-        choices=["default", "CircuitHub"],
-        default="default",
-        help="Select which format to use for output.",
+        "--fields",
+        nargs="+",
+        help=f"""
+        Change BoM field. Available fields: {" ".join(ValidHeaders().get_all_headers())}.
+        When not provided default setup is selected ({" ".join(ValidHeaders().default_fields)})""",
     )
+    parser.add_argument(
+        "-g",
+        "--group-references",
+        action="store_false",
+        default=True,
+        help="Group references of components into single line",
+    )
+    parser.add_argument("-o", "--output", help="Output file name")
     parser.set_defaults(func=run)
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+    """Main kamke bom method"""
+
     log.info("Exporting netlist from project")
     net = create_netlist(kicad_project, "kicadxml", args.debug)
 
@@ -110,7 +199,6 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     if not args.no_ignore:
         groups = [group for group in groups if not group.is_blacklisted()]
-
     kind = "ALL"
     if not args.all:
         if not args.dnp:
@@ -120,17 +208,27 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             groups = [group for group in groups if group.dnp]
             kind = "DNP"
 
-    if args.format == "default":
-        filename = f"{kicad_project.doc_dir}/{kicad_project.name}-BOM-{kind}.csv"
+    if args.output:
+        filename = f"{kicad_project.dir}/{args.output}"
     else:
-        filename = f"{kicad_project.doc_dir}/{kicad_project.name}-BOM-{kind}-{args.format}.csv"
+        if args.group_references:
+            filename = f"{kicad_project.doc_dir}/{kicad_project.name}-BOM-{kind}.csv"
+        else:
+            log.info("Using grouped references")
+            filename = f"{kicad_project.doc_dir}/{kicad_project.name}-BOM-{kind}-ReferenceNotGrouped.csv"
 
-    log.info("Saving BOM to file")
+    log.info(f"BoM file {filename}")
+
+    if args.fields is None:
+        log.info("Using default BoM preset")
+        headers = ValidHeaders().default_fields
+    else:
+        headers = args.fields
+
+    log.info("Saving BoM to file")
+
     with open(filename, "w", encoding="utf-8") as f:
-        if args.format == "default":
-            write_default(f, groups)
-        elif args.format == "CircuitHub":
-            write_circuithub(f, groups)
+        save_csv(f, groups, headers, args.group_references)
 
     log.info("Saved BOM to file")
 
@@ -138,24 +236,57 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-def write_default(output_file: TextIO, groups: list[ComponentGroup]) -> None:
+def save_csv(output_file: TextIO, groups: list[ComponentGroup], headers: list[str], group_references: bool) -> None:
+    """Save header and components to BoM file"""
+
     writer = csv.writer(output_file, lineterminator="\n", delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
-    writer.writerow(["Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"])
+
+    writer.writerow(headers)
+
     for group in groups:
-        writer.writerow(
-            [" ".join(group.refs), group.quantity(), group.value, group.footprint, group.manufacturer, group.mpn]
-        )
+        if group_references:
+            writer.writerow(prepare_csv_row(group, headers, " ".join(group.refs), group.quantity()))
+        else:
+            for ref in group.refs:
+                writer.writerow(prepare_csv_row(group, headers, ref))
 
 
-def write_circuithub(output_file: TextIO, groups: list[ComponentGroup]) -> None:
-    writer = csv.writer(output_file, lineterminator="\n", delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
-    writer.writerow(["Reference Designators", "Manufacturer", "Manufacturer Part Number", "DNP", "Description"])
-    for group in groups:
-        for ref in group.refs:
-            writer.writerow([ref, group.manufacturer, group.mpn, "DNP" if group.dnp else "", group.description])
+def prepare_csv_row(components: ComponentGroup, headers: list[str], references: str = "", quantity: int = 1) -> list:
+    """Generate single row for csv file"""
+
+    line = []
+
+    valid_headers = ValidHeaders()
+
+    for header in headers:
+        if header in valid_headers.reference:
+            line.append(references)
+        elif header in valid_headers.quantity:
+            line.append(str(quantity))
+        elif header in valid_headers.value:
+            line.append(components.value)
+        elif header in valid_headers.footprint:
+            line.append(components.footprint)
+        elif header in valid_headers.manufacturer:
+            line.append(components.manufacturer)
+        elif header in valid_headers.mpn:
+            line.append(components.mpn)
+        elif header in valid_headers.dnp:
+            if components.dnp:
+                line.append("DNP")
+            else:
+                line.append("")
+        elif header in valid_headers.description:
+            line.append(components.description)
+        else:
+            log.error(f"Invalid header {header}")
+            exit(-1)
+    return line
 
 
 def parse_netlist(net: kicad_netlist_reader.netlist) -> Tuple[List[ComponentGroup], bool]:
+    """Generate component groups from netlist"""
+
     groups: list[ComponentGroup] = []
 
     mismatched: Dict[str, List[str]] = {}
@@ -194,6 +325,8 @@ def parse_netlist(net: kicad_netlist_reader.netlist) -> Tuple[List[ComponentGrou
 
 
 def print_mismatched(mismatched: Dict[str, List[str]]) -> None:
+    """Print components with mismatched fields"""
+
     if not len(mismatched.keys()) > 0:
         return
     logging.error("There were components that have mismatched fields.")
@@ -207,6 +340,8 @@ def print_mismatched(mismatched: Dict[str, List[str]]) -> None:
 def create_netlist(
     kicad_project: KicadProject, output_format: str = "kicadsexpr", debug: bool = False
 ) -> kicad_netlist_reader.netlist:
+    """Create netlist from KiCad project"""
+
     assert output_format in ["kicadsexpr", "kicadxml", "cadstar", "cadstar", "orcadpcb2", "spice", "spicemodel"]
 
     kicad_project.create_doc_dir()
