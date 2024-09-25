@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser(
-        "wireframe", help="Split outline layer to top/bottom and optionally export it as .png and .gbr files."
+        "wireframe", help="Split outline layer to top/bottom and optionally export it as .svg and .gbr files."
     )
     parser.add_argument(
         "-r",
@@ -34,9 +34,15 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "-p",
         "--preset",
-        choices=["simple", "dimensions", "descriptions"],
+        choices=["simple", "dimensions", "descriptions", "assembly_drawing"],
         action="store",
         help="Generate SVG according to preset",
+    )
+    parser.add_argument(
+        "-sr",
+        "--set-ref",
+        action="store_true",
+        help="Set footprint references to certain state (reset position, set size, ..)",
     )
     parser.set_defaults(func=run)
 
@@ -81,6 +87,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 allowed_layers="User.9,Edge.Cuts",
             ),
             ["top", "bottom"],
+            ["User.9,Edge.Cuts"],
         ),
         (
             "dimensions",
@@ -93,6 +100,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 allowed_layers="User.9,Edge.Cuts,User.Drawings",
             ),
             ["top", "bottom", ""],
+            ["User.9,Edge.Cuts,User.Drawings"],
         ),
         (
             "descriptions",
@@ -105,6 +113,20 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 allowed_layers="User.9,Edge.Cuts,User.Comments",
             ),
             ["top", "bottom"],
+            ["User.9,Edge.Cuts,User.Comments"],
+        ),
+        (
+            "assembly_drawing",
+            dict(
+                stackup=True,
+                dimensions=True,
+                vias=True,
+                zones=True,
+                exclude="TP MP M A REF**".split(),
+                allowed_layers="User.9,Edge.Cuts,F.SilkS,B.SilkS",
+            ),
+            ["top", "bottom"],
+            "User.9,Edge.Cuts,$side.Fab,$side.Paste".split(","),
         ),
     ]
     for preset in presets:
@@ -115,16 +137,23 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             args.input.removesuffix(".kicad_pcb") + "_wireframe",
             dict(allowed_layers="User.9,Edge.Cuts"),
             ["top", "bottom"],
+            ["User.9,Edge.Cuts"],
         )
 
-    export_wireframe(preset[0], preset[1], preset[2], ki_pro, args.input)
+    generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
 
-def export_wireframe(oname: str, filter_args: Dict[str, Any], sides: List[str], kpro: KicadProject, ifile: str) -> None:
+def generate_wireframe(
+    oname: str,
+    filter_args: Dict[str, Any],
+    sides: List[str],
+    export_layers: List[str],
+    kpro: KicadProject,
+    ifile: str,
+    set_ref: bool,
+) -> None:
     output_folder = os.path.join(kpro.fab_dir, "wireframe/")
     os.makedirs(output_folder, exist_ok=True)
-
-    layers = filter_args["allowed_layers"]
 
     for side in sides:
         with NamedTemporaryFile(suffix=".kicad_pcb") as fp:
@@ -136,40 +165,94 @@ def export_wireframe(oname: str, filter_args: Dict[str, Any], sides: List[str], 
             filter_args["outfile"] = fp.name
             filter_args["infile"] = ifile
             filter_args["side"] = side
+
+            log.info("Run PCB filter")
             pcb_filter_run(kpro, **filter_args)
 
-            # SVG
-            outfile = os.path.join(output_folder, oname_side + ".svg")
-            log.info(f"Exporting {layers} svg to {outfile}")
-            svg_export_cli_command = [
-                "pcb",
-                "export",
-                "svg",
-                fp.name,
-                "-o",
-                outfile,
-                "-l",
-                layers,
-                "--black-and-white",
-                "--exclude-drawing-sheet",
-                "--page-size-mode",
-                "2",
-            ]
-            run_kicad_cli(svg_export_cli_command, True)
+            if set_ref:
+                reset_footprint_val_props(fp.name)
 
-            # GERBER
-            outfile = os.path.join(output_folder, oname_side + ".gbr")
-            log.info(f"Exporting {layers} gerber to {outfile}")
-            gerber_export_cli_command = [
-                "pcb",
-                "export",
-                "gerber",
-                fp.name,
-                "-o",
-                outfile,
-                "--precision",
-                "6",
-                "-l",
-                layers,
-            ]
-            run_kicad_cli(gerber_export_cli_command, True)
+            for layer in export_layers:
+                slayer = layer.split(",")
+                for idx, sl in enumerate(slayer):
+                    if side == "top":
+                        slayer[idx] = sl.replace("$side", "F")
+                    elif side == "bottom":
+                        slayer[idx] = sl.replace("$side", "B")
+                    else:  # side==""
+                        slayer[idx] = sl.replace("$side", "F") + "," + sl.replace("$side", "B")
+                layer = ",".join(slayer)
+
+                if len(export_layers) == 1:
+                    oname_side_l = oname_side
+                else:
+                    oname_side_l = oname_side + "_" + layer.replace(".", "_")
+                do_exports(fp.name, output_folder, oname_side_l, layer)
+
+
+def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str) -> None:
+    # SVG
+    outfile = os.path.join(output_folder, oname_side_l + ".svg")
+    log.info(f"Exporting {layer} svg to {outfile}")
+    svg_export_cli_command = [
+        "pcb",
+        "export",
+        "svg",
+        ifile,
+        "-o",
+        outfile,
+        "-l",
+        layer,
+        "--black-and-white",
+        "--exclude-drawing-sheet",
+        "--page-size-mode",
+        "2",
+    ]
+    run_kicad_cli(svg_export_cli_command, True)
+
+    # GERBER
+    outfile = os.path.join(output_folder, oname_side_l + ".gbr")
+    log.info(f"Exporting {layer} gerber to {outfile}")
+    gerber_export_cli_command = [
+        "pcb",
+        "export",
+        "gerber",
+        ifile,
+        "-o",
+        outfile,
+        "--precision",
+        "6",
+        "-l",
+        layer,
+    ]
+    run_kicad_cli(gerber_export_cli_command, True)
+
+
+def reset_footprint_val_props(file: str) -> None:
+    try:
+        import pcbnew
+
+        log.info("Reset footprint reference properties")
+
+        board = pcbnew.LoadBoard(file)
+        # board = pcbnew.GetBoard() # Used in KiCad scripting console
+        modules = board.GetFootprints()
+        for m in modules:
+            m.Reference().SetVisible(True)
+            m.Reference().SetKeepUpright(True)
+            m.Reference().SetPosition(m.GetPosition())
+            m.Reference().SetVertJustify(0)
+            m.Reference().SetHorizJustify(0)
+            m.Reference().SetTextSize(pcbnew.VECTOR2I(350000, 350000))
+            m.Reference().SetTextThickness(70000)
+        for m in [m for m in board.GetFootprints() if "F" in board.GetLayerName(m.GetLayer())]:
+            m.Reference().SetLayer(pcbnew.F_Fab)
+        for m in [m for m in board.GetFootprints() if "B" in board.GetLayerName(m.GetLayer())]:
+            m.Reference().SetLayer(pcbnew.B_Fab)
+        board.Save(file)
+        # pcbnew.Refresh() # Used in KiCad scripting console
+    except ModuleNotFoundError:
+        log.error("Module `pcbnew`(KiCad API) can not be found!")
+        log.warning("Add `pcbnew.py` to paths recognized by python")
+        log.warning("OR run above block code in KiCad scripting console")
+        log.error("Footprint value properties has not be set!")

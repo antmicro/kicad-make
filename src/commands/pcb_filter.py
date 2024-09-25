@@ -253,7 +253,8 @@ def reference_match(fp: Footprint, pat_top: List[str], pat_bottom: List[str]) ->
         if item.type != "reference":
             continue
         for p in pat:
-            if item.text.removeprefix(p)[0].isdecimal():
+            ref = item.text.removeprefix(p)
+            if len(ref) == 0 or ref[0].isdecimal():
                 return True
         return False
     return False
