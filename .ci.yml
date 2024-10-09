@@ -81,6 +81,8 @@ build-kmake-docker-image-testing-kicad8:
     - apt install -y git
     - git submodule update --init --recursive tests/test-designs
     - pip3 install --break-system-packages -e ".[dev]"
+    - python3 -m pip show kiutils | grep "Version:"
+    - python3 tests/migrate_project.py tests/test-designs/
     - pytest --cov-report term --cov-report html:htmlcov --cov=src
   artifacts:
     expire_in: 2 week
