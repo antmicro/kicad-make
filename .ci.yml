@@ -109,8 +109,10 @@ test-kicad8-docker:
 .test-setup: &test-setup
   image: python:3.11
   stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   before_script:
-    - pip3 install -e ".[dev]"
+    - pip3 install black mypy ruff
 
 black:
   <<: *test-setup
