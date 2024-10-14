@@ -1,37 +1,32 @@
 import unittest
-import kmake
-import os
 import logging
 from pathlib import Path
-from git import Repo
 from typing import List
-
-from common.kicad_project import KicadProject
-
-TEST_COMMAND = "bom"
-TEST_DIR = Path(__file__).parent.resolve()
-# path to test design repository
-TARGET = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
-REF_OUTS = TEST_DIR / "reference-outputs" / "jetson-orin-baseboard" / "bom"
+from kmake_test_common import KmakeTestCase
 
 
-class BomTest(unittest.TestCase):
+REF_OUTS = KmakeTestCase.TEST_DIR / "reference-outputs" / "jetson-orin-baseboard" / "bom"
+
+
+class BomTest(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "bom")
+        unittest.TestCase.__init__(self, method_name)
+
     def template_test(self, args: List[str], refrence: Path, out_path: Path, fails: bool) -> None:
-        self.args = kmake.parse_arguments([TEST_COMMAND] + args)
-        self.kpro = KicadProject()
-
         if fails:
             with self.assertLogs(level=logging.WARNING), self.assertRaises(SystemExit):
-                self.args.func(self.kpro, self.args)
+                self.run_test_command(args)
         else:
-            self.args.func(self.kpro, self.args)
+            self.run_test_command(args)
             self.assertListEqual(sorted(list(open(refrence))), sorted(list(open(out_path))))
 
     def test_output_file(self) -> None:
         self.template_test(
             ["--output", "bom.csv"],
             REF_OUTS / "BOM-populated.csv",
-            TARGET / "bom.csv",
+            self.target_dir / "bom.csv",
             False,
         )
 
@@ -39,7 +34,7 @@ class BomTest(unittest.TestCase):
         self.template_test(
             [],
             REF_OUTS / "BOM-populated.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-populated.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-populated.csv",
             False,
         )
 
@@ -47,7 +42,7 @@ class BomTest(unittest.TestCase):
         self.template_test(
             ["--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"],
             REF_OUTS / "BOM-populated.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-populated.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-populated.csv",
             False,
         )
 
@@ -55,7 +50,7 @@ class BomTest(unittest.TestCase):
         self.template_test(
             ["--all", "--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"],
             REF_OUTS / "BOM-ALL.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-ALL.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-ALL.csv",
             False,
         )
 
@@ -63,7 +58,7 @@ class BomTest(unittest.TestCase):
         self.template_test(
             ["--dnp", "--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"],
             REF_OUTS / "BOM-DNP.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-DNP.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-DNP.csv",
             False,
         )
 
@@ -71,7 +66,7 @@ class BomTest(unittest.TestCase):
         self.template_test(
             ["--all", "--no-ignore", "--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"],
             REF_OUTS / "BOM-ALL-no-ignore.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-ALL.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-ALL.csv",
             False,
         )
 
@@ -88,7 +83,7 @@ class BomTest(unittest.TestCase):
                 "Description",
             ],
             REF_OUTS / "BOM-ALL-ReferenceNotGrouped.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-ALL-ReferenceNotGrouped.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-ALL-ReferenceNotGrouped.csv",
             False,
         )
 
@@ -96,18 +91,9 @@ class BomTest(unittest.TestCase):
         self.template_test(
             ["--fields", "wrongField"],
             REF_OUTS / "BOM-ALL-no-ignore.csv",
-            TARGET / "doc" / "jetson-orin-baseboard-BOM-ALL.csv",
+            self.target_dir / "doc" / "jetson-orin-baseboard-BOM-ALL.csv",
             True,
         )
-
-    def setUp(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(TARGET)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(TARGET)
 
 
 if __name__ == "__main__":

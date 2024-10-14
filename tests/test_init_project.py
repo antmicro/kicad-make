@@ -1,33 +1,36 @@
 import unittest
-
 import kiutils
-import kmake
 import os
 import tempfile
 import logging
 from pathlib import Path
-from git import List
 from common.kicad_project import KicadProject
 from typing import Tuple
 from kiutils.items.common import TitleBlock
 from datetime import date
 import shutil
-
-TEST_COMMAND = "init-project"
-TARGET: Path
+from kmake_test_common import KmakeTestCase
 
 
-class InitProjectTest(unittest.TestCase):
+class InitProjectTest(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        self.TARGET = Path(tempfile.mkdtemp())
+        KmakeTestCase.__init__(self, self.TARGET, "init-project")
+        unittest.TestCase.__init__(self, method_name)
+
     def setUp(self) -> None:
-        """Create tmp directory before test"""
-        global TARGET
-        TARGET = Path(tempfile.mkdtemp())
-        os.chdir(TARGET)
+        # super().setUp() omitted intentionally
+        os.chdir(self.TARGET)
+        self.kpro = KicadProject()
 
     def tearDown(self) -> None:
+        self.kpro = KicadProject()
+        self.check_if_pcb_sch_opens()
         """Remove tmp directory after test"""
-        if os.path.exists(TARGET):
-            shutil.rmtree(TARGET)
+        if os.path.exists(self.TARGET):
+            shutil.rmtree(self.TARGET)
+        # super().tearDown() omitted intentionally
 
     def get_title_blocks(self, project_name: str = "project") -> Tuple[TitleBlock, TitleBlock]:
         """Returns TitleBlock from schematic and PCB"""
@@ -61,23 +64,17 @@ class InitProjectTest(unittest.TestCase):
         board.titleBlock = sch_title_block
         board.to_file(filepath="project.kicad_pcb")
 
-    def template_command(self, arguments: List[str]) -> None:
-        "Template for running commands"
-        self.args = kmake.parse_arguments([TEST_COMMAND] + arguments)
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
-
     def test_init_files(self) -> None:
         """Check if all files were generated"""
-        self.template_command(["-t", "project"])
+        self.run_test_command(["-t", "project"])
 
-        self.assertTrue(os.path.isfile(TARGET / Path("project.kicad_pro")))
-        self.assertTrue(os.path.isfile(TARGET / Path("project.kicad_sch")))
-        self.assertTrue(os.path.isfile(TARGET / Path("project.kicad_pcb")))
+        self.assertTrue(os.path.isfile(self.TARGET / Path("project.kicad_pro")))
+        self.assertTrue(os.path.isfile(self.TARGET / Path("project.kicad_sch")))
+        self.assertTrue(os.path.isfile(self.TARGET / Path("project.kicad_pcb")))
 
     def test_init_revision(self) -> None:
         """Check if revision was set to 1.0.0"""
-        self.template_command(["-t", "project"])
+        self.run_test_command(["-t", "project"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.revision, "1.0.0")
@@ -85,7 +82,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_date(self) -> None:
         """Check if date was set to current date"""
-        self.template_command(["-t", "project"])
+        self.run_test_command(["-t", "project"])
         sch_title_block, brd_title_block = self.get_title_blocks()
         timestamp = date.today().strftime("%d.%m.%Y")
 
@@ -94,7 +91,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_init_title(self) -> None:
         """Test if title is set in schematic and PCB"""
-        self.template_command(["-t", "project"])
+        self.run_test_command(["-t", "project"])
         sch_title_block, brd_title_block = self.get_title_blocks(project_name="project")
 
         self.assertEqual(sch_title_block.title, "project")
@@ -102,7 +99,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_init_true(self) -> None:
         """Test if title is set in schematic and PCB when title is set to True"""
-        self.template_command(["-t", "True"])
+        self.run_test_command(["-t", "True"])
         sch_title_block, brd_title_block = self.get_title_blocks(project_name="True")
 
         self.assertEqual(sch_title_block.title, "True")
@@ -110,7 +107,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_init_none(self) -> None:
         """Test if title is set in schematic and PCB when title is set to None"""
-        self.template_command(["-t", "None"])
+        self.run_test_command(["-t", "None"])
         sch_title_block, brd_title_block = self.get_title_blocks(project_name="None")
 
         self.assertEqual(sch_title_block.title, "None")
@@ -118,7 +115,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_init_special_chars(self) -> None:
         """Test if title is set in schematic and PCB, when special characters are used"""
-        self.template_command(["-t", "!@#$%_"])
+        self.run_test_command(["-t", "!@#$%_"])
         sch_title_block, brd_title_block = self.get_title_blocks(project_name="!@#$%_")
 
         self.assertEqual(sch_title_block.title, "!@#$%_")
@@ -127,7 +124,7 @@ class InitProjectTest(unittest.TestCase):
     def test_init_title_long(self) -> None:
         """Same as test_init_title but long arguments are used"""
 
-        self.template_command(["--title", "project"])
+        self.run_test_command(["--title", "project"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.title, "project")
@@ -136,7 +133,7 @@ class InitProjectTest(unittest.TestCase):
     def test_company(self) -> None:
         """Test if company was set correctly"""
 
-        self.template_command(["-t", "project", "-c", "antmicro"])
+        self.run_test_command(["-t", "project", "-c", "antmicro"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.company, "antmicro")
@@ -144,7 +141,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_company_true(self) -> None:
         """Test if company title was set correctly, when title is set to True"""
-        self.template_command(["-t", "project", "-c", "True"])
+        self.run_test_command(["-t", "project", "-c", "True"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.company, "True")
@@ -152,7 +149,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_company_none(self) -> None:
         """Test if company title was set correctly, when title is set to True"""
-        self.template_command(["-t", "project", "-c", "None"])
+        self.run_test_command(["-t", "project", "-c", "None"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.company, "None")
@@ -160,14 +157,14 @@ class InitProjectTest(unittest.TestCase):
 
     def test_company_special_chars(self) -> None:
         """Test if company title can handle special chars"""
-        self.template_command(["-t", "project", "-c", "!_@#$%"])
+        self.run_test_command(["-t", "project", "-c", "!_@#$%"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.company, "!_@#$%")
         self.assertEqual(brd_title_block.company, "!_@#$%")
 
     def test_company_long(self) -> None:
-        self.template_command(["-t", "project", "-c", "antmicro"])
+        self.run_test_command(["-t", "project", "-c", "antmicro"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.company, "antmicro")
@@ -176,7 +173,7 @@ class InitProjectTest(unittest.TestCase):
     def test_size(self) -> None:
         "Test if size is set correctly"
 
-        self.template_command(["-t", "project", "-s", "A0"])
+        self.run_test_command(["-t", "project", "-s", "A0"])
         sch_paper, brd_file = self.get_papers()
 
         self.assertEqual(sch_paper.paperSize, "A0")
@@ -187,14 +184,14 @@ class InitProjectTest(unittest.TestCase):
 
         with self.assertRaises(SystemExit) as status:
             with self.assertLogs(level=logging.ERROR) as log:
-                self.template_command(["-t", "project", "-s", "Z3"])
+                self.run_test_command(["-t", "project", "-s", "Z3"])
         self.assertEqual(status.exception.code, -1)
-        self.assertIn("Selected page is not range", log.output[1])
+        self.assertIn("Selected page is not range", log.output[0])
 
     def test_size_long(self) -> None:
         "Test if size is set correctly"
 
-        self.template_command(["-t", "project", "--size", "A0"])
+        self.run_test_command(["-t", "project", "--size", "A0"])
         sch_paper, brd_file = self.get_papers()
 
         self.assertEqual(sch_paper.paperSize, "A0")
@@ -202,17 +199,18 @@ class InitProjectTest(unittest.TestCase):
 
     def test_reset(self) -> None:
         """Check if kmake init-project block unattended changes"""
-        self.template_command(["-t", "project", "-c", "company", "-s", "A5"])
+        self.run_test_command(["-t", "project", "-c", "company", "-s", "A5"])
+        self.kpro = KicadProject()
 
         with self.assertRaises(SystemExit) as status:
             with self.assertLogs(level=logging.WARNING) as log:
-                self.template_command(["-t", "project 2", "-c", "company 2", "-s", "A0"])
+                self.run_test_command(["-t", "project 2", "-c", "company 2", "-s", "A0"])
         self.assertEqual(status.exception.code, -1)
         self.assertEqual("Project title mismatch, project 2 is not the same as project", log.output[0][30:])
 
     def test_reload(self) -> None:
         """Test if only company, title and size fields are set with -r flag"""
-        self.template_command(["-t", "project", "-c", "company", "-s", "A5", "-r"])
+        self.run_test_command(["-t", "project", "-c", "company", "-s", "A5", "-r"])
         self.set_title_blocks()
         sch_title_block, brd_title_block = self.get_title_blocks()
         sch_paper, brd_paper = self.get_papers()
@@ -230,7 +228,7 @@ class InitProjectTest(unittest.TestCase):
 
     def test_reload_long(self) -> None:
         """Test if only company, title and size fields are set with -r flag"""
-        self.template_command(["-t", "project", "-c", "company", "-s", "A5", "--reload"])
+        self.run_test_command(["-t", "project", "-c", "company", "-s", "A5", "--reload"])
         self.set_title_blocks()
         sch_title_block, brd_title_block = self.get_title_blocks()
         sch_paper, brd_paper = self.get_papers()
@@ -248,13 +246,14 @@ class InitProjectTest(unittest.TestCase):
 
     def test_force_title(self) -> None:
         """Test if title can be changed with force"""
-        self.template_command(["-t", "project"])
+        self.run_test_command(["-t", "project"])
+        self.kpro = KicadProject()
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.title, "project")
         self.assertEqual(brd_title_block.title, "project")
 
-        self.template_command(["-t", "device", "--force-title"])
+        self.run_test_command(["-t", "device", "--force-title"])
         sch_title_block, brd_title_block = self.get_title_blocks()
 
         self.assertEqual(sch_title_block.title, "device")
@@ -262,11 +261,12 @@ class InitProjectTest(unittest.TestCase):
 
     def test_unattended_title_change(self) -> None:
         """Check if title can't be changed accidentally"""
-        self.template_command(["-t", "project"])
+        self.run_test_command(["-t", "project"])
+        self.kpro = KicadProject()
 
         with self.assertRaises(SystemExit) as status:
             with self.assertLogs(level=logging.WARNING) as log:
-                self.template_command(["-t", "device"])
+                self.run_test_command(["-t", "device"])
 
         self.assertEqual(status.exception.code, -1)
         self.assertIn("Project title mismatch, device is not the same as project", log.output[0])

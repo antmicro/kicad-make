@@ -1,31 +1,18 @@
 import unittest
-import kmake
 import os
-from pathlib import Path
-from git import Repo
 
-from common.kicad_project import KicadProject
 from kiutils.board import Board
-
-TEST_COMMAND = "pnp"
-TEST_DIR = Path(__file__).parent.resolve()
-# path to test design repository
-JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
+from kmake_test_common import KmakeTestCase
 
 
-class PnpTest(unittest.TestCase):
+class PnpTest(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "pnp")
+        unittest.TestCase.__init__(self, method_name)
+
     def test_pnp(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        # parse arguments for the test command
-        self.args = kmake.parse_arguments([TEST_COMMAND])
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+        self.run_test_command([])
 
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-top.pos"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos"))
@@ -33,17 +20,7 @@ class PnpTest(unittest.TestCase):
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom-pos.csv"))
 
     def test_pnp_tht(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        # parse arguments for the test command
-        self.args = kmake.parse_arguments([TEST_COMMAND, "-t"])
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+        self.run_test_command(["-t"])
 
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-top.pos"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos"))
@@ -58,17 +35,7 @@ class PnpTest(unittest.TestCase):
                     self.assertIn(footprint.entryName, file.read())
 
     def test_pnp_other(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        # parse arguments for the test command
-        self.args = kmake.parse_arguments([TEST_COMMAND, "--other"])
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+        self.run_test_command(["--other"])
 
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-top.pos"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos"))
@@ -82,17 +49,7 @@ class PnpTest(unittest.TestCase):
                     self.assertIn(footprint.entryName, file.read())
 
     def test_pnp_excluded(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        # parse arguments for the test command
-        self.args = kmake.parse_arguments([TEST_COMMAND, "--excluded"])
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+        self.run_test_command(["--excluded"])
 
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-top.pos"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos"))

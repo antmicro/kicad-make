@@ -1,18 +1,9 @@
 import unittest
-import kmake
-import os
-from pathlib import Path
-from git import Repo
 from typing import List
+from kmake_test_common import KmakeTestCase
 
-from common.kicad_project import KicadProject
 
-COMMAND = "logos"
-TEST_NAME = COMMAND
-
-TEST_DIR = Path(__file__).parent.resolve()
-JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
-RESULT_DIR = TEST_DIR / "results" / TEST_NAME
+RESULT_DIR = KmakeTestCase.TEST_DIR / "results" / "logos"
 
 
 TEST_LOGO = """(image (at 107.95 270.51)
@@ -55,19 +46,16 @@ TEST_LOGO = """(image (at 107.95 270.51)
 """
 
 
-class LogosTest(unittest.TestCase):
+class LogosTest(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "logos")
+        unittest.TestCase.__init__(self, method_name)
+
     def inner(self, args: List[str], reflogo: str) -> None:
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        self.args = kmake.parse_arguments(args)
-        self.kpro = KicadProject()
+        self.run_test_command(args)
 
-        self.args.func(self.kpro, self.args)
-
-        kicad_project_repo = Repo(f"{self.kpro.dir}")
-        changed_files = [item.a_path for item in kicad_project_repo.index.diff(None)]
+        changed_files = [item.a_path for item in self.project_repo.index.diff(None)]
         # Skip first line, it contains coordinates that will change
         logo = "\n".join([line.strip() for line in reflogo.splitlines()[1:]])
         for file in changed_files:
@@ -75,18 +63,18 @@ class LogosTest(unittest.TestCase):
                 file_contents = "\n".join([line.strip() for line in f.readlines()])
                 self.assertTrue(logo in file_contents)
 
-        self.assertTrue(len(kicad_project_repo.untracked_files) == 0)
+        self.assertTrue(len(self.project_repo.untracked_files) == 0)
 
     def test_logos_builtin_logo(self) -> None:
-        with open(f"{TEST_DIR}/../src/logos/oshw", "r") as f:
+        with open(f"{self.TEST_DIR}/../src/logos/oshw", "r") as f:
             oshw_logo = f.read()
-            self.inner([COMMAND, "oshw"], oshw_logo)
+            self.inner(["oshw"], oshw_logo)
 
     def test_logos_custom_path(self) -> None:
-        self.test_logo_path = TEST_DIR / "test_logo"
+        self.test_logo_path = self.TEST_DIR / "test_logo"
         with open(self.test_logo_path, "w") as f:
             f.write(TEST_LOGO)
-        self.inner([COMMAND, "test_logo", "-p", str(TEST_DIR)], TEST_LOGO)
+        self.inner(["test_logo", "-p", str(self.TEST_DIR)], TEST_LOGO)
 
 
 if __name__ == "__main__":

@@ -2,60 +2,36 @@ import unittest
 from kiutils.schematic import Schematic
 from kiutils.board import Board
 import kmake
-import os
-from pathlib import Path
-from typing import List
-import tempfile
-import shutil
-
-from common.kicad_project import KicadProject
-
-TEST_COMMAND = "globlib"
-TEST_DIR = Path(__file__).parent.resolve()
-TARGET: Path
-KICAD_PROJECT_DIR = TEST_DIR / "test-designs" / "project-with-kicad-lib"
+from kmake_test_common import KmakeTestCase
 
 
-class GloblibTest(unittest.TestCase):
-    def setUp(self) -> None:
-        """
-        Prepare test files
-        """
-        global TARGET
-        TARGET = Path(tempfile.mkdtemp())
-        shutil.copytree(KICAD_PROJECT_DIR, TARGET, dirs_exist_ok=True)
-        os.chdir(TARGET)
+class GloblibTest(KmakeTestCase, unittest.TestCase):
 
-    def tearDown(self) -> None:
-        """Remove tmp directory after test"""
-        if os.path.exists(TARGET):
-            shutil.rmtree(TARGET)
-
-    def run_test_command(self, arguments: List[str]) -> None:
-        self.args = kmake.parse_arguments([TEST_COMMAND] + arguments)
-        self.kpro = KicadProject()
-
-        self.args.func(self.kpro, self.args)
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "project-with-kicad-lib", "globlib")
+        unittest.TestCase.__init__(self, method_name)
 
     def loclib_test_project(self) -> None:
         """
         Loclib test project
         """
-        os.chdir(TARGET)
 
-        kpro = KicadProject()
         args = kmake.parse_arguments(["loclib"])
-        args.func(kpro, args)
+        args.func(self.kpro, args)
 
     def compare_symbols_libraries(self) -> None:
         """
         Compare libraries of symbol used in kicad schematic files
         """
 
-        target_sch_path = TARGET / "project-with-kicad-lib.kicad_sch"
+        target_sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
 
         reference_sch_path = (
-            TEST_DIR / "reference-outputs" / "project-with-kicad-lib" / "globlib" / "project-with-kicad-lib.kicad_sch"
+            self.TEST_DIR
+            / "reference-outputs"
+            / "project-with-kicad-lib"
+            / "globlib"
+            / "project-with-kicad-lib.kicad_sch"
         )
 
         target_sch = Schematic().from_file(filepath=str(target_sch_path))
@@ -71,9 +47,13 @@ class GloblibTest(unittest.TestCase):
         Compare libraries of footprints used in kicad schematic files
         """
 
-        target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
+        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         reference_pcb_path = (
-            TEST_DIR / "reference-outputs" / "project-with-kicad-lib" / "globlib" / "project-with-kicad-lib.kicad_pcb"
+            self.TEST_DIR
+            / "reference-outputs"
+            / "project-with-kicad-lib"
+            / "globlib"
+            / "project-with-kicad-lib.kicad_pcb"
         )
 
         target_pcb = Board().from_file(filepath=str(target_pcb_path))
@@ -103,13 +83,13 @@ class GloblibTest(unittest.TestCase):
 
         self.compare_symbols_libraries()
 
-        target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
+        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         target_pcb = Board().from_file(filepath=str(target_pcb_path))
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
         target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
         for footprint_lib, footprint_entry_name in zip(target_footprint_libs, target_footprint_entry_names):
-            if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are ommited by loclib and globlib
+            if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are omitted by loclib and globlib
                 self.assertEqual(footprint_lib, "project-with-kicad-lib-footprints")
 
     def test_list_of_schematic(self) -> None:
@@ -121,13 +101,13 @@ class GloblibTest(unittest.TestCase):
 
         self.compare_symbols_libraries()
 
-        target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
+        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         target_pcb = Board().from_file(filepath=str(target_pcb_path))
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
         target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
         for footprint_lib, footprint_entry_name in zip(target_footprint_libs, target_footprint_entry_names):
-            if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are ommited by loclib and globlib
+            if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are omitted by loclib and globlib
                 self.assertEqual(footprint_lib, "project-with-kicad-lib-footprints")
 
     def test_update_properties_symbols(self) -> None:
@@ -136,7 +116,7 @@ class GloblibTest(unittest.TestCase):
         """
         self.loclib_test_project()
 
-        sch_path = TARGET / "project-with-kicad-lib.kicad_sch"
+        sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
         sch_file = Schematic().from_file(filepath=str(sch_path))
         symbols = sch_file.schematicSymbols
 
@@ -168,7 +148,7 @@ class GloblibTest(unittest.TestCase):
                     symbol.properties[2].value,
                     "",
                 )  #  Footprint
-                self.assertEqual(symbol.properties[3].value, "~")  # Datascheet
+                self.assertEqual(symbol.properties[3].value, "~")  # Datasheet
                 r1_on_pcb = True
 
         self.assertTrue(r1_on_pcb)
@@ -179,7 +159,7 @@ class GloblibTest(unittest.TestCase):
         """
         self.loclib_test_project()
 
-        pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
+        pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         pcb_file = Board().from_file(filepath=str(pcb_path))
         footprints = pcb_file.footprints
 
@@ -209,7 +189,7 @@ class GloblibTest(unittest.TestCase):
         """
         self.loclib_test_project()
         # Change symbol properites
-        sch_path = TARGET / "project-with-kicad-lib.kicad_sch"
+        sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
 
         sch_file = Schematic().from_file(filepath=str(sch_path))
         symbols = sch_file.schematicSymbols
@@ -219,7 +199,7 @@ class GloblibTest(unittest.TestCase):
             if symbol.instances[0].paths[0].reference == "R1":
                 symbol.properties[1].value = "4k7"  # Symbol value
                 symbol.properties[2].value = "Resistor_SMD:R_2010_5025Metric"  # Footprint
-                symbol.properties[3].value = "www.example.com"  # Datascheet
+                symbol.properties[3].value = "www.example.com"  # Datasheet
 
                 r1_on_sch = True
         self.assertTrue(r1_on_sch)
@@ -235,7 +215,7 @@ class GloblibTest(unittest.TestCase):
             if symbol.instances[0].paths[0].reference == "R1":
                 self.assertEqual(symbol.properties[1].value, "4k7")  # Symbol value
                 self.assertEqual(symbol.properties[2].value, "Resistor_SMD:R_2010_5025Metric")  # Footprint
-                self.assertEqual(symbol.properties[3].value, "www.example.com")  # Datascheet
+                self.assertEqual(symbol.properties[3].value, "www.example.com")  # Datasheet
 
                 r1_on_sch = True
         self.assertTrue(r1_on_sch)
@@ -250,7 +230,7 @@ class GloblibTest(unittest.TestCase):
             if symbol.instances[0].paths[0].reference == "R1":
                 self.assertEqual(symbol.properties[1].value, "4k7")  # Symbol value
                 self.assertEqual(symbol.properties[2].value, "")  # Footprint
-                self.assertEqual(symbol.properties[3].value, "www.example.com")  # Datascheet
+                self.assertEqual(symbol.properties[3].value, "www.example.com")  # Datasheet
 
                 r1_on_sch = True
         self.assertTrue(r1_on_sch)

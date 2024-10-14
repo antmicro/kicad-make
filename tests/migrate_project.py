@@ -30,7 +30,10 @@ def main() -> None:
                 repo.index.add(file.stem + ".kicad_pro")
                 repo.index.commit("Migrate project to tested KiCad version")
             except git.exc.InvalidGitRepositoryError:
-                log.info(f"Found {project} without git repository")
+                log.info(f"Found {project} without git repository (initializing new repo)")
+                repo = git.Repo.init(project)
+                repo.git.add(all=True)
+                repo.index.commit("initial")
 
 
 if __name__ == "__main__":

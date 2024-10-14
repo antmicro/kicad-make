@@ -1,29 +1,17 @@
-import unittest
-
 import kiutils
-import kmake
-import os
 import logging
-from pathlib import Path
-from git import Repo
+import unittest
 from typing import List
+from kmake_test_common import KmakeTestCase
 
-from common.kicad_project import KicadProject
 from common.kmake_helper import get_property, set_property
 
-TEST_COMMAND = "dnp"
-TEST_DIR = Path(__file__).parent.resolve()
 
-# path to test design repository
-TARGET = TEST_DIR / "test-designs" / "cm4-baseboard"
+class DnpTest(KmakeTestCase, unittest.TestCase):
 
-
-class DnpTest(unittest.TestCase):
-    def run_test_command(self, arguments: List[str]) -> None:
-        "Template for running commands"
-        self.args = kmake.parse_arguments([TEST_COMMAND] + arguments)
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "cm4-baseboard", "dnp")
+        unittest.TestCase.__init__(self, method_name)
 
     def get_footprint_designator(self, footprint: kiutils.footprint) -> str:
         """Return designator of footprint"""
@@ -130,7 +118,6 @@ class DnpTest(unittest.TestCase):
 
     def test_list_malformed(self) -> None:
         """Test output for -l command (list malformed)"""
-        self.reset_repo()
         with self.assertLogs(level=logging.WARNING) as log:
             self.run_test_command(["-l"])
         self.assertIn(
@@ -140,7 +127,6 @@ class DnpTest(unittest.TestCase):
 
     def test_clean_symbol(self) -> None:
         "Test if dnp symbols have `Exlude from bill of materials` and `Do not populate` fields set correctly"
-        self.reset_repo()
         self.check_symbol(["R407", "R409"], False, True, True)
         self.check_symbol(["R410"], True, False, True)
         self.check_symbol(["C404", "C405"], False, False, True)
@@ -150,7 +136,6 @@ class DnpTest(unittest.TestCase):
 
     def test_clean_footprint(self) -> None:
         "Test if DNP footprints have `Exclude from pos files` and `Exclude from bill of material` fields set correctly"
-        self.reset_repo()
         self.check_footprint(["R407"], False)
         self.check_footprint(["R406"], False)
         self.run_test_command([])
@@ -159,10 +144,10 @@ class DnpTest(unittest.TestCase):
 
     def test_remove_restore_paste(self) -> None:
         "Test if solder pasted was removed and restored from DNP components"
-        self.reset_repo()
         self.check_paste(["R407"], False)
         self.check_paste(["C404"], False)
         self.run_test_command(["--remove-dnp-paste"])
+        self.check_if_pcb_sch_opens()
         self.check_paste(["R407"], True)
         self.check_paste(["C404"], False)
         self.run_test_command(["--restore-dnp-paste"])
@@ -172,18 +157,17 @@ class DnpTest(unittest.TestCase):
         self.reset_repo()
         self.check_paste(["R407"], False)
         self.run_test_command(["-rp"])
+        self.check_if_pcb_sch_opens()
         self.check_paste(["R407"], True)
         self.run_test_command(["-sp"])
         self.check_paste(["R407"], False)
 
     def reset_repo(self) -> None:
         """Reset repository to HEAD"""
-        kicad_project_repo = Repo(TARGET)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
+        super().reset_repo()
 
         # Plant few imperfections in project files
-        sch = kiutils.schematic.Schematic().from_file(TARGET / "ethernet.kicad_sch")
+        sch = kiutils.schematic.Schematic().from_file(self.target_dir / "ethernet.kicad_sch")
         for s in sch.schematicSymbols:
             ref = self.get_symbold_designator(s)
             if ref == "R407" or ref == "R409":
@@ -196,14 +180,10 @@ class DnpTest(unittest.TestCase):
                 s.inBom = True
         sch.to_file()
 
-        pcb = kiutils.board.Board().from_file(TARGET / "cm4-baseboard.kicad_pcb")
+        pcb = kiutils.board.Board().from_file(self.target_dir / "cm4-baseboard.kicad_pcb")
         for fp in pcb.footprints:
             ref = self.get_footprint_designator(fp)
             if ref == "R407":
                 fp.attributes.excludeFromBom = False
                 fp.attributes.excludeFromPosFiles = False
         pcb.to_file()
-
-    def setUp(self) -> None:
-        self.reset_repo()
-        os.chdir(TARGET)

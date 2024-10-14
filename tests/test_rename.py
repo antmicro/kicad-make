@@ -1,30 +1,22 @@
 import unittest
-import kmake
-import os
 from pathlib import Path
-from git import Repo
 
+from kmake_test_common import KmakeTestCase
 from common.kicad_project import KicadProject
 
-COMMAND = "rename"
-TEST_NAME = COMMAND
-
-TEST_DIR = Path(__file__).parent.resolve()
-JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
-RESULT_DIR = TEST_DIR / "results" / TEST_NAME
+RESULT_DIR = KmakeTestCase.TEST_DIR / "results" / "rename"
 
 
-class RenameTest(unittest.TestCase):
-    def setUp(self) -> None:
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        self.args = kmake.parse_arguments([COMMAND, "new_cool_design_name"])
-        self.kpro = KicadProject()
+class RenameTest(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "rename")
+        unittest.TestCase.__init__(self, method_name)
 
     def test(self) -> None:
-        self.args.func(self.kpro, self.args)
+        self.old_kpro = self.kpro
+        self.run_test_command(["new_cool_design_name"])
+        self.kpro = KicadProject()
 
     def tearDown(self) -> None:
         whitelist = [
@@ -51,11 +43,12 @@ class RenameTest(unittest.TestCase):
             file = file.relative_to(self.kpro.dir)
             if str(file).startswith("."):
                 continue
-            self.assertTrue(self.kpro.name not in str(file))
+            self.assertTrue(self.old_kpro.name not in str(file))
             if file.is_file() and file in whitelist:
                 with open(file, "r", encoding="latin-1") as f:
                     content = f.read()
-                    self.assertTrue(self.kpro.name not in content)
+                    self.assertTrue(self.old_kpro.name not in content)
+        super().tearDown()
 
 
 if __name__ == "__main__":

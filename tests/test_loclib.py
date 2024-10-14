@@ -2,52 +2,28 @@ import unittest
 from kiutils.schematic import Schematic
 from kiutils.board import Board
 from kiutils.symbol import SymbolLib
-import kmake
-import os
-import tempfile
-import shutil
-from pathlib import Path
-from typing import List
-
-from common.kicad_project import KicadProject
-
-TEST_COMMAND = "loclib"
-TEST_DIR = Path(__file__).parent.resolve()
-
-TARGET: Path
-
-KICAD_PROJECT_DIR = TEST_DIR / "test-designs" / "project-with-kicad-lib"
+from kmake_test_common import KmakeTestCase
 
 
-class GloblibTest(unittest.TestCase):
-    def setUp(self) -> None:
-        """
-        Prepare test files
-        """
-        global TARGET
-        TARGET = Path(tempfile.mkdtemp())
-        shutil.copytree(KICAD_PROJECT_DIR, TARGET, dirs_exist_ok=True)
-        os.chdir(TARGET)
+class LoclibTest(KmakeTestCase, unittest.TestCase):
 
-    def tearDown(self) -> None:
-        """Remove tmp directory after test"""
-        if os.path.exists(TARGET):
-            shutil.rmtree(TARGET)
-
-    def run_test_command(self, arguments: List[str]) -> None:
-        self.args = kmake.parse_arguments([TEST_COMMAND] + arguments)
-        self.kpro = KicadProject()
-
-        self.args.func(self.kpro, self.args)
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "project-with-kicad-lib", "loclib")
+        unittest.TestCase.__init__(self, method_name)
 
     def test_symbols(self) -> None:
         """
         Test if symbols and footprints are from local library
         """
         self.run_test_command([])
-        target_sch_path = TARGET / "project-with-kicad-lib.kicad_sch"
+
+        target_sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
         reference_sch_path = (
-            TEST_DIR / "reference-outputs" / "project-with-kicad-lib" / "loclib" / "project-with-kicad-lib.kicad_sch"
+            self.TEST_DIR
+            / "reference-outputs"
+            / "project-with-kicad-lib"
+            / "loclib"
+            / "project-with-kicad-lib.kicad_sch"
         )
 
         target_sch = Schematic().from_file(filepath=str(target_sch_path))
@@ -58,9 +34,13 @@ class GloblibTest(unittest.TestCase):
 
         self.assertListEqual(target_symbols_libs, reference_symbols_libs)
 
-        target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
+        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         reference_pcb_path = (
-            TEST_DIR / "reference-outputs" / "project-with-kicad-lib" / "loclib" / "project-with-kicad-lib.kicad_pcb"
+            self.TEST_DIR
+            / "reference-outputs"
+            / "project-with-kicad-lib"
+            / "loclib"
+            / "project-with-kicad-lib.kicad_pcb"
         )
 
         target_pcb = Board().from_file(filepath=str(target_pcb_path))
@@ -77,7 +57,7 @@ class GloblibTest(unittest.TestCase):
         """
 
         # Check if +5V symbol is in cache
-        target_sch_path = TARGET / "project-with-kicad-lib.kicad_sch"
+        target_sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
         target_sch = Schematic().from_file(filepath=str(target_sch_path))
         target_symbols_libs = sorted([str(symbol.entryName) for symbol in target_sch.libSymbols])
         self.assertIn("+5V", target_symbols_libs)
@@ -93,8 +73,10 @@ class GloblibTest(unittest.TestCase):
         Test the --force switch
         """
         self.run_test_command([])
+
+        self.check_if_pcb_sch_opens()
         kicad_power_lib_path = "/usr/share/kicad/symbols/power.kicad_sym"
-        target_lib_path = TARGET / "lib" / "project-with-kicad-lib.kicad_sym"
+        target_lib_path = self.target_dir / "lib" / "project-with-kicad-lib.kicad_sym"
 
         kicad_lib = SymbolLib().from_file(filepath=str(kicad_power_lib_path))
         target_lib = SymbolLib().from_file(filepath=str(target_lib_path))

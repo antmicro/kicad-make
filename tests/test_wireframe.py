@@ -1,30 +1,17 @@
 import unittest
-import kmake
 import os
-from pathlib import Path
-from git import Repo
 
-from common.kicad_project import KicadProject
+from kmake_test_common import KmakeTestCase
 from kiutils.board import Board
 
-TEST_COMMAND = "wireframe"
-TEST_DIR = Path(__file__).parent.resolve()
-# path to test design repository
-JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 
+class WireframeTest(KmakeTestCase, unittest.TestCase):
 
-class WireframeTest(unittest.TestCase):
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "wireframe")
+        unittest.TestCase.__init__(self, method_name)
 
     def test_wireframe_reset(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        self.kpro = KicadProject()
-
         # Create board file that is equivalent of legacy wireframe result
         board = Board.from_file(self.kpro.pcb_file)
         for footprint in board.footprints:
@@ -36,9 +23,7 @@ class WireframeTest(unittest.TestCase):
                 item.layer = target_layer
         board.to_file()
 
-        # parse arguments for the test commands
-        self.args = kmake.parse_arguments([TEST_COMMAND, "--reset"])
-        self.args.func(self.kpro, self.args)
+        self.run_test_command(["--reset"])
 
         board = Board.from_file(self.kpro.pcb_file)
         for footprint in board.footprints:
@@ -46,25 +31,19 @@ class WireframeTest(unittest.TestCase):
                 self.assertNotEqual(item.layer, "User.8")
 
     def wireframe_presets(self, preset: str) -> None:
-        self.kpro = KicadProject()
-        self.args = kmake.parse_arguments([TEST_COMMAND, "-p", f"{preset}"])
-        self.args.func(self.kpro, self.args)
+        self.run_test_command(["-p", f"{preset}"])
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_top.gbr"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_bottom.gbr"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_top.svg"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_bottom.svg"))
 
-    def test_wireframe_presets(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        # parse arguments for the test command
+    def test_wireframe_presets_simple(self) -> None:
         self.wireframe_presets("simple")
+
+    def test_wireframe_presets_dimensions(self) -> None:
         self.wireframe_presets("dimensions")
+
+    def test_wireframe_presets_descriptions(self) -> None:
         self.wireframe_presets("descriptions")
 
 

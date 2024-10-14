@@ -1,37 +1,24 @@
 import unittest
-import kmake
 import re
-import os
-from pathlib import Path
-from git import Repo
+from kmake_test_common import KmakeTestCase
 from common.kicad_project import KicadProject
 
 
-TEST_COMMAND = "netlist"
-TEST_DIR = Path(__file__).parent.resolve()
-# path to test design repository
-TARGET = TEST_DIR / "test-designs" / "sdi-mipi-bridge-hw"
-REF_OUTS = TEST_DIR / "reference-outputs" / "sdi-mipi-bridge" / "netlist"
+REF_OUTS = KmakeTestCase.TEST_DIR / "reference-outputs" / "sdi-mipi-bridge" / "netlist"
 
 
-class BomNetlist(unittest.TestCase):
-    def setUp(self) -> None:
-        """Prepare test data"""
-        # make sure test design repository doesn't have any changes
-        test_repo = Repo(TARGET)
-        test_repo.git.reset("--hard", "HEAD")
-        test_repo.git.clean("-fd")
-        os.chdir(TARGET)
+class BomNetlist(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "sdi-mipi-bridge-hw", "netlist")
+        unittest.TestCase.__init__(self, method_name)
 
     def test_netlists_equal(self) -> None:
         """Test if target and reference netlists are equal"""
-        self.args = kmake.parse_arguments([TEST_COMMAND])
-        self.kpro = KicadProject()
+        self.run_test_command([])
 
-        self.args.func(self.kpro, self.args)
-
-        ref = open(REF_OUTS / f"netlist-v{self.kpro.kicad_version.split('.')[0]}.net").readlines()
-        tar = open(TARGET / "fab" / "netlist.net").readlines()
+        ref = open(REF_OUTS / f"netlist-v{KicadProject().kicad_version.split('.')[0]}.net").readlines()
+        tar = open(self.target_dir / "fab" / "netlist.net").readlines()
 
         lines_to_remove = []
         uri_match = False

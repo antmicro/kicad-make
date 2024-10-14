@@ -1,45 +1,33 @@
 import unittest
-import kmake
 import os
-from pathlib import Path
 from typing import List
-from git import Repo
 from kiutils.board import Board
 from kiutils.footprint import Footprint
 from kiutils.items.fpitems import FpText
 from kiutils.items.brditems import Via
-
-from common.kicad_project import KicadProject
-from common.kmake_helper import run_kicad_cli
-
-TEST_COMMAND = "pcb-filter"
-TEST_DIR = Path(__file__).parent.resolve()
-# path to test design repository
-DESIGN_DIR = TEST_DIR / "test-designs" / "cm4-baseboard"
+from kmake_test_common import KmakeTestCase
 
 
-class PCBFilterTest(unittest.TestCase):
+class PCBFilterTest(KmakeTestCase, unittest.TestCase):
+
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "cm4-baseboard", "pcb-filter")
+        unittest.TestCase.__init__(self, method_name)
+
     def command_test(self, args: List[str], name: str) -> None:
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(DESIGN_DIR)
         try:
             os.mkdir("out")
         except FileExistsError:
             pass
-        self.outfile = str(DESIGN_DIR / "out" / f"{name}.kicad_pcb")
+        self.outfile = str(self.target_dir / "out" / f"{name}.kicad_pcb")
         # parse arguments for the test command
-        self.args = kmake.parse_arguments([TEST_COMMAND] + args + ["-o", self.outfile])
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+        self.run_test_command(args + ["-o", self.outfile])
         self.outpcb = BoardStats(self.outfile)
         self.refpcb = self.inpcb
 
     def setUp(self) -> None:
-        kicad_project_repo = Repo(DESIGN_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        self.inpcb = BoardStats(str(DESIGN_DIR / "cm4-baseboard.kicad_pcb"))
+        super().setUp()
+        self.inpcb = BoardStats(str(self.target_dir / "cm4-baseboard.kicad_pcb"))
 
     def tearDown(self) -> None:
         self.assertEqual(self.refpcb.footprintsT, self.outpcb.footprintsT)
@@ -55,10 +43,7 @@ class PCBFilterTest(unittest.TestCase):
         self.assertEqual(self.refpcb.tracks, self.outpcb.tracks)
         self.assertEqual(self.refpcb.graphicItems, self.outpcb.graphicItems)
 
-        # run kicad-cli over generated file to check if its still valid Kicad-file
-
-        cmd = ["pcb", "export", "pos", self.outfile]
-        run_kicad_cli(cmd, False)
+        super().tearDown()
 
     def test_pcb_filter_allow(self) -> None:
         self.command_test(["-a", "J"], "allow")

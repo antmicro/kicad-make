@@ -1,10 +1,8 @@
 import unittest
-import kmake
 import os
 from pathlib import Path
-from git import Repo
 
-from common.kicad_project import KicadProject
+from kmake_test_common import KmakeTestCase
 
 TEST_COMMAND = "step"
 TEST_DIR = Path(__file__).parent.resolve()
@@ -12,20 +10,14 @@ TEST_DIR = Path(__file__).parent.resolve()
 JETSON_ORIN_BASEBOARD_DIR = TEST_DIR / "test-designs" / "jetson-orin-baseboard"
 
 
-class StepTest(unittest.TestCase):
-    def test_step(self) -> None:
-        # make sure test design repository doesn't have any changes
-        kicad_project_repo = Repo(JETSON_ORIN_BASEBOARD_DIR)
-        kicad_project_repo.git.reset("--hard", "HEAD")
-        kicad_project_repo.git.clean("-fd")
-        # change current directory to the test design repository
-        # as kmake expects to be run from the root of the test repository
-        os.chdir(JETSON_ORIN_BASEBOARD_DIR)
-        # parse arguments for the test command
-        self.args = kmake.parse_arguments([TEST_COMMAND])
-        self.kpro = KicadProject()
-        self.args.func(self.kpro, self.args)
+class StepTest(KmakeTestCase, unittest.TestCase):
 
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "step")
+        unittest.TestCase.__init__(self, method_name)
+
+    def test_step(self) -> None:
+        self.run_test_command([])
         self.assertTrue(os.path.exists(f"{self.kpro.step_model3d_dir}/{self.kpro.name}.step"))
 
 

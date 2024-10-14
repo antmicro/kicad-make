@@ -1,44 +1,20 @@
 import unittest
 from kiutils.board import Board
-import kmake
-import os
-from pathlib import Path
-from typing import List
-import tempfile
-import shutil
-
-from common.kicad_project import KicadProject
-
-TEST_COMMAND = "kibuzzard-to-graphic"
-TEST_DIR = Path(__file__).parent.resolve()
-TARGET: Path
-KICAD_PROJECT_DIR = TEST_DIR / "test-designs" / "project-with-kicad-lib"
+from kmake_test_common import KmakeTestCase
 
 
-class KibuzzardToGraphicTest(unittest.TestCase):
-    def setUp(self) -> None:
-        """Prepare test files"""
-        global TARGET
-        TARGET = Path(tempfile.mkdtemp())
-        shutil.copytree(KICAD_PROJECT_DIR, TARGET, dirs_exist_ok=True)
-        os.chdir(TARGET)
+class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
 
-    def tearDown(self) -> None:
-        """Remove tmp directory after test"""
-        if os.path.exists(TARGET):
-            shutil.rmtree(TARGET)
-
-    def run_test_command(self, arguments: List[str]) -> None:
-        """Execute tested command"""
-        self.args = kmake.parse_arguments([TEST_COMMAND] + arguments)
-        self.kpro = KicadProject()
-
-        self.args.func(self.kpro, self.args)
+    def __init__(self, method_name: str = "runTest") -> None:
+        KmakeTestCase.__init__(
+            self, KmakeTestCase.TEST_DIR / "test-designs" / "project-with-kicad-lib", "kibuzzard-to-graphic"
+        )
+        unittest.TestCase.__init__(self, method_name)
 
     def test_kibuzzard(self) -> None:
-        target_pcb_path = TARGET / "project-with-kicad-lib.kicad_pcb"
+        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         reference_pcb_path = (
-            TEST_DIR
+            self.TEST_DIR
             / "reference-outputs"
             / "project-with-kicad-lib"
             / "kibuzzard-to-graphic"
