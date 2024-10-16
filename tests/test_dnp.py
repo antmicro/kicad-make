@@ -13,6 +13,10 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "cm4-baseboard", "dnp")
         unittest.TestCase.__init__(self, method_name)
 
+    def setUp(self) -> None:
+        KmakeTestCase.setUp(self)
+        self.reset_repo()
+
     def get_footprint_designator(self, footprint: kiutils.footprint) -> str:
         """Return designator of footprint"""
         for item in footprint.graphicItems:
@@ -164,7 +168,8 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
 
     def reset_repo(self) -> None:
         """Reset repository to HEAD"""
-        super().reset_repo()
+        self.project_repo.git.reset("--hard", "HEAD")
+        self.project_repo.git.clean("-fd")
 
         # Plant few imperfections in project files
         sch = kiutils.schematic.Schematic().from_file(self.target_dir / "ethernet.kicad_sch")
