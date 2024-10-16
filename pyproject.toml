@@ -47,6 +47,7 @@ kmake = ["logos/*"]
 dev = [
     "pytest",
     "pytest-cov",
+    "pytest-xdist",
     "black",
     "mypy",
     "ruff"
