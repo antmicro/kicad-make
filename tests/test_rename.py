@@ -4,8 +4,6 @@ from pathlib import Path
 from kmake_test_common import KmakeTestCase
 from common.kicad_project import KicadProject
 
-RESULT_DIR = KmakeTestCase.TEST_DIR / "results" / "rename"
-
 
 class RenameTest(KmakeTestCase, unittest.TestCase):
 

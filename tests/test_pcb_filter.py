@@ -1,5 +1,4 @@
 import unittest
-import os
 from typing import List
 from kiutils.board import Board
 from kiutils.footprint import Footprint
@@ -15,14 +14,8 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         unittest.TestCase.__init__(self, method_name)
 
     def command_test(self, args: List[str], name: str) -> None:
-        try:
-            os.mkdir("out")
-        except FileExistsError:
-            pass
-        self.outfile = str(self.target_dir / "out" / f"{name}.kicad_pcb")
-        # parse arguments for the test command
-        self.run_test_command(args + ["-o", self.outfile])
-        self.outpcb = BoardStats(self.outfile)
+        self.run_test_command(args + ["-o", self.kpro.pcb_file])
+        self.outpcb = BoardStats(self.kpro.pcb_file)
         self.refpcb = self.inpcb
 
     def setUp(self) -> None:

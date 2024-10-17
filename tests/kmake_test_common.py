@@ -25,9 +25,13 @@ class KmakeTestCase:
         args.func(self.kpro, args)
 
     def setUp(self) -> None:
+        """Copy test project to temp dir & prepare KiCad project and git repo"""
         temp_dir = Path(tempfile.mkdtemp())
         shutil.copytree(
-            self.target_dir, temp_dir, dirs_exist_ok=True, ignore=shutil.ignore_patterns("assets", "lib", "img", "doc")
+            self.target_dir,
+            temp_dir,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("assets", "lib", "img", "doc", ".git"),
         )
         self.target_dir = temp_dir
 
@@ -35,8 +39,6 @@ class KmakeTestCase:
         # as kmake expects to be run from the root of the test repository
         os.chdir(self.target_dir)
 
-        if os.path.exists(".git"):
-            os.remove(".git")
         self.project_repo = git.Repo.init(None)
         self.project_repo.git.add(all=True)
         self.project_repo.index.commit("initial")
@@ -45,8 +47,8 @@ class KmakeTestCase:
         self.migrate_project()
 
     def tearDown(self) -> None:
+        """Check if Kicad files are not corrupted & remove tmp directory after test"""
         self.check_if_pcb_sch_opens()
-        """Remove tmp directory after test"""
         if os.path.exists(self.target_dir):
             shutil.rmtree(self.target_dir)
 
@@ -57,6 +59,7 @@ class KmakeTestCase:
         run_kicad_cli(["sch", "export", "pdf", self.kpro.sch_root], False)
 
     def migrate_project(self) -> None:
+        """Ensure that test project version is the same as KiCad"""
         try:
             from pcbnew import LoadBoard, SaveBoard  # type:ignore  # noqa: F403
 

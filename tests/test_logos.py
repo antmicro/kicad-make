@@ -3,9 +3,6 @@ from typing import List
 from kmake_test_common import KmakeTestCase
 
 
-RESULT_DIR = KmakeTestCase.TEST_DIR / "results" / "logos"
-
-
 TEST_LOGO = """(image (at 107.95 270.51)
   (uuid 5368bee9-0dc1-4324-9e19-30a3e0e2c1d2)
   (data
