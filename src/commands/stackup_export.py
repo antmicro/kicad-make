@@ -69,11 +69,10 @@ def export_stackup(board: Board) -> List[Dict[str, Any]]:
         log.error("Stackup wasn't set for the project. " "User needs to open the editor and save it. Aborting")
         sys.exit(1)
     for layer in board.setup.stackup.layers:
+        layers.append(export_layer(layer))
         if len(layer.subLayers) > 0:
             for i, _ in enumerate(layer.subLayers):
                 layers.append(export_layer(layer, i))
-        else:
-            layers.append(export_layer(layer))
     return layers
 
 
@@ -81,7 +80,13 @@ def export_layer(layer: StackupLayer, sublayer: Union[int, None] = None) -> Dict
     """Converts kiutil layer representation to our representation.
     If sublayer is passed it exports it as it were a layer"""
     out = {}
-    out["name"] = layer.name
+    if len(layer.subLayers) > 0:
+        if sublayer is None:
+            out["name"] = layer.name + " (1/" + str(len(layer.subLayers) + 1) + ")"
+        else:
+            out["name"] = layer.name + " (" + str(sublayer + 2) + "/" + str(len(layer.subLayers) + 1) + ")"
+    else:
+        out["name"] = layer.name
     out["type"] = layer.type
     out["color"] = layer.color
     if sublayer is not None:
