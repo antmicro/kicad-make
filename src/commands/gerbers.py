@@ -133,21 +133,32 @@ def export_gerbers(
         gerbers_export_cli_command.extend(["--no-protel-ext"])
 
     run_kicad_cli(gerbers_export_cli_command, verbose)
-    log.info("Exported gerbers to : %s", kicad_project.fab_dir)
+    log.info("Exported gerbers to : %s", output_folder)
 
 
 def export_drill(
     input_pcb_file: str, output_folder: str = '""', excellon: bool = False, origin: str = "absolute"
 ) -> None:
-    log.info("Exporting drill files to %s", output_folder)
-    export_cli_command = "pcb export drill"
-    options = f" --format {'excellon' if excellon else 'gerber'}"
-    options += " --generate-map"
-    options += " --map-format gerberx2"
-    options += " --excellon-separate-th"
-    options += f" --drill-origin {origin}"
-    options += f" {input_pcb_file}"
-    options += f" -o {output_folder}"
 
-    command = f"{export_cli_command} {options}"
-    run_kicad_cli(command.split(), False)
+    drill_export_cli_command = [
+        "pcb",
+        "export",
+        "drill",
+        "--generate-map",
+        "--map-format",
+        "gerberx2",
+        "--excellon-separate-th",
+        "--drill-origin",
+        origin,
+        input_pcb_file,
+        "-o",
+        output_folder,
+    ]
+
+    if excellon:
+        drill_export_cli_command.extend(["--format", "excellon"])
+    else:
+        drill_export_cli_command.extend(["--format", "gerber"])
+
+    run_kicad_cli(drill_export_cli_command, False)
+    log.info("Exported drill files to : %s", output_folder)
