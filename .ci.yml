@@ -154,10 +154,16 @@ ohp-release:
   stage: test_docker
   dependencies: []
   when: never
-
-assets-check:
+  
+hrafn-release:
   stage: test_docker
   when: never
+  
+deploy-hrafn-assets:
+  stage: test_docker
+  dependencies: []
+  when: never
+
 
 customer-release:
   stage: test_docker
