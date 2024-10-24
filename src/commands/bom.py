@@ -346,13 +346,19 @@ def create_netlist(
 
     kicad_project.create_doc_dir()
     filename = f"{kicad_project.doc_dir}/netlist"
-
-    command = "sch export netlist"
-    command += f" --format {output_format}"
-    command += f" {kicad_project.sch_root} -o {filename}"
+    command = [
+        "sch",
+        "export",
+        "netlist",
+        "--format",
+        output_format,
+        kicad_project.sch_root,
+        "-o",
+        filename,
+    ]
 
     log.info("Generating netlist file: %s", filename)
-    run_kicad_cli(command.split(), debug)
+    run_kicad_cli(command, debug)
 
     net = kicad_netlist_reader.netlist(filename)
 
