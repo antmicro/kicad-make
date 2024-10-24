@@ -99,13 +99,18 @@ def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
 
 
 def export_impedance_gerbers(pcb_file: str, output_folder: Path) -> None:
-    gerber_export_cli_command = "pcb export gerbers"
     output_folder.mkdir(exist_ok=True)
-
-    options = f" {pcb_file} -o {output_folder}\
-        --precision 6 "
-    command = f"{gerber_export_cli_command} {options}"
-    run_kicad_cli(command.split(), True)
+    gerber_export_cli_command = [
+        "pcb",
+        "export",
+        "gerbers",
+        pcb_file,
+        "-o",
+        str(output_folder),
+        "--precision",
+        "6",
+    ]
+    run_kicad_cli(gerber_export_cli_command, True)
 
     for gerber_file in glob.glob(f"{output_folder}/*.g*"):
         gerber_name, _ = os.path.splitext(gerber_file)
