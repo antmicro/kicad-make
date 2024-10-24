@@ -22,11 +22,9 @@ def generate_netlist(input_sch_file: str, output_netlist_file: str) -> None:
     Default output format
     """
 
-    sch_export_cli_command = "sch export netlist"
-    options = f"-o {output_netlist_file} {input_sch_file}"
+    sch_export_cli_command = ["sch", "export", "netlist", "-o", output_netlist_file, input_sch_file]
 
-    command = f"{sch_export_cli_command} {options}"
-    run_kicad_cli(command.split(), True)
+    run_kicad_cli(sch_export_cli_command, True)
     log.info(f"Saved to {output_netlist_file}")
 
 
