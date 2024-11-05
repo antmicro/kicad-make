@@ -48,15 +48,15 @@ build-kmake:
     - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
     - trap "kill $(cat /var/run/docker.pid)" EXIT
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $CI_REGISTRY_IMAGE/$IMAGE_NAME .
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE_NAME
+    - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}"
+    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
+    - docker push $IMAGE_NAME
 
 build-kmake-docker-image-testing-kicad7:
   image: "debian:bookworm"
   stage: build_docker
   variables:
     KICAD_VERSION: "kicad7"
-    IMAGE_NAME: "kmake-testing:${CI_COMMIT_REF_SLUG}-${KICAD_VERSION}"
   extends: .build-kmake-docker-image
   only:
     - main
@@ -67,7 +67,6 @@ build-kmake-docker-image-testing-kicad8:
   stage: build_docker
   variables:
     KICAD_VERSION: "kicad8"
-    IMAGE_NAME: "kmake-testing:${CI_COMMIT_REF_SLUG}-${KICAD_VERSION}"
   extends: .build-kmake-docker-image
   only:
     - main
@@ -91,7 +90,7 @@ build-kmake-docker-image-testing-kicad8:
 
 test-kicad7-docker:
   stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
   extends: .test-commands
   only:
     - main
@@ -99,7 +98,7 @@ test-kicad7-docker:
 
 test-kicad8-docker:
   stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad8
+  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}
   extends: .test-commands
   allow_failure: true
   only:
@@ -143,7 +142,7 @@ debug:
 
 documentation-release:
   stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
   variables: null
   when: always
   only:
@@ -167,7 +166,7 @@ deploy-hrafn-assets:
 
 customer-release:
   stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
   variables: null
   when: always
   only:
@@ -176,7 +175,7 @@ customer-release:
 
 production-release:
   stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-testing:${CI_COMMIT_REF_SLUG}-kicad7
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
   when: always
   only:
     - main
@@ -235,7 +234,6 @@ deploy-kmake-kicad7:
   stage: deploy
   variables:
     KICAD_VERSION: "kicad7"
-    IMAGE_NAME: "kmake:${CI_COMMIT_REF_SLUG}"
   extends: .build-kmake-docker-image
   only:
     refs:
@@ -250,7 +248,6 @@ deploy-kmake-kicad8:
     - test-kicad8-docker
   variables:
     KICAD_VERSION: "kicad8"
-    IMAGE_NAME: "kmake-kicad8:${CI_COMMIT_REF_SLUG}"
   extends: .build-kmake-docker-image
   only:
     refs:
@@ -262,7 +259,6 @@ deploy-kmake-kicad7-manual:
   stage: deploy
   variables:
     KICAD_VERSION: "kicad7"
-    IMAGE_NAME: "kmake:${CI_COMMIT_REF_SLUG}"
   extends: .build-kmake-docker-image
   when: manual
 
@@ -274,6 +270,5 @@ deploy-kmake-kicad8-manual:
     - test-kicad8-docker
   variables:
     KICAD_VERSION: "kicad8"
-    IMAGE_NAME: "kmake-kicad8:${CI_COMMIT_REF_SLUG}"
   extends: .build-kmake-docker-image
   when: manual
