@@ -9,7 +9,7 @@ include:
     file: .ci.yml
 
 stages:
-  - test
+  - code-check
   - build
   - build_docker
   - test_docker
@@ -59,11 +59,15 @@ build-kmake:
     - merge_requests
   script:
     - *start-docker
-    - if [[ "${CI_COMMIT_REF_SLUG}" == "main" ]]; then IMG_SUFFIX="-testing-${CI_COMMIT_SHORT_SHA}"; fi # do not deploy untested images directly to `kmake-kicad*:main`, it might broke all hardware CI
-    - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}${IMG_SUFFIX}"
-    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
-    - docker push $IMAGE_NAME
-
+    - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}"
+    - IMAGE_NAME_SHA="${IMAGE_NAME}-testing-${CI_COMMIT_SHORT_SHA}"
+    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME_SHA .
+    - docker push $IMAGE_NAME_SHA
+    - if [[ "${CI_COMMIT_REF_SLUG}" != "main" ]]; then
+        docker tag $IMAGE_NAME_SHA $IMAGE_NAME;
+        docker push $IMAGE_NAME;
+      fi 
+    
 build-deploy-testing-kmake-kicad7:
   extends: .build-kmake-docker-image
   variables:
@@ -74,9 +78,16 @@ build-deploy-testing-kmake-kicad8:
   variables:
     KICAD_VERSION: "kicad8"
 
-.test-commands:
+.test-base: &test-base
   stage: test_docker
   dependencies: []
+  when: on_success
+  only:
+    - main
+    - merge_requests
+
+.pytest-base:
+  <<: *test-base
   script:
     - apt update
     - apt install -y git
@@ -91,51 +102,34 @@ build-deploy-testing-kmake-kicad8:
       - dist
 
 test-kicad7-docker:
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
-  extends: .test-commands
-  only:
-    - merge_requests
+  extends: .pytest-base
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
 
 test-kicad8-docker:
-  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}
-  extends: .test-commands
+  extends: .pytest-base
+  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
   allow_failure: true
-  only:
-    - merge_requests
 
-test-kicad7-docker-main:
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:main-testing-${CI_COMMIT_SHORT_SHA}
-  extends: .test-commands
-  only:
-    - main
-
-test-kicad8-docker-main:
-  image: $CI_REGISTRY_IMAGE/kmake-kicad8:main-testing-${CI_COMMIT_SHORT_SHA}
-  extends: .test-commands
-  allow_failure: true
-  only:
-    - main
-
-.test-setup: &test-setup
+.check-code:
   image: python:3.11
-  stage: test
+  stage: code-check
   variables:
     GIT_SUBMODULE_STRATEGY: none
   before_script:
     - pip3 install black mypy ruff
 
 black:
-  <<: *test-setup
+  extends: .check-code
   script:
     - black --check .
 
 mypy:
-  <<: *test-setup
+  extends: .check-code
   script:
     - mypy .
 
 ruff:
-  <<: *test-setup
+  extends: .check-code
   script:
     - ruff check .
 
@@ -152,13 +146,8 @@ debug:
   when: never
 
 documentation-release:
-  stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
-  variables: null
-  when: always
-  only:
-    - main
-    - merge_requests
+  <<: *test-base
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
 
 ohp-release:
   stage: test_docker
@@ -174,23 +163,13 @@ deploy-hrafn-assets:
   dependencies: []
   when: never
 
-
 customer-release:
-  stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
-  variables: null
-  when: always
-  only:
-    - main
-    - merge_requests
+  <<: *test-base
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
 
 production-release:
-  stage: test_docker
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
-  when: always
-  only:
-    - main
-    - merge_requests
+  <<: *test-base
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
 
 build-docs:
   image: $CI_DOCS_DOCKER_IMAGE
@@ -253,6 +232,18 @@ deploy-docs:
     - docker tag $SOURCE_NAME $TARGET_NAME
     - docker rmi $SOURCE_NAME
     - docker push $TARGET_NAME
+
+docker-testing-clean:
+  extends: .setup-docker
+  stage: deploy
+  when: always
+  dependencies: []
+  only:
+    - merge_requests
+  script:
+    - *start-docker
+    - docker rmi "${CI_REGISTRY_IMAGE}/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}"
+    - docker rmi "${CI_REGISTRY_IMAGE}/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}"
 
 deploy-main-kmake-kicad7:
   extends: .deploy-main-kmake-docker-image
