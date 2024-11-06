@@ -222,6 +222,8 @@ deploy-docs:
   extends: .setup-docker
   stage: deploy
   dependencies: []
+  variables:
+    GIT_STRATEGY: none
   only:
     refs:
       - main
@@ -238,6 +240,8 @@ docker-testing-clean:
   stage: deploy
   when: always
   dependencies: []
+  variables:
+    GIT_STRATEGY: none
   only:
     - merge_requests
   script:
