@@ -34,7 +34,6 @@ build-kmake:
 
 .setup-docker:
   image: "debian:bookworm"
-  dependencies: []
   variables:
     DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
     GIT_SUBMODULE_STRATEGY: none
@@ -60,7 +59,7 @@ build-kmake:
     - merge_requests
   script:
     - *start-docker
-    - if [[ "${CI_COMMIT_REF_SLUG}" == "main" ]]; then IMG_SUFFIX="-testing-${CI_COMMIT_SHORT_SHA}"; fi
+    - if [[ "${CI_COMMIT_REF_SLUG}" == "main" ]]; then IMG_SUFFIX="-testing-${CI_COMMIT_SHORT_SHA}"; fi # do not deploy untested images directly to `kmake-kicad*:main`, it might broke all hardware CI
     - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}${IMG_SUFFIX}"
     - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
@@ -75,7 +74,8 @@ build-deploy-testing-kmake-kicad8:
   variables:
     KICAD_VERSION: "kicad8"
 
-.test-commands: &test-commands
+.test-commands:
+  stage: test_docker
   dependencies: []
   script:
     - apt update
@@ -91,21 +91,30 @@ build-deploy-testing-kmake-kicad8:
       - dist
 
 test-kicad7-docker:
-  stage: test_docker
   image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}
   extends: .test-commands
   only:
-    - main
     - merge_requests
 
 test-kicad8-docker:
-  stage: test_docker
   image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}
   extends: .test-commands
   allow_failure: true
   only:
-    - main
     - merge_requests
+
+test-kicad7-docker-main:
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:main-testing-${CI_COMMIT_SHORT_SHA}
+  extends: .test-commands
+  only:
+    - main
+
+test-kicad8-docker-main:
+  image: $CI_REGISTRY_IMAGE/kmake-kicad8:main-testing-${CI_COMMIT_SHORT_SHA}
+  extends: .test-commands
+  allow_failure: true
+  only:
+    - main
 
 .test-setup: &test-setup
   image: python:3.11
@@ -233,6 +242,7 @@ deploy-docs:
 .deploy-main-kmake-docker-image:
   extends: .setup-docker
   stage: deploy
+  dependencies: []
   only:
     refs:
       - main
