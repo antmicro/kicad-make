@@ -1,6 +1,7 @@
 variables:
   DESIGNS_PATH: $CI_PROJECT_DIR/tests/designs
   DEBIAN_FRONTEND: "noninteractive"
+  GIT_DEPTH: 1
 
 include:
   - project: repositories/antmicro-pcb-release-ci-template
@@ -31,10 +32,9 @@ build-kmake:
     - main
     - merge_requests
 
-.build-kmake-docker-image:
+.setup-docker:
   image: "debian:bookworm"
-  dependencies:
-    - build-kmake
+  dependencies: []
   variables:
     DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
     GIT_SUBMODULE_STRATEGY: none
@@ -42,39 +42,41 @@ build-kmake:
     - apt -qqy update > /dev/null
     - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates > /dev/null
     - cgroupfs-mount
-  script:
     - mkdir -p "$DOCKER_DATA_ROOT"
-    - dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
-    - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
-    - trap "kill $(cat /var/run/docker.pid)" EXIT
-    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}"
+
+.start-docker: &start-docker |-
+  dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
+  while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
+  trap "kill $(cat /var/run/docker.pid)" EXIT
+  docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+
+.build-kmake-docker-image:
+  extends: .setup-docker
+  stage: build_docker
+  dependencies:
+    - build-kmake
+  only:
+    - main
+    - merge_requests
+  script:
+    - *start-docker
+    - if [[ "${CI_COMMIT_REF_SLUG}" == "main" ]]; then IMG_SUFFIX="-testing-${CI_COMMIT_SHORT_SHA}"; fi
+    - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}${IMG_SUFFIX}"
     - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
 
-build-kmake-docker-image-testing-kicad7:
-  image: "debian:bookworm"
-  stage: build_docker
+build-deploy-testing-kmake-kicad7:
+  extends: .build-kmake-docker-image
   variables:
     KICAD_VERSION: "kicad7"
-  extends: .build-kmake-docker-image
-  only:
-    - main
-    - merge_requests
 
-build-kmake-docker-image-testing-kicad8:
-  image: "debian:bookworm"
-  stage: build_docker
+build-deploy-testing-kmake-kicad8:
+  extends: .build-kmake-docker-image
   variables:
     KICAD_VERSION: "kicad8"
-  extends: .build-kmake-docker-image
-  only:
-    - main
-    - merge_requests
 
 .test-commands: &test-commands
-  variables:
-    GIT_DEPTH: 1
+  dependencies: []
   script:
     - apt update
     - apt install -y git
@@ -227,48 +229,27 @@ deploy-docs:
   only:
     refs:
       - main
-      - master
 
-deploy-kmake-kicad7:
-  image: "debian:bookworm"
+.deploy-main-kmake-docker-image:
+  extends: .setup-docker
   stage: deploy
-  variables:
-    KICAD_VERSION: "kicad7"
-  extends: .build-kmake-docker-image
   only:
     refs:
       - main
-      - master
+  script:
+    - *start-docker
+    - TARGET_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:main"
+    - SOURCE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:main-testing-${CI_COMMIT_SHORT_SHA}"
+    - docker tag $SOURCE_NAME $TARGET_NAME
+    - docker rmi $SOURCE_NAME
+    - docker push $TARGET_NAME
 
-deploy-kmake-kicad8:
-  image: "debian:bookworm"
-  stage: deploy
-  dependencies:
-    - build-kmake
-    - test-kicad8-docker
-  variables:
-    KICAD_VERSION: "kicad8"
-  extends: .build-kmake-docker-image
-  only:
-    refs:
-      - main
-      - master
-
-deploy-kmake-kicad7-manual:
-  image: "debian:bookworm"
-  stage: deploy
+deploy-main-kmake-kicad7:
+  extends: .deploy-main-kmake-docker-image
   variables:
     KICAD_VERSION: "kicad7"
-  extends: .build-kmake-docker-image
-  when: manual
 
-deploy-kmake-kicad8-manual:
-  image: "debian:bookworm"
-  stage: deploy
-  dependencies:
-    - build-kmake
-    - test-kicad8-docker
+deploy-main-kmake-kicad8:
+  extends: .deploy-main-kmake-docker-image
   variables:
     KICAD_VERSION: "kicad8"
-  extends: .build-kmake-docker-image
-  when: manual
