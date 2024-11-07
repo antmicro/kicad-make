@@ -67,6 +67,7 @@ build-deploy-testing-kmake-kicad8:
     KICAD_VERSION: "kicad8"
 
 .test-base: &test-base
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
   stage: test_docker
   dependencies: []
   when: on_success
@@ -133,7 +134,6 @@ debug:
 
 documentation-release:
   <<: *test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 ohp-release:
   stage: test_docker
@@ -151,11 +151,9 @@ deploy-hrafn-assets:
 
 customer-release:
   <<: *test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 production-release:
   <<: *test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 build-docs:
   image: $CI_DOCS_DOCKER_IMAGE
@@ -209,7 +207,7 @@ deploy-docs:
   only:
     - main
   variables:
-    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:main
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}
 
 deploy-main-kmake-kicad7:
   extends: .deploy-main-kmake
