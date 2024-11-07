@@ -2,6 +2,7 @@ variables:
   DESIGNS_PATH: $CI_PROJECT_DIR/tests/designs
   DEBIAN_FRONTEND: "noninteractive"
   GIT_DEPTH: 1
+  GIT_SUBMODULE_STRATEGY: none
 
 include:
   - project: repositories/antmicro-pcb-release-ci-template
@@ -19,8 +20,6 @@ stages:
 build-kmake:
   image: "debian:bookworm"
   stage: build
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
   script:
     - apt update
     - apt install -qqy python3 python3-pip git
@@ -32,25 +31,8 @@ build-kmake:
     - main
     - merge_requests
 
-.setup-docker:
-  image: "debian:bookworm"
-  variables:
-    DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
-    GIT_SUBMODULE_STRATEGY: none
-  before_script:
-    - apt -qqy update > /dev/null
-    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates > /dev/null
-    - cgroupfs-mount
-    - mkdir -p "$DOCKER_DATA_ROOT"
-
-.start-docker: &start-docker |-
-  dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
-  while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
-  trap "kill $(cat /var/run/docker.pid)" EXIT
-  docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-
 .build-kmake-docker-image:
-  extends: .setup-docker
+  image: "debian:bookworm"
   stage: build_docker
   dependencies:
     - build-kmake
@@ -58,15 +40,21 @@ build-kmake:
     - main
     - merge_requests
   script:
-    - *start-docker
-    - IMAGE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}"
-    - IMAGE_NAME_SHA="${IMAGE_NAME}-testing-${CI_COMMIT_SHORT_SHA}"
-    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME_SHA .
-    - docker push $IMAGE_NAME_SHA
-    - if [[ "${CI_COMMIT_REF_SLUG}" != "main" ]]; then
-        docker tag $IMAGE_NAME_SHA $IMAGE_NAME;
-        docker push $IMAGE_NAME;
-      fi 
+  variables:
+    DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}-testing
+  before_script:
+    - apt -qqy update > /dev/null
+    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates > /dev/null
+    - cgroupfs-mount
+  script:
+    - mkdir -p "$DOCKER_DATA_ROOT"
+    - dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
+    - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
+    - trap "kill $(cat /var/run/docker.pid)" EXIT
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
+    - docker push $IMAGE_NAME
     
 build-deploy-testing-kmake-kicad7:
   extends: .build-kmake-docker-image
@@ -103,18 +91,16 @@ build-deploy-testing-kmake-kicad8:
 
 test-kicad7-docker:
   extends: .pytest-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 test-kicad8-docker:
   extends: .pytest-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
+  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing
   allow_failure: true
 
 .check-code:
   image: python:3.11
   stage: code-check
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
   before_script:
     - pip3 install black mypy ruff
 
@@ -147,7 +133,7 @@ debug:
 
 documentation-release:
   <<: *test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 ohp-release:
   stage: test_docker
@@ -165,11 +151,11 @@ deploy-hrafn-assets:
 
 customer-release:
   <<: *test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 production-release:
   <<: *test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}
+  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 build-docs:
   image: $CI_DOCS_DOCKER_IMAGE
@@ -178,7 +164,6 @@ build-docs:
     SCALENODE_CPU: 2
     SCALENODE_RAM: 8000
     SCALENODE_DISK: 20
-    GIT_SUBMODULE_STRATEGY: none
   before_script:
     - pip3 install -r docs/requirements.txt
     # We need to be able to load kmake to generate usage docs,
@@ -218,43 +203,20 @@ deploy-docs:
     refs:
       - main
 
-.deploy-main-kmake-docker-image:
-  extends: .setup-docker
+.deploy-main-kmake:
+  extends: .build-kmake-docker-image
   stage: deploy
-  dependencies: []
-  variables:
-    GIT_STRATEGY: none
   only:
-    refs:
-      - main
-  script:
-    - *start-docker
-    - TARGET_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:main"
-    - SOURCE_NAME="${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:main-testing-${CI_COMMIT_SHORT_SHA}"
-    - docker tag $SOURCE_NAME $TARGET_NAME
-    - docker rmi $SOURCE_NAME
-    - docker push $TARGET_NAME
-
-docker-testing-clean:
-  extends: .setup-docker
-  stage: deploy
-  when: always
-  dependencies: []
+    - main
   variables:
-    GIT_STRATEGY: none
-  only:
-    - merge_requests
-  script:
-    - *start-docker
-    - docker rmi "${CI_REGISTRY_IMAGE}/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}"
-    - docker rmi "${CI_REGISTRY_IMAGE}/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing-${CI_COMMIT_SHORT_SHA}"
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:main
 
 deploy-main-kmake-kicad7:
-  extends: .deploy-main-kmake-docker-image
+  extends: .deploy-main-kmake
   variables:
     KICAD_VERSION: "kicad7"
 
 deploy-main-kmake-kicad8:
-  extends: .deploy-main-kmake-docker-image
+  extends: .deploy-main-kmake
   variables:
     KICAD_VERSION: "kicad8"
