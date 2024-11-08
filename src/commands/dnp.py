@@ -6,12 +6,11 @@ import kiutils.items
 import kiutils.schematic
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.fpitems import FpText
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic
 
 from common.kicad_project import KicadProject
-from common.kmake_helper import get_property
+from common.kmake_helper import get_property, remove_property
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     # Count components that need cleanup
     cleanup_count = sum(needs_cleanup(component) for component in dnp_components)
-    cleanup_list = [get_property(comp.properties, "Reference").value for comp in dnp_components if needs_cleanup(comp)]
+    cleanup_list = [get_property(comp, "Reference") for comp in dnp_components if needs_cleanup(comp)]
     if cleanup_count > 0 and args.list_broken:
         log.warning(
             f"There are {cleanup_count} schematic components that "
@@ -99,7 +98,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.debug("Searching for components on PCB")
     references = []
     for component in dnp_components:
-        references.append(get_property(component.properties, "Reference").value)
+        references.append(get_property(component, "Reference"))
         for instance in component.instances:
             for path in instance.paths:
                 if path.reference not in references:
@@ -125,12 +124,12 @@ def get_dnp_components(schematics: list[Schematic]) -> List[SchematicSymbol]:
 
 # Checks whether component is DNP based on DNP property and attribute
 def is_dnp(component: SchematicSymbol) -> bool:
-    dnp_property = get_property(component.properties, "DNP", names_in=["dnp"])
+    dnp_property = get_property(component, "DNP")
 
     if component.dnp:
         return True
 
-    if dnp_property is not None and dnp_property.value not in [None, "", "~"]:
+    if dnp_property not in [None, "", "~"]:
         return True
 
     return False
@@ -142,7 +141,7 @@ def needs_cleanup(component: SchematicSymbol) -> bool:
         return True
     if component.inBom:
         return True
-    prop = get_property(component.properties, "DNP", names_in=["dnp"])
+    prop = get_property(component, "DNP")
     if prop is not None:
         return True
     return False
@@ -153,9 +152,9 @@ def clean_up_component(component: SchematicSymbol) -> None:
     component.dnp = True
     component.inBom = False
     # Replaces legacy DNP property with default kicad DNP checkbox
-    prop = get_property(component.properties, "DNP", names_in=["dnp"])
-    if prop:
-        component.properties.remove(prop)
+    prop = get_property(component, "DNP")
+    if prop is not None:
+        component.properties = remove_property(component, "DNP")
 
 
 # Updates footprints on pcb
@@ -177,19 +176,24 @@ def update_pcb(
             add_tht_paste(footprint)
         if tht_paste_restore:
             remove_tht_paste(footprint)
-        if get_fp_ref(footprint) in references:
+        if get_property(footprint, "Reference") in references:
             set_fp_dnp(footprint, remove_paste, restore_paste)
         elif not footprint.attributes.boardOnly:
             footprint.attributes.excludeFromPosFiles = False
             footprint.attributes.excludeFromBom = False
+            footprint.attributes.dnp = False
             restore_fp_paste(footprint)
+        # Remove additional properties doubling checkboxes functionality
+        for prop in ["DNP", "dnp", "exclude_from_bom"]:
+            footprint.properties = remove_property(footprint, prop)
 
 
 # Updates footprint to have dnp field and appropriate attributes
 def set_fp_dnp(footprint: Footprint, remove_paste: bool, restore_paste: bool) -> None:
-    log.debug(f"Setting {get_fp_ref(footprint)} to DNP")
+    log.debug(f"Setting {get_property(footprint, 'Reference')} to DNP")
     footprint.attributes.excludeFromPosFiles = True
     footprint.attributes.excludeFromBom = True
+    footprint.attributes.dnp = True
     if remove_paste:
         remove_fp_paste(footprint)
     if restore_paste:
@@ -198,7 +202,7 @@ def set_fp_dnp(footprint: Footprint, remove_paste: bool, restore_paste: bool) ->
 
 # Moves solder paste pads to `User.6` and `User.7` layers
 def remove_fp_paste(footprint: Footprint) -> None:
-    log.debug(f"Removing paste from {get_fp_ref(footprint)}")
+    log.debug(f"Removing paste from {get_property(footprint, 'Reference')}")
     for pad in footprint.pads:
         if "*.Paste" in pad.layers:
             add_pad_layer(pad.layers, "User.6")
@@ -233,7 +237,7 @@ def restore_fp_paste(footprint: Footprint) -> None:
                 pad.layers.remove("User.7")
                 changed += 1
     if changed:
-        log.debug(f"Restored solder paste on {get_fp_ref(footprint)}")
+        log.debug(f"Restored solder paste on {get_property(footprint, 'Reference')}")
 
 
 # Sets pads of THT components to have solder paste on pads
@@ -258,7 +262,7 @@ def add_tht_paste(footprint: Footprint) -> None:
                 add_pad_layer(pad.layers, "User.4")
 
     if changed != 0:
-        log.debug(f"Added solder paste on THT pins of {get_fp_ref(footprint)}")
+        log.debug(f"Added solder paste on THT pins of {get_property(footprint, 'Reference')}")
 
 
 # Remove solder paste from pads of THT components
@@ -281,17 +285,7 @@ def remove_tht_paste(footprint: Footprint) -> None:
                 changed += 1
 
     if changed != 0:
-        log.debug(f"Removed solder paste from THT pins of {get_fp_ref(footprint)}")
-
-
-def get_fp_ref(footprint: Footprint) -> str:
-    for item in footprint.graphicItems:
-        if not isinstance(item, FpText):
-            continue
-        if item.type != "reference":
-            continue
-        return item.text
-    raise AssertionError("unreachable: KiCad footprint should always have `reference`")
+        log.debug(f"Removed solder paste from THT pins of {get_property(footprint, 'Reference')}")
 
 
 def add_pad_layer(lis: List[str], add: str) -> None:

@@ -4,8 +4,12 @@ import logging
 import os
 import subprocess
 import sys
-
-from typing import List, Optional, Any
+from kiutils.footprint import Footprint
+from kiutils.symbol import Symbol
+from kiutils.items.schitems import SchematicSymbol
+from kiutils.items.fpitems import FpProperty
+from kiutils.items.common import Property
+from typing import List, Any, Optional, Union
 
 log = logging.getLogger(__name__)
 
@@ -95,10 +99,15 @@ def tag_gerbers(folder: str, tag: str) -> None:
             file.write(filedata)
 
 
-def get_property(properties: List, name: str, names_in: Optional[List[str]] = None) -> Any:
-    names: List[str] = [] if names_in is None else list(names_in)
+def get_property(obj: Union[Footprint, Symbol, SchematicSymbol], prop: str) -> Optional[str]:
+    for item in obj.properties:
+        if item.key.lower() == prop.lower():
+            return item.value
+    return None
 
-    return next((prop for prop in properties if prop.key.strip() in [name] + names), None)
+
+def remove_property(obj: Union[Footprint, Symbol, SchematicSymbol], name: str) -> List[Union[Property, FpProperty]]:
+    return [prop for prop in obj.properties if prop.key.lower() != name.lower()]
 
 
 def set_property(symbol: Any, name: str, value: Any) -> None:

@@ -17,7 +17,6 @@ class LoclibTest(KmakeTestCase, unittest.TestCase):
         """
         self.run_test_command([])
 
-        target_sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
         reference_sch_path = (
             self.TEST_DIR
             / "reference-outputs"
@@ -26,7 +25,7 @@ class LoclibTest(KmakeTestCase, unittest.TestCase):
             / "project-with-kicad-lib.kicad_sch"
         )
 
-        target_sch = Schematic().from_file(filepath=str(target_sch_path))
+        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root))
         reference_sch = Schematic().from_file(filepath=str(reference_sch_path))
 
         target_symbols_libs = sorted([str(symbol.libraryNickname) for symbol in target_sch.libSymbols])
@@ -34,7 +33,6 @@ class LoclibTest(KmakeTestCase, unittest.TestCase):
 
         self.assertListEqual(target_symbols_libs, reference_symbols_libs)
 
-        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         reference_pcb_path = (
             self.TEST_DIR
             / "reference-outputs"
@@ -43,7 +41,7 @@ class LoclibTest(KmakeTestCase, unittest.TestCase):
             / "project-with-kicad-lib.kicad_pcb"
         )
 
-        target_pcb = Board().from_file(filepath=str(target_pcb_path))
+        target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         reference_pcb = Board().from_file(filepath=str(reference_pcb_path))
 
         target_footprint_libs = sorted([str(footprint.libraryNickname) for footprint in target_pcb.footprints])
@@ -57,14 +55,13 @@ class LoclibTest(KmakeTestCase, unittest.TestCase):
         """
 
         # Check if +5V symbol is in cache
-        target_sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
-        target_sch = Schematic().from_file(filepath=str(target_sch_path))
+        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root))
         target_symbols_libs = sorted([str(symbol.entryName) for symbol in target_sch.libSymbols])
         self.assertIn("+5V", target_symbols_libs)
 
         self.run_test_command(["--cleanup"])
 
-        target_sch = Schematic().from_file(filepath=str(target_sch_path))
+        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root))
         target_symbols_libs = sorted([str(symbol.entryName) for symbol in target_sch.libSymbols])
         self.assertNotIn("+5V", target_symbols_libs)
 

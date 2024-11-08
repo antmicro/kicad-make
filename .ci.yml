@@ -55,11 +55,6 @@ build-kmake:
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
     - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
-    
-build-deploy-testing-kmake-kicad7:
-  extends: .build-kmake-docker-image
-  variables:
-    KICAD_VERSION: "kicad7"
 
 build-deploy-testing-kmake-kicad8:
   extends: .build-kmake-docker-image
@@ -67,7 +62,7 @@ build-deploy-testing-kmake-kicad8:
     KICAD_VERSION: "kicad8"
 
 .test-base: &test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
+  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing
   stage: test_docker
   dependencies: []
   when: on_success
@@ -89,10 +84,6 @@ build-deploy-testing-kmake-kicad8:
       - htmlcov
       - tests/results
       - dist
-
-test-kicad7-docker:
-  extends: .pytest-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad7:${CI_COMMIT_REF_SLUG}-testing
 
 test-kicad8-docker:
   extends: .pytest-base
@@ -208,11 +199,6 @@ deploy-docs:
     - main
   variables:
     IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}
-
-deploy-main-kmake-kicad7:
-  extends: .deploy-main-kmake
-  variables:
-    KICAD_VERSION: "kicad7"
 
 deploy-main-kmake-kicad8:
   extends: .deploy-main-kmake

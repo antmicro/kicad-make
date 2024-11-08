@@ -1,10 +1,12 @@
-import kiutils
 import logging
 import unittest
 from typing import List
 from kmake_test_common import KmakeTestCase
+from kiutils.footprint import Footprint
+from kiutils.schematic import Schematic
+from kiutils.board import Board
 
-from common.kmake_helper import get_property, set_property
+from common.kmake_helper import get_property, set_property, remove_property
 
 
 class DnpTest(KmakeTestCase, unittest.TestCase):
@@ -17,17 +19,6 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.setUp(self)
         self.reset_repo()
 
-    def get_footprint_designator(self, footprint: kiutils.footprint) -> str:
-        """Return designator of footprint"""
-        for item in footprint.graphicItems:
-            if item.type == "reference":
-                return item.text
-        return ""
-
-    def get_symbold_designator(self, symbol: kiutils.symbol) -> str:
-        """Return symbol designator"""
-        return symbol.properties[0].value
-
     def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False, inbom: bool = True) -> None:
         """Check if symbol have DNP fields
 
@@ -38,19 +29,18 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             inbom: Define if component is in bom
         """
 
-        scheet = kiutils.schematic.Schematic().from_file(filepath="ethernet.kicad_sch")
+        scheet = Schematic().from_file(filepath="ethernet.kicad_sch")
         component_count = len(scheet.schematicSymbols)
         components_checked = 0
         for component_id in range(0, component_count):
             symbol = scheet.schematicSymbols[component_id]
-            designator = self.get_symbold_designator(symbol)
-            properties = symbol.properties
+            designator = get_property(symbol, "Reference")
 
             if designator in components:
                 if dnp_field:
-                    self.assertIsNot(get_property(properties, "DNP"), None, "Symbol doesn't have DNP property")
+                    self.assertIsNot(get_property(symbol, "DNP"), None, "Symbol doesn't have DNP property")
                 else:
-                    self.assertIs(get_property(properties, "DNP"), None, "Symbol has DNP property")
+                    self.assertIs(get_property(symbol, "DNP"), None, "Symbol has DNP property")
                 if dnp:
                     self.assertTrue(symbol.dnp, "Symbol is not DNP")
                 else:
@@ -70,14 +60,14 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             component: List of designators to check
             dnp: Define if component is DNP
         """
-        pcb = kiutils.board.Board().from_file(filepath="cm4-baseboard.kicad_pcb")
+        pcb = Board().from_file(filepath=self.kpro.pcb_file)
         footprints = pcb.footprints
         footprints_count = len(footprints)
         footprints_checked = 0
         for footprint_id in range(0, footprints_count):
             footprint = footprints[footprint_id]
             attributes = footprint.attributes
-            designator = self.get_footprint_designator(footprint)
+            designator = get_property(footprint, "Reference")
             if designator in components:
                 if dnp:
                     self.assertEqual(attributes.excludeFromPosFiles, True, f"{designator} Not excluded from POS files")
@@ -89,7 +79,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
                     footprints_checked += 1
         self.assertEqual(footprints_checked, len(components), "Not all components checked internal test error")
 
-    def check_paste_layer(self, footprint: kiutils.footprint) -> int:
+    def check_paste_layer(self, footprint: Footprint) -> int:
         """Return number of pads when solder paste layer exist"""
         paste_pads = 0
         for pad in footprint.pads:
@@ -104,13 +94,13 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             components: List of designators to check
             dnp: Define if component is DNP
         """
-        pcb = kiutils.board.Board().from_file(filepath="cm4-baseboard.kicad_pcb")
+        pcb = Board().from_file(filepath=self.kpro.pcb_file)
         footprints = pcb.footprints
         footprint_count = len(footprints)
         footprints_checked = 0
         for footprint_id in range(0, footprint_count):
             footprint = footprints[footprint_id]
-            designator = self.get_footprint_designator(footprint)
+            designator = get_property(footprint, "Reference")
             if designator in components:
                 paste_counter = self.check_paste_layer(footprint)
                 if dnp:
@@ -172,22 +162,22 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         self.project_repo.git.clean("-fd")
 
         # Plant few imperfections in project files
-        sch = kiutils.schematic.Schematic().from_file(self.target_dir / "ethernet.kicad_sch")
+        sch = Schematic().from_file(self.target_dir / "ethernet.kicad_sch")
         for s in sch.schematicSymbols:
-            ref = self.get_symbold_designator(s)
+            ref = get_property(s, "Reference")
             if ref == "R407" or ref == "R409":
                 set_property(s, "DNP", "DNP")
                 s.dnp = False
                 s.inBom = True
             if ref == "R410":
-                s.properties = [p for p in s.properties if p.key != "DNP"]  # remove DNP field
+                s.properties = remove_property(s, "DNP")
                 s.dnp = True
                 s.inBom = True
         sch.to_file()
 
-        pcb = kiutils.board.Board().from_file(self.target_dir / "cm4-baseboard.kicad_pcb")
+        pcb = Board().from_file(self.kpro.pcb_file)
         for fp in pcb.footprints:
-            ref = self.get_footprint_designator(fp)
+            ref = get_property(fp, "Reference")
             if ref == "R407":
                 fp.attributes.excludeFromBom = False
                 fp.attributes.excludeFromPosFiles = False

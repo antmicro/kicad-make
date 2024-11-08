@@ -12,7 +12,6 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
         unittest.TestCase.__init__(self, method_name)
 
     def test_kibuzzard(self) -> None:
-        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         reference_pcb_path = (
             self.TEST_DIR
             / "reference-outputs"
@@ -21,9 +20,8 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
             / "project-with-kicad-lib.kicad_pcb"
         )
 
-        target_pcb = Board().from_file(filepath=str(target_pcb_path))
+        target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         target_footprints_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
-        target_graphic_items = [graphic_item for graphic_item in target_pcb.graphicItems]
 
         self.assertIn("kibuzzard-66D96414", target_footprints_entry_names)
 
@@ -31,12 +29,16 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
 
         self.run_test_command([])
 
-        target_pcb = Board().from_file(filepath=str(target_pcb_path))
+        target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         target_footprints_entry_names = sorted([footprint.entryName for footprint in target_pcb.footprints])
-        target_graphic_items = [graphic_item for graphic_item in target_pcb.graphicItems]
+        target_graphic_items = sorted(
+            [graphic_item for graphic_item in target_pcb.graphicItems], key=lambda x: x.to_sexpr()
+        )
         reference_pcb = Board().from_file(filepath=str(reference_pcb_path))
         reference_footprints_entry_names = sorted([footprint.entryName for footprint in reference_pcb.footprints])
-        reference_graphic_items = [graphic_item for graphic_item in reference_pcb.graphicItems]
+        reference_graphic_items = sorted(
+            [graphic_item for graphic_item in reference_pcb.graphicItems], key=lambda x: x.to_sexpr()
+        )
 
         self.assertListEqual(reference_footprints_entry_names, target_footprints_entry_names)
         self.assertListEqual(reference_graphic_items, target_graphic_items)

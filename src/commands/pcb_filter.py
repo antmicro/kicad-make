@@ -4,11 +4,11 @@ import os
 
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.fpitems import FpText
 from kiutils.items.gritems import GrText
 from kiutils.items.brditems import Via
 
 from common.kicad_project import KicadProject
+from common.kmake_helper import get_property
 from typing import List, Any, Optional
 
 log = logging.getLogger(__name__)
@@ -194,27 +194,41 @@ def pcb_filter_run(
         (allow, allow_other) = (allow, allow)
 
     board.footprints = [fp for fp in board.footprints if reference_match(fp, allow, allow_other)]
-
     if exclude is not None:
         board.footprints = [fp for fp in board.footprints if not reference_match(fp, exclude, exclude)]
 
     if stackup:
         try:
             stackup_group = [g for g in board.groups if g.name == "group-boardStackUp"][0]
-            board.graphicItems = [item for item in board.graphicItems if item.tstamp not in stackup_group.members]
+            board.graphicItems = [item for item in board.graphicItems if item.uuid not in stackup_group.members]
             board.groups = [g for g in board.groups if g.name != "group-boardStackUp"]
         except IndexError:
             pass
 
-    if references or values:
-        for fp in board.footprints:
-            fp.graphicItems = [g for g in fp.graphicItems if not val_ref_match(g, references, values)]
+    for fp in board.footprints:
+        for prop in fp.properties:
+            if references:
+                hide_property_if_named(prop, property_name="Reference")
+            if values:
+                hide_property_if_named(prop, property_name="Value")
+
     full_layers_filter = False
     if allowed_layers_full is not None:
         full_layers_filter = True
         allowed_layers = allowed_layers_full
     if allowed_layers is not None:
-        allowed_layers = allowed_layers.replace("User.Comments", "Cmts.User").replace("User.Drawings", "Dwgs.User")
+        allowed_layers = (
+            allowed_layers.replace("User.Comments", "Cmts.User")
+            .replace("User.Drawings", "Dwgs.User")
+            .replace("F.Silkscreen", "F.SilkS")
+            .replace("B.Silkscreen", "B.SilkS")
+            .replace("F.Adhesive", "F.Adhes")
+            .replace("B.Adhesive", "B.Adhes")
+            .replace("User.Eco1", "Eco1.User")
+            .replace("User.Eco2", "Eco2.User")
+            .replace("F.Courtyard", "F.CrtYd")
+            .replace("B.Courtyard", "B.CrtYd")
+        )
 
         layers = [lr.strip() for lr in allowed_layers.split(",")]
         board.graphicItems = [
@@ -222,6 +236,10 @@ def pcb_filter_run(
         ]
         for fp in board.footprints:
             fp.graphicItems = [item for item in fp.graphicItems if item.layer in layers]
+            for prop in fp.properties:
+                if prop.layer in layers:
+                    continue
+                prop.hide = True
 
     if dimensions:
         board.dimensions = []
@@ -247,28 +265,18 @@ def reference_match(fp: Footprint, pat_top: List[str], pat_bottom: List[str]) ->
     if pat == ["*"]:
         return True
 
-    for item in fp.graphicItems:
-        if not isinstance(item, FpText):
-            continue
-        if item.type != "reference":
-            continue
-        for p in pat:
-            ref = item.text.removeprefix(p)
-            if len(ref) == 0 or ref[0].isdecimal():
-                return True
-        return False
+    # Extract prefix from reference
+    ref = get_property(fp, "Reference").rstrip("0123456789? ")
+    # Compare prefix with selected pattern
+    for p in pat:
+        if ref == p:
+            return True
     return False
 
 
-def val_ref_match(g: Any, references: bool, values: bool) -> bool:
-    # g: FpArc | FpCircle | FpCurve | FpLine | FpPoly | FpRect | FpText | FpTextBox
-    if not isinstance(g, FpText):
-        return False
-    if references and g.type == "reference":
-        return True
-    if values and g.type == "value":
-        return True
-    return False
+def hide_property_if_named(prop: Any, property_name: str) -> None:
+    if prop.key == property_name:
+        prop.hide = True
 
 
 def layer_filter_match(g: Any, layers: List[str], full: bool) -> bool:

@@ -14,13 +14,17 @@ class BomTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "bom")
         unittest.TestCase.__init__(self, method_name)
 
-    def template_test(self, args: List[str], refrence: Path, out_path: Path, fails: bool) -> None:
+    def template_test(self, args: List[str], reference: Path, out_path: Path, fails: bool) -> None:
         if fails:
             with self.assertLogs(level=logging.WARNING), self.assertRaises(SystemExit):
                 self.run_test_command(args)
         else:
             self.run_test_command(args)
-            self.assertListEqual(sorted(list(open(refrence))), sorted(list(open(out_path))))
+
+            def norm(file: Path) -> List[str]:
+                return sorted([",".join([cell.replace(' "', '"') for cell in line.split(",")]) for line in open(file)])
+
+            self.assertListEqual(norm(reference), norm(out_path))
 
     def test_output_file(self) -> None:
         self.template_test(

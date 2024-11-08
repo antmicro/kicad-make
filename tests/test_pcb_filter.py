@@ -2,9 +2,9 @@ import unittest
 from typing import List
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.fpitems import FpText
 from kiutils.items.brditems import Via
 from kmake_test_common import KmakeTestCase
+from common.kmake_helper import get_property
 
 
 class PCBFilterTest(KmakeTestCase, unittest.TestCase):
@@ -20,7 +20,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.inpcb = BoardStats(str(self.target_dir / "cm4-baseboard.kicad_pcb"))
+        self.inpcb = BoardStats(str(self.kpro.pcb_file))
 
     def tearDown(self) -> None:
         self.assertEqual(self.refpcb.footprintsT, self.outpcb.footprintsT)
@@ -51,8 +51,10 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.refpcb.footprintsB -= self.refpcb.footprintsB_J
         self.refpcb.footprintsT_J = 0
         self.refpcb.footprintsB_J = 0
-        self.refpcb.references = self.refpcb.footprintsT + self.refpcb.footprintsB
-        self.refpcb.values = self.refpcb.footprintsT + self.refpcb.footprintsB
+        self.refpcb.references = (
+            self.refpcb.footprintsT + self.refpcb.footprintsB - 4
+        )  # 4 = 2x logo + virtual CM4 module + virtual m.2
+        self.refpcb.values = self.refpcb.footprintsT + self.refpcb.footprintsB - 2  # 2 = 2x logo
 
     def test_pcb_filter_vias(self) -> None:
         self.command_test(["--vias"], "vias")
@@ -78,33 +80,33 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.command_test(["-s", "top"], "side_top")
         self.refpcb.footprintsB = 0
         self.refpcb.footprintsB_J = 0
-        self.refpcb.references = self.refpcb.footprintsT
-        self.refpcb.values = self.refpcb.footprintsT
+        self.refpcb.references = self.refpcb.footprintsT - 3  # 3 = 2x logo + virtual CM4 module
+        self.refpcb.values = self.refpcb.footprintsT - 2  # 2 = 2x logo
 
     def test_pcb_filter_partial_side_top(self) -> None:
         self.command_test(["-s", "top", "-ao", "J"], "partial_side_top")
         self.refpcb.footprintsB = self.refpcb.footprintsB_J
-        self.refpcb.references = self.refpcb.footprintsT + self.refpcb.footprintsB
-        self.refpcb.values = self.refpcb.footprintsT + self.refpcb.footprintsB
+        self.refpcb.references = (
+            self.refpcb.footprintsT + self.refpcb.footprintsB - 3
+        )  # 3 = 2x logo + virtual CM4 module
+        self.refpcb.values = self.refpcb.footprintsT + self.refpcb.footprintsB - 2  # 2 = 2x logo
 
     def test_pcb_filter_side_bottom(self) -> None:
         self.command_test(["-s", "bottom"], "side_bottom")
         self.refpcb.footprintsT = 0
         self.refpcb.footprintsT_J = 0
-        self.refpcb.references = self.refpcb.footprintsB
+        self.refpcb.references = self.refpcb.footprintsB - 1  # 1 = virtual m.2
         self.refpcb.values = self.refpcb.footprintsB
 
     def test_pcb_filter_partial_side_bottom(self) -> None:
         self.command_test(["-s", "bottom", "-ao", "J"], "partial_side_bottom")
         self.refpcb.footprintsT = self.refpcb.footprintsT_J
-        self.refpcb.references = self.refpcb.footprintsT + self.refpcb.footprintsB
+        self.refpcb.references = self.refpcb.footprintsT + self.refpcb.footprintsB - 1  # 1 = virtual m.2
         self.refpcb.values = self.refpcb.footprintsT + self.refpcb.footprintsB
 
     def test_pcb_filter_layers(self) -> None:
         self.command_test(["-l", "User.9,Edge.Cuts,User.Drawings"], "layers")
         self.refpcb.graphicItems = 12  # some graphics items should be left: SHA, Testpoints/connectors descriptions,..
-        self.refpcb.footprintsT_J = 0
-        self.refpcb.footprintsB_J = 0
         self.refpcb.references = 0
         self.refpcb.values = 0
 
@@ -115,8 +117,6 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
     def test_pcb_filter_references(self) -> None:
         self.command_test(["-r"], "references")
         self.refpcb.references = 0
-        self.refpcb.footprintsT_J = 0
-        self.refpcb.footprintsB_J = 0
 
 
 class BoardStats:
@@ -124,10 +124,14 @@ class BoardStats:
         pcb = Board.from_file(board)
         self.footprintsT = len([fp for fp in pcb.footprints if fp.layer == "F.Cu"])
         self.footprintsB = len([fp for fp in pcb.footprints if fp.layer == "B.Cu"])
-        self.footprintsT_J = len([fp for fp in pcb.footprints if fp.layer == "F.Cu" and self.ref_match(fp, "J")])
-        self.footprintsB_J = len([fp for fp in pcb.footprints if fp.layer == "B.Cu" and self.ref_match(fp, "J")])
-        self.references = len([fp for fp in pcb.footprints if self.ref_match(fp)])
-        self.values = len([fp for fp in pcb.footprints if self.ref_match(fp, field="value")])
+        self.footprintsT_J = len(
+            [fp for fp in pcb.footprints if fp.layer == "F.Cu" and get_property(fp, "Reference").startswith("J")]
+        )
+        self.footprintsB_J = len(
+            [fp for fp in pcb.footprints if fp.layer == "B.Cu" and get_property(fp, "Reference").startswith("J")]
+        )
+        self.references = len([fp for fp in pcb.footprints if self.prop_visible(fp, "Reference")])
+        self.values = len([fp for fp in pcb.footprints if self.prop_visible(fp, "Value")])
         self.zones = len(pcb.zones)
         self.dimensions = len(pcb.dimensions)
         self.stackup = len([g for g in pcb.groups if g.name == "group-boardStackUp"])
@@ -136,15 +140,11 @@ class BoardStats:
         self.graphicItems = len([g for g in pcb.graphicItems if g.layer in ["User.9", "Edge.Cuts", "User.Drawings"]])
 
     @staticmethod
-    def ref_match(fp: Footprint, ref: str = "*", field: str = "reference") -> bool:
-        for item in fp.graphicItems:
-            if not isinstance(item, FpText):
+    def prop_visible(fp: Footprint, field: str) -> bool:
+        for prop in fp.properties:
+            if prop.key != field:
                 continue
-            if item.type != field:
-                continue
-            if ref == "*" or item.text.removeprefix(ref)[0].isdecimal():
-                return True
-            return False
+            return not prop.hide
         return False
 
 

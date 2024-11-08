@@ -114,7 +114,7 @@ def get_symbol_name(__symbol: Symbol) -> str:
 
 def get_assigned_footprint(__symbol: Symbol) -> str:
     """Returns Footprint field content string from Symbol"""
-    footprint_id = get_property(__symbol.properties, "Footprint").value
+    footprint_id = get_property(__symbol, "Footprint")
     if ":" in footprint_id:
         return footprint_id.split(":", 1)
     return footprint_id
@@ -284,7 +284,7 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolLib:
             log.debug("Copied %s from %s", symbol_name, used_lib.path)
 
             template_symbol = symbol.extends
-            if template_symbol:
+            if template_symbol is not None:
                 log.debug("Extends: %s", template_symbol)
                 template = next(symbol for symbol in remote_lib.symbols if symbol.entryName == template_symbol)
                 append_template_symbol_to_library(template, local_lib)
@@ -402,10 +402,10 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolLib, args: argparse.Name
                 symbol.libraryNickname = ki_pro.name
             # skip power symbols footprint check
             # TODO replace with if symbol.isPower once it's documented
-            if "#PWR" in get_property(symbol.properties, "Reference").value:
+            if "#PWR" in get_property(symbol, "Reference"):
                 continue
-            footprint_id = get_property(symbol.properties, "Footprint").value
-            if footprint_id == "":
+            footprint_id = get_property(symbol, "Footprint")
+            if footprint_id is None or footprint_id == "":
                 log.warning(
                     "%s has no footprint assigned",
                     symbol.entryName,
@@ -440,8 +440,8 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolLib, args: argparse.Name
     # Patch paths in local symbol library
     log.info("Patching paths in: %s", os.path.basename(local_lib.filePath))
     for symbol in local_lib.symbols:
-        footprint_id = get_property(symbol.properties, "Footprint").value
-        if footprint_id == "":
+        footprint_id = get_property(symbol, "Footprint")
+        if footprint_id is None or footprint_id == "":
             log.warning(
                 "%s has no footprint assigned",
                 symbol.entryName,

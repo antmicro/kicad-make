@@ -3,6 +3,7 @@ from kiutils.schematic import Schematic
 from kiutils.board import Board
 import kmake
 from kmake_test_common import KmakeTestCase
+from common.kmake_helper import get_property, set_property
 
 
 class GloblibTest(KmakeTestCase, unittest.TestCase):
@@ -24,8 +25,6 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         Compare libraries of symbol used in kicad schematic files
         """
 
-        target_sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
-
         reference_sch_path = (
             self.TEST_DIR
             / "reference-outputs"
@@ -34,7 +33,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
             / "project-with-kicad-lib.kicad_sch"
         )
 
-        target_sch = Schematic().from_file(filepath=str(target_sch_path))
+        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root))
         reference_sch = Schematic().from_file(filepath=str(reference_sch_path))
 
         target_symbols_libs = sorted([str(symbol.libraryNickname) for symbol in target_sch.libSymbols])
@@ -47,7 +46,6 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         Compare libraries of footprints used in kicad schematic files
         """
 
-        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
         reference_pcb_path = (
             self.TEST_DIR
             / "reference-outputs"
@@ -56,7 +54,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
             / "project-with-kicad-lib.kicad_pcb"
         )
 
-        target_pcb = Board().from_file(filepath=str(target_pcb_path))
+        target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         reference_pcb = Board().from_file(filepath=str(reference_pcb_path))
 
         target_footprint_libs = sorted([str(footprint.libraryNickname) for footprint in target_pcb.footprints])
@@ -83,8 +81,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
 
         self.compare_symbols_libraries()
 
-        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
-        target_pcb = Board().from_file(filepath=str(target_pcb_path))
+        target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
         target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
@@ -97,12 +94,11 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         Test if symbols in files provided by -s flag are globlibed
         """
         self.loclib_test_project()
-        self.run_test_command(["--include-kicad-lib", "-s", "project-with-kicad-lib.kicad_sch"])
+        self.run_test_command(["--include-kicad-lib", "-s", self.kpro.sch_root])
 
         self.compare_symbols_libraries()
 
-        target_pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
-        target_pcb = Board().from_file(filepath=str(target_pcb_path))
+        target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
         target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
@@ -116,69 +112,64 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         self.loclib_test_project()
 
-        sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
-        sch_file = Schematic().from_file(filepath=str(sch_path))
+        sch_file = Schematic().from_file(filepath=str(self.kpro.sch_root))
         symbols = sch_file.schematicSymbols
 
         # Check properties before update
 
         r1_on_pcb = False
         for symbol in symbols:
-            if symbol.instances[0].paths[0].reference == "R1":
-                self.assertEqual(symbol.properties[1].value, "4k7")
+            if get_property(symbol, "Reference") == "R1":
+                self.assertEqual(get_property(symbol, "Value"), "4k7")
                 self.assertEqual(
-                    symbol.properties[2].value,
+                    get_property(symbol, "Footprint"),
                     "project-with-kicad-lib-footprints:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder",
                 )
-                self.assertEqual(symbol.properties[3].value, "www.example.com")
+                self.assertEqual(get_property(symbol, "Datasheet"), "www.example.com")
                 r1_on_pcb = True
 
         self.assertTrue(r1_on_pcb)
 
         self.run_test_command(["--include-kicad-lib", "--update-properties"])
 
-        sch_file = Schematic().from_file(filepath=str(sch_path))
+        sch_file = Schematic().from_file(filepath=str(self.kpro.sch_root))
         symbols = sch_file.schematicSymbols
 
         r1_on_pcb = False
         for symbol in symbols:
-            if symbol.instances[0].paths[0].reference == "R1":
-                self.assertEqual(symbol.properties[1].value, "R_Small")  # Symbol value
-                self.assertEqual(
-                    symbol.properties[2].value,
-                    "",
-                )  #  Footprint
-                self.assertEqual(symbol.properties[3].value, "~")  # Datasheet
+            if get_property(symbol, "Reference") == "R1":
+                self.assertEqual(get_property(symbol, "Value"), "R_Small")
+                self.assertEqual(get_property(symbol, "Footprint"), "")
+                self.assertEqual(get_property(symbol, "Datasheet"), "~")
                 r1_on_pcb = True
 
         self.assertTrue(r1_on_pcb)
 
     def test_update_properties_footprint(self) -> None:
         """
-        Test if footprint protperites are updated when --update-properties flag is used
+        Test if footprint properties are updated when --update-properties flag is used
         """
         self.loclib_test_project()
 
-        pcb_path = self.target_dir / "project-with-kicad-lib.kicad_pcb"
-        pcb_file = Board().from_file(filepath=str(pcb_path))
+        pcb_file = Board().from_file(filepath=str(self.kpro.pcb_file))
         footprints = pcb_file.footprints
 
         r1_on_pcb = False
         for footprint in footprints:
-            if footprint.graphicItems[0].text == "R1":
-                self.assertEqual(footprint.graphicItems[1].text, "4k7")
+            if get_property(footprint, "Reference") == "R1":
+                self.assertEqual(get_property(footprint, "Value"), "4k7")
                 r1_on_pcb = True
 
         self.assertTrue(r1_on_pcb)
         self.run_test_command(["--include-kicad-lib", "--update-properties"])
 
-        pcb_file = Board().from_file(filepath=str(pcb_path))
+        pcb_file = Board().from_file(filepath=str(self.kpro.pcb_file))
         footprints = pcb_file.footprints
 
         r1_on_pcb = False
         for footprint in footprints:
-            if footprint.graphicItems[0].text == "R1":
-                self.assertEqual(footprint.graphicItems[1].text, "R_Small")
+            if get_property(footprint, "Reference") == "R1":
+                self.assertEqual(get_property(footprint, "Value"), "R_Small")
                 r1_on_pcb = True
 
         self.assertTrue(r1_on_pcb)
@@ -189,48 +180,46 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         self.loclib_test_project()
         # Change symbol properites
-        sch_path = self.target_dir / "project-with-kicad-lib.kicad_sch"
 
-        sch_file = Schematic().from_file(filepath=str(sch_path))
+        sch_file = Schematic().from_file(filepath=str(self.kpro.sch_root))
         symbols = sch_file.schematicSymbols
         r1_on_sch = False
 
         for symbol in symbols:
-            if symbol.instances[0].paths[0].reference == "R1":
-                symbol.properties[1].value = "4k7"  # Symbol value
-                symbol.properties[2].value = "Resistor_SMD:R_2010_5025Metric"  # Footprint
-                symbol.properties[3].value = "www.example.com"  # Datasheet
-
+            if get_property(symbol, "Reference") == "R1":
+                set_property(symbol, "Value", "4k7")
+                set_property(symbol, "Footprint", "Resistor_SMD:R_2010_5025Metric")
+                set_property(symbol, "Datasheet", "www.example.com")
                 r1_on_sch = True
         self.assertTrue(r1_on_sch)
 
-        sch_file.to_file(filepath=str(sch_path))
+        sch_file.to_file(filepath=str(self.kpro.sch_root))
 
         # Check if symbol properties are updated
-        sch_file = Schematic().from_file(filepath=str(sch_path))
+        sch_file = Schematic().from_file(filepath=str(self.kpro.sch_root))
         symbols = sch_file.schematicSymbols
         r1_on_sch = False
 
         for symbol in symbols:
-            if symbol.instances[0].paths[0].reference == "R1":
-                self.assertEqual(symbol.properties[1].value, "4k7")  # Symbol value
-                self.assertEqual(symbol.properties[2].value, "Resistor_SMD:R_2010_5025Metric")  # Footprint
-                self.assertEqual(symbol.properties[3].value, "www.example.com")  # Datasheet
+            if get_property(symbol, "Reference") == "R1":
+                self.assertEqual(get_property(symbol, "Value"), "4k7")
+                self.assertEqual(get_property(symbol, "Footprint"), "Resistor_SMD:R_2010_5025Metric")
+                self.assertEqual(get_property(symbol, "Datasheet"), "www.example.com")
 
                 r1_on_sch = True
         self.assertTrue(r1_on_sch)
 
         self.run_test_command(["--include-kicad-lib", "--update-all"])
 
-        sch_file = Schematic().from_file(filepath=str(sch_path))
+        sch_file = Schematic().from_file(filepath=str(self.kpro.sch_root))
         symbols = sch_file.schematicSymbols
 
         r1_on_sch = False
         for symbol in symbols:
-            if symbol.instances[0].paths[0].reference == "R1":
-                self.assertEqual(symbol.properties[1].value, "4k7")  # Symbol value
-                self.assertEqual(symbol.properties[2].value, "")  # Footprint
-                self.assertEqual(symbol.properties[3].value, "www.example.com")  # Datasheet
+            if get_property(symbol, "Reference") == "R1":
+                self.assertEqual(get_property(symbol, "Value"), "4k7")
+                self.assertEqual(get_property(symbol, "Footprint"), "")
+                self.assertEqual(get_property(symbol, "Datasheet"), "www.example.com")
 
                 r1_on_sch = True
         self.assertTrue(r1_on_sch)

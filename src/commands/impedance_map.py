@@ -93,7 +93,7 @@ def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
     export_impedance_gerbers(pcb_file, output_folder)
     log.info(f"Impedance maps have been generated, gerbers are located at {output_folder}")
     log.warning(
-        "Support for impedance maps is experimental for KiCAD7, please manually check if"
+        "Support for impedance maps is experimental, please manually check if"
         "the content of generated gerbers is correct"
     )
 

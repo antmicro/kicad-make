@@ -4,7 +4,6 @@ from kmake_test_common import KmakeTestCase
 
 
 TEST_LOGO = """(image (at 107.95 270.51)
-  (uuid 5368bee9-0dc1-4324-9e19-30a3e0e2c1d2)
   (data
     iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAAAA3NCSVQICAjb4U/gAAAACXBIWXMA
     AC4YAAAuGAEqqicgAAAGoklEQVR4nO2c3W/TOhTAHTsfTpo0Km21QcsGLwhtEg9oEvz/D0gI8coD
@@ -51,13 +50,12 @@ class LogosTest(KmakeTestCase, unittest.TestCase):
 
     def inner(self, args: List[str], reflogo: str) -> None:
         self.run_test_command(args)
-
         changed_files = [item.a_path for item in self.project_repo.index.diff(None)]
         # Skip first line, it contains coordinates that will change
         logo = "\n".join([line.strip() for line in reflogo.splitlines()[1:]])
         for file in changed_files:
             with open(file, "r") as f:
-                file_contents = "\n".join([line.strip() for line in f.readlines()])
+                file_contents = "\n".join([line.strip().strip('"') for line in f.readlines()])
                 self.assertTrue(logo in file_contents)
 
         self.assertTrue(len(self.project_repo.untracked_files) == 0)

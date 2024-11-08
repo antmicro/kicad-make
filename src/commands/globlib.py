@@ -8,13 +8,12 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.fpitems import FpText
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic
 from kiutils.symbol import Symbol, SymbolLib
 
 from common.kicad_project import KicadProject
-from common.kmake_helper import get_property
+from common.kmake_helper import get_property, set_property
 
 log = logging.getLogger(__name__)
 
@@ -124,18 +123,18 @@ def search_by_mpn(
     local_symbol: UniSymbol,
     global_symbols: Dict[str, Tuple[str, UniSymbol]],
 ) -> Optional[Tuple[str, UniSymbol]]:
-    local_mpn = get_property(local_symbol.properties, "MPN")
+    local_mpn = get_property(local_symbol, "MPN")
     local_name = get_symbol_name(local_symbol)
 
-    if local_mpn is None or local_mpn.value == "":
+    if local_mpn is None or local_mpn == "":
         log.warning("Symbol: %s has no mpn to match.", local_name)
         return None
 
     matching_symbols: List[Tuple[str, UniSymbol]] = []
 
     for _, (global_lib_name, global_symbol) in global_symbols.items():
-        global_mpn = get_property(global_symbol.properties, "MPN")
-        if global_mpn is not None and global_mpn.value == local_mpn.value:
+        global_mpn = get_property(global_symbol, "MPN")
+        if global_mpn is not None and global_mpn == local_mpn:
             matching_symbols.append((global_lib_name, global_symbol))
 
     if not matching_symbols:
@@ -146,7 +145,7 @@ def search_by_mpn(
         log.warning(
             "Multiple replacements found for symbol named: %s with MPN: %s",
             local_name,
-            local_mpn.value,
+            local_mpn,
         )
         return None
 
@@ -253,34 +252,19 @@ def globlib_project_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> l
 
 def update_fp_props(source: SchematicSymbol, ref: str, fp: Footprint, update_all: bool) -> Tuple[bool, bool]:
     changed = False
-    found = False
-    for item in fp.graphicItems:
-        if not isinstance(item, FpText):
-            continue
-        if item.type != "reference":
-            continue
-        if item.text != ref:
-            continue
-        ofp = fp.libId
-        nfp = get_property(source.properties, "Footprint").value
-        fp.libId = nfp
-        if nfp != ofp:
-            log.debug("Changed %s footprint: %s -> %s", ref, ofp, nfp)
-            changed = True
-        for new_prop in source.properties:
-            for fkey in fp.properties.keys():
-                if new_prop.key == fkey and update_all:
-                    # if all_props false, update only footprint
-                    fp.properties[fkey] = new_prop.value
-        for item in fp.graphicItems:
-            if not isinstance(item, FpText):
-                continue
-            if item.type != "value":
-                continue
-            item.text = get_property(source.properties, "Value").value
-            break
-        break
-    return (found, changed)
+    if get_property(fp, "Reference") != ref:
+        return (False, False)
+    ofp = fp.libId
+    nfp = get_property(source, "Footprint")
+    fp.libId = nfp
+    if nfp != ofp:
+        log.debug("Changed %s footprint: %s -> %s", ref, ofp, nfp)
+        changed = True
+    if update_all:
+        for sch_prop in source.properties:
+            set_property(fp, sch_prop.key, sch_prop.value)
+
+    return (True, changed)
 
 
 def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
@@ -306,7 +290,7 @@ def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         log.info("Processing schematic: %s", schematic_path)
         schematic = Schematic().from_file(schematic_path)
         for schematic_symbol in schematic.schematicSymbols:
-            ref = get_property(schematic_symbol.properties, "Reference").value
+            ref = get_property(schematic_symbol, "Reference")
             log.debug("Processing:  %s", ref)
             for fp in pcb.footprints:
                 (found, changed) = update_fp_props(schematic_symbol, ref, fp, args.update_properties)
