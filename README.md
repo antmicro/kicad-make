@@ -5,8 +5,8 @@ Copyright (c) 2019-2024 [Antmicro](https://www.antmicro.com)
 `kmake` is a simple utility that automates handling of [KiCad](https://www.kicad.org/) projects.
 `kmake` provides a unified way to generate KiCad production files and manage project structure.
 The script can be used locally and in conjunction with CI infrastructure.
-`Kmake` is developed with KiCad 7+ and a CI environment in mind.
-It uses the KiCad CLI where possible and [kiutils](https://github.com/mvnmgrx/kiutils) for functions that require raw file manipulation.
+`Kmake` is developed with KiCad 8+ and a CI environment in mind.
+It uses the KiCad CLI where possible and [kiutils](https://github.com/antmicro/kiutils) for functions that require raw file manipulation.
 
 ## Documentation
 
@@ -18,7 +18,7 @@ Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for mo
 
 `kmake` depends on the following packages:
 
-* `KiCad 7.0.x`
+* `KiCad 8.0.x`
 * `python >= 3.7`
 * `pip`
 
@@ -66,7 +66,7 @@ kmake --help
 ## Version
 
 As an convention, the `kmake` version is derived from the `KiCad` version supported by the release.
-For example, `kmake` version `7.0.x` supports `KiCad` version `7.0.x`.
+For example, `kmake` version `8.0.x` supports `KiCad` version `8.0.x`.
 
 To check which version of `kmake` is installed in your system, run:
 

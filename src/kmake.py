@@ -122,7 +122,7 @@ def main() -> None:
         kpro = KicadProject(disable_logging=True)
     else:
         kpro = KicadProject()
-    assert float(kpro.kicad_version) >= 7.0, "Kmake requires KiCad 7.0+ project file"
+    assert float(kpro.kicad_version) >= 8.0, "Kmake requires KiCad 8.0+ project file"
     # Run selected tool
     args.func(kpro, args)
 

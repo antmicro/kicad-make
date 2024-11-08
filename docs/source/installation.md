@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Kmake is designed to work with `KiCad 7.x`.
+Kmake is designed to work with `KiCad 8.x`.
 Kmake requires: `python3` and `python3-pip` installed.
 
 ## Installation (Debian)
