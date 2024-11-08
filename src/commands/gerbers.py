@@ -84,7 +84,7 @@ def export_gerbers(
     include_border_title: bool = False,
     no_x2: bool = False,
     no_netlist: bool = False,
-    subtract_soldermask: bool = False,
+    subtract_soldermask: bool = True,
     disable_aperture_macros: bool = False,
     precision: int = 6,
     common_layers: Optional[List[str]] = None,
