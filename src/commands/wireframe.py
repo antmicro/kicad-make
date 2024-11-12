@@ -110,10 +110,10 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 dimensions=True,
                 values=True,
                 allow="J MH H MP SW TP D S".split(),
-                allowed_layers="User.9,Edge.Cuts,User.Comments",
+                allowed_layers="User.9,Edge.Cuts,User.Comments,User.Eco1,User.Eco2",
             ),
             ["top", "bottom"],
-            ["User.9,Edge.Cuts,User.Comments"],
+            ["User.9,Edge.Cuts,User.Comments,User.Eco$numside"],
         ),
         (
             "assembly_drawing",
@@ -177,10 +177,13 @@ def generate_wireframe(
                 for idx, sl in enumerate(slayer):
                     if side == "top":
                         slayer[idx] = sl.replace("$side", "F")
+                        slayer[idx] = sl.replace("$numside", "1")
                     elif side == "bottom":
                         slayer[idx] = sl.replace("$side", "B")
+                        slayer[idx] = sl.replace("$numside", "2")
                     else:  # side==""
                         slayer[idx] = sl.replace("$side", "F") + "," + sl.replace("$side", "B")
+                        slayer[idx] = sl.replace("$numside", "1") + "," + sl.replace("$numside", "2")
                 layer = ",".join(slayer)
 
                 if len(export_layers) == 1:
