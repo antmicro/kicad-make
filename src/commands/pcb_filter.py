@@ -4,12 +4,16 @@ import os
 
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.gritems import GrText
+from kiutils.items.gritems import GrText, GrLine, GrArc
 from kiutils.items.brditems import Via
+from kiutils.items.fpitems import FpLine, FpArc
+from kiutils.items.common import Position
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property
 from typing import List, Any, Optional
+
+from math import sin, cos, radians
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +67,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--side",
         choices=["top", "bottom"],
         help="Leave only components from selected layer",
+    )
+    parser.add_argument(
+        "--keep-edge",
+        action="store_true",
+        help="Copy edge.cuts from footprints to pcb",
     )
     parser.add_argument(
         "-st",
@@ -137,7 +146,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             "dimensions",
             "stackup",
             "side",
-            "allow_other",
+            "keep_edge" "allow_other",
             "exclude",
             "allow",
             "cascade",
@@ -160,6 +169,7 @@ def pcb_filter_run(
     dimensions: bool = False,
     stackup: bool = False,
     side: Optional[str] = None,
+    keep_edge: bool = False,
     allow_other: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
     allow: Optional[List[str]] = None,
@@ -192,6 +202,35 @@ def pcb_filter_run(
         (allow, allow_other) = (allow_other, allow)
     else:
         (allow, allow_other) = (allow, allow)
+
+    if keep_edge:
+        for fp in board.footprints:
+            angle = radians(fp.position.angle)
+            sina, cosa = sin(angle), cos(angle)
+            tx, ty = fp.position.X, fp.position.Y
+
+            def glob_pos(pos: Position) -> Position:
+                return Position(X=tx + pos.X * cosa - pos.Y * sina, Y=ty + pos.X * sina + pos.Y * cosa)  # noqa: B023
+
+            for item in fp.graphicItems:
+                if item.layer != "Edge.Cuts":
+                    continue
+                if isinstance(item, FpLine):
+                    fp.graphicItems.append(
+                        GrLine(
+                            start=glob_pos(item.start), end=glob_pos(item.end), layer="Edge.Cuts", stroke=item.stroke
+                        )
+                    )
+                if isinstance(item, FpArc):
+                    fp.graphicItems.append(
+                        GrArc(
+                            start=glob_pos(item.start),
+                            mid=glob_pos(item.mid),
+                            end=glob_pos(item.end),
+                            layer="Edge.Cuts",
+                            stroke=item.stroke,
+                        )
+                    )
 
     board.footprints = [fp for fp in board.footprints if reference_match(fp, allow, allow_other)]
     if exclude is not None:
