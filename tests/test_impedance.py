@@ -8,7 +8,7 @@ from kmake_test_common import KmakeTestCase
 class ImpedanceTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "impedance")
+        KmakeTestCase.__init__(self, "impedance")
         unittest.TestCase.__init__(self, method_name)
 
     def test_impedence_map(self) -> None:
@@ -18,7 +18,7 @@ class ImpedanceTest(KmakeTestCase, unittest.TestCase):
 
         board = Board.from_file(f"{self.kpro.fab_dir}/impedance_map.kicad_pcb")
 
-        self.assertEqual(len(board.traceItems), 6867)
+        self.assertEqual(len(board.traceItems), 309)
         self.assertEqual(len(board.footprints), 0)
         self.assertEqual(len(board.zones), 0)
 

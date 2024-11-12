@@ -45,7 +45,7 @@ TEST_LOGO = """(image (at 107.95 270.51)
 class LogosTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "logos")
+        KmakeTestCase.__init__(self, "logos")
         unittest.TestCase.__init__(self, method_name)
 
     def inner(self, args: List[str], reflogo: str) -> None:

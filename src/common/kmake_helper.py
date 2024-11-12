@@ -111,5 +111,8 @@ def remove_property(obj: Union[Footprint, Symbol, SchematicSymbol], name: str) -
 
 
 def set_property(symbol: Any, name: str, value: Any) -> None:
-    prop = next(filter(lambda prop: prop.key == name, symbol.properties))
-    prop.value = value
+    try:
+        prop = next(filter(lambda prop: prop.key == name, symbol.properties))
+        prop.value = value
+    except StopIteration:
+        symbol.properties.append(Property(name, value))

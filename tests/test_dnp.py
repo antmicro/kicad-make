@@ -12,7 +12,7 @@ from common.kmake_helper import get_property, set_property, remove_property
 class DnpTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "cm4-baseboard", "dnp")
+        KmakeTestCase.__init__(self, "dnp")
         unittest.TestCase.__init__(self, method_name)
 
     def setUp(self) -> None:
@@ -29,7 +29,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             inbom: Define if component is in bom
         """
 
-        scheet = Schematic().from_file(filepath="ethernet.kicad_sch")
+        scheet = Schematic().from_file(filepath="receiver.kicad_sch")
         component_count = len(scheet.schematicSymbols)
         components_checked = 0
         for component_id in range(0, component_count):
@@ -115,46 +115,46 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         with self.assertLogs(level=logging.WARNING) as log:
             self.run_test_command(["-l"])
         self.assertIn(
-            "There are 49 schematic components that have their DNP properties malformed:",
+            "There are 3 schematic components that have their DNP properties malformed:",
             log.output[0][18:96],
         )
 
     def test_clean_symbol(self) -> None:
         "Test if dnp symbols have `Exlude from bill of materials` and `Do not populate` fields set correctly"
-        self.check_symbol(["R407", "R409"], False, True, True)
-        self.check_symbol(["R410"], True, False, True)
-        self.check_symbol(["C404", "C405"], False, False, True)
+        self.check_symbol(["R1", "R2"], False, True, True)
+        self.check_symbol(["R3"], True, False, True)
+        self.check_symbol(["C26", "C27"], False, False, True)
         self.run_test_command([])
-        self.check_symbol(["R407", "R409", "R410"], True, False, False)
-        self.check_symbol(["C404", "C405"], False, False, True)
+        self.check_symbol(["R1", "R2", "R3"], True, False, False)
+        self.check_symbol(["C26", "C27"], False, False, True)
 
     def test_clean_footprint(self) -> None:
         "Test if DNP footprints have `Exclude from pos files` and `Exclude from bill of material` fields set correctly"
-        self.check_footprint(["R407"], False)
-        self.check_footprint(["R406"], False)
+        self.check_footprint(["R1"], False)
+        self.check_footprint(["R6"], False)
         self.run_test_command([])
-        self.check_footprint(["R407"], True)
-        self.check_footprint(["R406"], False)
+        self.check_footprint(["R1"], True)
+        self.check_footprint(["R6"], False)
 
     def test_remove_restore_paste(self) -> None:
         "Test if solder pasted was removed and restored from DNP components"
-        self.check_paste(["R407"], False)
-        self.check_paste(["C404"], False)
+        self.check_paste(["R1"], False)
+        self.check_paste(["C26"], False)
         self.run_test_command(["--remove-dnp-paste"])
         self.check_if_pcb_sch_opens()
-        self.check_paste(["R407"], True)
-        self.check_paste(["C404"], False)
+        self.check_paste(["R1"], True)
+        self.check_paste(["C26"], False)
         self.run_test_command(["--restore-dnp-paste"])
-        self.check_paste(["R407"], False)
-        self.check_paste(["C404"], False)
+        self.check_paste(["R1"], False)
+        self.check_paste(["C26"], False)
 
         self.reset_repo()
-        self.check_paste(["R407"], False)
+        self.check_paste(["R1"], False)
         self.run_test_command(["-rp"])
         self.check_if_pcb_sch_opens()
-        self.check_paste(["R407"], True)
+        self.check_paste(["R1"], True)
         self.run_test_command(["-sp"])
-        self.check_paste(["R407"], False)
+        self.check_paste(["R1"], False)
 
     def reset_repo(self) -> None:
         """Reset repository to HEAD"""
@@ -162,14 +162,14 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         self.project_repo.git.clean("-fd")
 
         # Plant few imperfections in project files
-        sch = Schematic().from_file(self.target_dir / "ethernet.kicad_sch")
+        sch = Schematic().from_file(self.target_dir / "receiver.kicad_sch")
         for s in sch.schematicSymbols:
             ref = get_property(s, "Reference")
-            if ref == "R407" or ref == "R409":
+            if ref == "R1" or ref == "R2":
                 set_property(s, "DNP", "DNP")
                 s.dnp = False
                 s.inBom = True
-            if ref == "R410":
+            if ref == "R3":
                 s.properties = remove_property(s, "DNP")
                 s.dnp = True
                 s.inBom = True
@@ -178,7 +178,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         pcb = Board().from_file(self.kpro.pcb_file)
         for fp in pcb.footprints:
             ref = get_property(fp, "Reference")
-            if ref == "R407":
+            if ref == "R1":
                 fp.attributes.excludeFromBom = False
                 fp.attributes.excludeFromPosFiles = False
         pcb.to_file()

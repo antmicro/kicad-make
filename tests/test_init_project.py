@@ -16,7 +16,8 @@ class InitProjectTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
         self.TARGET = Path(tempfile.mkdtemp())
-        KmakeTestCase.__init__(self, self.TARGET, "init-project")
+        KmakeTestCase.__init__(self, "init-project")
+        self.target_dir = self.TARGET
         unittest.TestCase.__init__(self, method_name)
 
     def setUp(self) -> None:

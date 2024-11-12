@@ -11,7 +11,7 @@ from kiutils.schematic import Position
 class AuxoriginTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "aux-origin")
+        KmakeTestCase.__init__(self, "aux-origin")
         unittest.TestCase.__init__(self, method_name)
 
     @patch("sys.stdout", new_callable=StringIO)
@@ -46,7 +46,7 @@ class AuxoriginTest(KmakeTestCase, unittest.TestCase):
     def test_side_aux(self) -> None:
         self.run_test_command(["--side", "bl"])
         board = Board.from_file(KicadProject().pcb_file)
-        self.assertEqual(board.setup.auxAxisOrigin, Position(29.75, 128.75))
+        self.assertEqual(board.setup.auxAxisOrigin, Position(119.925, 168.525))
 
 
 if __name__ == "__main__":

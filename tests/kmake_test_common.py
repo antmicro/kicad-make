@@ -15,9 +15,10 @@ class KmakeTestCase:
     kpro: KicadProject
     TEST_DIR = Path(__file__).parent.resolve()
 
-    def __init__(self, target_dir: Path, test_cmd: str):
-        self.target_dir = target_dir
+    def __init__(self, test_cmd: str):
+        self.target_dir = KmakeTestCase.TEST_DIR / "test_project"
         self.test_cmd = test_cmd
+        self.ref_dir = KmakeTestCase.TEST_DIR / "reference-outputs" / test_cmd
 
     def run_test_command(self, arguments: List[str]) -> None:
         "Template for running commands"

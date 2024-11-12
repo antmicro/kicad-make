@@ -8,7 +8,7 @@ from kiutils.board import Board
 class WireframeTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "wireframe")
+        KmakeTestCase.__init__(self, "wireframe")
         unittest.TestCase.__init__(self, method_name)
 
     def test_wireframe_reset(self) -> None:

@@ -7,7 +7,7 @@ from kmake_test_common import KmakeTestCase
 class SchTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "sch")
+        KmakeTestCase.__init__(self, "sch")
         unittest.TestCase.__init__(self, method_name)
 
     def test_sch(self) -> None:

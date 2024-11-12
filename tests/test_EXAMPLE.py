@@ -11,8 +11,6 @@ class ExampleTest(KmakeTestCase, unittest.TestCase):
     def __init__(self, method_name: str = "runTest") -> None:
         KmakeTestCase.__init__(
             self,
-            # path to test design repository
-            KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard",
             # tested kmake command
             "get-ignore",
         )

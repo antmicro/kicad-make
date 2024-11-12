@@ -6,24 +6,14 @@ from kmake_test_common import KmakeTestCase
 class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(
-            self, KmakeTestCase.TEST_DIR / "test-designs" / "project-with-kicad-lib", "kibuzzard-to-graphic"
-        )
+        KmakeTestCase.__init__(self, "kibuzzard-to-graphic")
         unittest.TestCase.__init__(self, method_name)
 
     def test_kibuzzard(self) -> None:
-        reference_pcb_path = (
-            self.TEST_DIR
-            / "reference-outputs"
-            / "project-with-kicad-lib"
-            / "kibuzzard-to-graphic"
-            / "project-with-kicad-lib.kicad_pcb"
-        )
-
         target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         target_footprints_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
-        self.assertIn("kibuzzard-66D96414", target_footprints_entry_names)
+        self.assertIn("kibuzzard-671B7834", target_footprints_entry_names)
 
         # TODO: Check if kibuzzard not exists as graphic in target
 
@@ -34,7 +24,7 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
         target_graphic_items = sorted(
             [graphic_item for graphic_item in target_pcb.graphicItems], key=lambda x: x.to_sexpr()
         )
-        reference_pcb = Board().from_file(filepath=str(reference_pcb_path))
+        reference_pcb = Board().from_file(filepath=str(self.ref_dir / self.kpro.pcb_file))
         reference_footprints_entry_names = sorted([footprint.entryName for footprint in reference_pcb.footprints])
         reference_graphic_items = sorted(
             [graphic_item for graphic_item in reference_pcb.graphicItems], key=lambda x: x.to_sexpr()
@@ -42,4 +32,4 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
 
         self.assertListEqual(reference_footprints_entry_names, target_footprints_entry_names)
         self.assertListEqual(reference_graphic_items, target_graphic_items)
-        self.assertNotIn("kibuzzard-66D96414", target_footprints_entry_names)
+        self.assertNotIn("kibuzzard-671B7834", target_footprints_entry_names)

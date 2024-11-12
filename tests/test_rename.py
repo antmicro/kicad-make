@@ -8,7 +8,7 @@ from common.kicad_project import KicadProject
 class RenameTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
-        KmakeTestCase.__init__(self, KmakeTestCase.TEST_DIR / "test-designs" / "jetson-orin-baseboard", "rename")
+        KmakeTestCase.__init__(self, "rename")
         unittest.TestCase.__init__(self, method_name)
 
     def test(self) -> None:
