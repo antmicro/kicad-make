@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import json
 
 from kiutils.board import Board
 
@@ -43,6 +44,13 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--set-ref",
         action="store_true",
         help="Set footprint references to certain state (reset position, set size, ..)",
+    )
+    parser.add_argument(
+        "-f",
+        "--pcb-filter-args",
+        type=json.loads,
+        help="""Additional arguments to be passed to pcb-filter; 
+        eg. `-f '{"ref_filter":"+J+D-D1"}'` """,
     )
     parser.set_defaults(func=run)
 
@@ -143,6 +151,8 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             ["top", "bottom"],
             ["User.9,Edge.Cuts"],
         )
+    print(args.pcb_filter_args)
+    preset[1].update(args.pcb_filter_args)
 
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
