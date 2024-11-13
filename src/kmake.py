@@ -114,7 +114,6 @@ def main() -> None:
         )
 
     log = logging.getLogger("kmake")
-    log.info("kmake - KiCad make")
     log.debug("Running in debug mode")
 
     no_log_subcommands = ["init-project"]

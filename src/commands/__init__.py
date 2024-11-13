@@ -22,5 +22,6 @@ from . import (
     set_drc,
     stackup_export,
     step,
+    version,
     wireframe,
 )

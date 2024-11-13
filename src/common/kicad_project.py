@@ -56,10 +56,10 @@ class KicadProject:
 
         # Get KiCad version
         kicad_cli_name = get_kicad_cli_command()[0]
-        self.kicad_version = subprocess.run(
+        self.kicad_version_full = subprocess.run(
             [kicad_cli_name, "--version"], text=True, check=True, capture_output=True
-        ).stdout
-        self.kicad_version = ".".join(self.kicad_version.split(".")[0:2])
+        ).stdout.strip()
+        self.kicad_version = ".".join(self.kicad_version_full.split(".")[0:2])
 
         self.comm_cfg_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/kicad_common.json")
         self.glob_fp_lib_table_path = os.path.expanduser(f"~/.config/kicad/{self.kicad_version}/fp-lib-table")
