@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 
 from kiutils.board import Board
 from kiutils.footprint import Footprint
@@ -40,27 +41,19 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="If output file exists use it as input, simplifies cascaded calls",
     )
     parser.add_argument(
-        "-a",
-        "--allow",
+        "-x",
+        "--ref-filter",
         action="store",
-        nargs="*",
-        help="""Components with matching references will be left untouched
-         (mutually exclusive with `--exclude`); 
-         eg. `-a J MH SW`""",
+        help="""Pattern based component filter
+         eg. `-x "+J+D-D1"` - remove components other than connectors(J) and diodes(D), diode D1 will also be removed,
+         eg. `-x "-J-D+D1"` - remove connectors(J) and diodes(D), other components and diode D1 will left untouched
+         """,
     )
     parser.add_argument(
-        "-e",
-        "--exclude",
+        "-xo",
+        "--ref-filter-other",
         action="store",
-        nargs="*",
-        help="Components with matching references will be left removed (mutually exclusive with `--allow`)",
-    )
-    parser.add_argument(
-        "-ao",
-        "--allow-other",
-        action="store",
-        nargs="*",
-        help="`--allow` filter  used on side oposite to `--side`",
+        help="`--ref-filter` filter  used on side opposite to `--side`",
     )
     parser.add_argument(
         "-s",
@@ -146,9 +139,9 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             "dimensions",
             "stackup",
             "side",
-            "keep_edge" "allow_other",
-            "exclude",
-            "allow",
+            "keep_edge",
+            "ref_filter",
+            "ref_filter_other",
             "cascade",
             "infile",
             "outfile",
@@ -170,9 +163,8 @@ def pcb_filter_run(
     stackup: bool = False,
     side: Optional[str] = None,
     keep_edge: bool = False,
-    allow_other: Optional[List[str]] = None,
-    exclude: Optional[List[str]] = None,
-    allow: Optional[List[str]] = None,
+    ref_filter: Optional[str] = None,
+    ref_filter_other: Optional[str] = None,
     cascade: bool = False,
     infile: Optional[str] = None,
     outfile: str = "filtred.kicad_pcb",
@@ -190,11 +182,8 @@ def pcb_filter_run(
     log.info("Loading PCB")
     board = Board.from_file(infile)
 
-    if allow is None:
-        allow = ["*"]
-
-    if allow_other is None:
-        allow_other = []
+    filter_main = None if ref_filter is None else RefFilter(ref_filter)
+    filter_other = None if ref_filter_other is None else RefFilter(ref_filter_other)
 
     if side is None:
         side = ""
@@ -228,9 +217,7 @@ def pcb_filter_run(
                         )
                     )
 
-    board.footprints = [fp for fp in board.footprints if reference_match(fp, side, allow, allow_other)]
-    if exclude is not None:
-        board.footprints = [fp for fp in board.footprints if not reference_match(fp, side, exclude, exclude)]
+    board.footprints = [fp for fp in board.footprints if reference_match(fp, side, filter_main, filter_other)]
 
     if stackup:
         try:
@@ -291,6 +278,18 @@ def pcb_filter_run(
     board.to_file(outfile)
 
 
+class RefFilter:
+    def __init__(self, filter_pat: str) -> None:
+        pat = re.split("([+-][0-9A-Za-z]+)", filter_pat)[1::2]
+
+        def typefilt(char: str) -> List[str]:
+            return [p[1:] for p in pat if p[0] == char]
+
+        self.mode_additive = filter_pat[0] == "+"
+        self.pat_add = typefilt("+")
+        self.pat_rem = typefilt("-")
+
+
 def check_primary_side(fp: Footprint, side: str) -> bool:
     if [fp.layer, side] in [["F.Cu", "top"], ["B.Cu", "bottom"]] or side == "":
         return True
@@ -302,20 +301,23 @@ def check_primary_side(fp: Footprint, side: str) -> bool:
     return front and back
 
 
-def reference_match(fp: Footprint, side: str, pat: List[str], pat_other: List[str]) -> bool:
-    if not check_primary_side(fp, side):
-        pat = pat_other
-
-    if pat == ["*"]:
-        return True
+def reference_match(fp: Footprint, side: str, filt: Optional[RefFilter], filt_other: Optional[RefFilter]) -> bool:
+    if check_primary_side(fp, side):
+        if filt is None:
+            return True
+    else:
+        filt = filt_other
+        if filt is None:
+            return False
 
     # Extract prefix from reference
-    ref = get_property(fp, "Reference").rstrip("0123456789? ")
+    ref = get_property(fp, "Reference").strip()
+    ref_type = ref.rstrip("0123456789?*")
+
     # Compare prefix with selected pattern
-    for p in pat:
-        if ref == p:
-            return True
-    return False
+    if filt.mode_additive:
+        return ref_type in filt.pat_add and ref not in filt.pat_rem
+    return ref_type not in filt.pat_rem or ref in filt.pat_add
 
 
 def hide_property_if_named(prop: Any, property_name: str) -> None:

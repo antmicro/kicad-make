@@ -41,12 +41,12 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         super().tearDown()
 
     def test_pcb_filter_allow(self) -> None:
-        self.command_test(["-a", "J"])
+        self.command_test(["-x", "+J"])
         self.refpcb.footprintsT = self.refpcb.footprintsT_J
         self.refpcb.footprintsB = self.refpcb.footprintsB_J
 
     def test_pcb_filter_exclude(self) -> None:
-        self.command_test(["-e", "J"])
+        self.command_test(["-x", "-J"])
         self.refpcb.footprintsT -= self.refpcb.footprintsT_J
         self.refpcb.footprintsB -= self.refpcb.footprintsB_J
         self.refpcb.footprintsT_J = 0
@@ -78,7 +78,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.refpcb.footprintsB_J = 0
 
     def test_pcb_filter_partial_side_top(self) -> None:
-        self.command_test(["-s", "top", "-ao", "J"])
+        self.command_test(["-s", "top", "-xo", "+J"])
         self.refpcb.footprintsB = self.refpcb.footprintsB_J
 
     def test_pcb_filter_side_bottom(self) -> None:
@@ -87,7 +87,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.refpcb.footprintsT_J = 0
 
     def test_pcb_filter_partial_side_bottom(self) -> None:
-        self.command_test(["-s", "bottom", "-ao", "J"])
+        self.command_test(["-s", "bottom", "-xo", "+J"])
         self.refpcb.footprintsT = self.refpcb.footprintsT_J
 
     def test_pcb_filter_layers(self) -> None:
