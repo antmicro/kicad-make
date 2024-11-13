@@ -196,12 +196,8 @@ def pcb_filter_run(
     if allow_other is None:
         allow_other = []
 
-    if side == "top":
-        pass
-    elif side == "bottom":
-        (allow, allow_other) = (allow_other, allow)
-    else:
-        (allow, allow_other) = (allow, allow)
+    if side is None:
+        side = ""
 
     if keep_edge:
         for fp in board.footprints:
@@ -232,9 +228,9 @@ def pcb_filter_run(
                         )
                     )
 
-    board.footprints = [fp for fp in board.footprints if reference_match(fp, allow, allow_other)]
+    board.footprints = [fp for fp in board.footprints if reference_match(fp, side, allow, allow_other)]
     if exclude is not None:
-        board.footprints = [fp for fp in board.footprints if not reference_match(fp, exclude, exclude)]
+        board.footprints = [fp for fp in board.footprints if not reference_match(fp, side, exclude, exclude)]
 
     if stackup:
         try:
@@ -295,11 +291,20 @@ def pcb_filter_run(
     board.to_file(outfile)
 
 
-def reference_match(fp: Footprint, pat_top: List[str], pat_bottom: List[str]) -> bool:
-    if fp.layer == "F.Cu":
-        pat = pat_top
-    else:
-        pat = pat_bottom
+def check_primary_side(fp: Footprint, side: str) -> bool:
+    if [fp.layer, side] in [["F.Cu", "top"], ["B.Cu", "bottom"]] or side == "":
+        return True
+
+    front, back = False, False
+    for pad in fp.pads:
+        front = front or "F.Cu" in pad.layers
+        back = back or "B.Cu" in pad.layers
+    return front and back
+
+
+def reference_match(fp: Footprint, side: str, pat: List[str], pat_other: List[str]) -> bool:
+    if not check_primary_side(fp, side):
+        pat = pat_other
 
     if pat == ["*"]:
         return True
