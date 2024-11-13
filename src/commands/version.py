@@ -2,9 +2,7 @@ from importlib.metadata import version
 from pip._internal.operations import freeze
 import argparse
 import logging
-
 from common.kicad_project import KicadProject
-
 
 log = logging.getLogger(__name__)
 
