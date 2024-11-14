@@ -151,8 +151,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             ["top", "bottom"],
             ["User.9,Edge.Cuts"],
         )
-    print(args.pcb_filter_args)
-    preset[1].update(args.pcb_filter_args)
+    preset[1].update(args.pcb_filter_args if args.pcb_filter_args is not None else {})
 
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
