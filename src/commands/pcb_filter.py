@@ -190,7 +190,7 @@ def pcb_filter_run(
 
     if keep_edge:
         for fp in board.footprints:
-            angle = radians(fp.position.angle if fp.position.angle is not None else 0)
+            angle = radians(-fp.position.angle if fp.position.angle is not None else 0)
             sina, cosa = sin(angle), cos(angle)
             tx, ty = fp.position.X, fp.position.Y
 
@@ -201,13 +201,13 @@ def pcb_filter_run(
                 if item.layer != "Edge.Cuts":
                     continue
                 if isinstance(item, FpLine):
-                    fp.graphicItems.append(
+                    board.graphicItems.append(
                         GrLine(
                             start=glob_pos(item.start), end=glob_pos(item.end), layer="Edge.Cuts", stroke=item.stroke
                         )
                     )
                 if isinstance(item, FpArc):
-                    fp.graphicItems.append(
+                    board.graphicItems.append(
                         GrArc(
                             start=glob_pos(item.start),
                             mid=glob_pos(item.mid),
