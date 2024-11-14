@@ -190,7 +190,7 @@ def pcb_filter_run(
 
     if keep_edge:
         for fp in board.footprints:
-            angle = radians(fp.position.angle)
+            angle = radians(fp.position.angle if fp.position.angle is not None else 0)
             sina, cosa = sin(angle), cos(angle)
             tx, ty = fp.position.X, fp.position.Y
 
