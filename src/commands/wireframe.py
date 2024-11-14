@@ -208,7 +208,7 @@ def generate_wireframe(
 
 def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str) -> None:
     # SVG
-    outfile = os.path.join(output_folder, oname_side_l + ".svg")
+    outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".svg")
     log.info(f"Exporting {layer} svg to {outfile}")
     svg_export_cli_command = [
         "pcb",

@@ -32,10 +32,10 @@ class WireframeTest(KmakeTestCase, unittest.TestCase):
 
     def wireframe_presets(self, preset: str) -> None:
         self.run_test_command(["-p", f"{preset}"])
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_top.gbr"))
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_bottom.gbr"))
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_top.svg"))
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/{preset}_bottom.svg"))
+        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_top.gbr"))
+        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_bottom.gbr"))
+        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_top.svg"))
+        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_bottom.svg"))
 
     def test_wireframe_presets_simple(self) -> None:
         self.wireframe_presets("simple")
