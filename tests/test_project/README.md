@@ -9,6 +9,7 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Hierarchical labels
 * Local labels
 * Global labels
+* Power label with changed name
 * Label negation
 * Hierarchical sheets
 * Differential signals
@@ -18,7 +19,6 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Text
 * SVG graphics
 * KiCad graphics
-
 ### PCB:
 * 8 signal layers stackup
 * Custom net classes
@@ -44,6 +44,8 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Locked/Unlocked kibuzzard
 * Hidden properties
 * Visible properties
+* Polygon with net assigned
+* Text box
 
 
  
