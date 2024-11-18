@@ -176,7 +176,9 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     preset[1].update(args.pcb_filter_args if args.pcb_filter_args is not None else {})
 
     def append_dict_val(key: str) -> None:
-        args.pcb_filter_args_append[key] = args.pcb_filter_args[key] + args.pcb_filter_args_append.get(key, "")
+        pres = preset[1].get(key)
+        if pres is not None:
+            args.pcb_filter_args_append[key] = pres + args.pcb_filter_args_append.get(key, "")
 
     if args.pcb_filter_args_append is not None:
         append_dict_val("ref_filter")

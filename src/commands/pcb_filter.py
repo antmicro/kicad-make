@@ -178,7 +178,6 @@ def pcb_filter_run(
     if not len(infile):
         log.error("PCB file was not detected or does not exists")
         return
-
     log.info("Loading PCB")
     board = Board.from_file(infile)
 
@@ -281,13 +280,19 @@ def pcb_filter_run(
 class RefFilter:
     def __init__(self, filter_pat: str) -> None:
         pat = re.split("([+-][0-9A-Za-z]+)", filter_pat)[1::2]
+        pat_dict = {}
+
+        for p in pat:  # this will simplify eg. `+M-M` to `-M`
+            pat_dict.update({p[1:]: p[0]})
 
         def typefilt(char: str) -> List[str]:
-            return [p[1:] for p in pat if p[0] == char]
+            return [p for (p, mode) in pat_dict.items() if mode == char]
 
         self.mode_additive = filter_pat[0] == "+"
         self.pat_add = typefilt("+")
         self.pat_rem = typefilt("-")
+        print(self.pat_add)
+        print(self.pat_rem)
 
 
 def check_primary_side(fp: Footprint, side: str) -> bool:
@@ -316,8 +321,8 @@ def reference_match(fp: Footprint, side: str, filt: Optional[RefFilter], filt_ot
 
     # Compare prefix with selected pattern
     if filt.mode_additive:
-        return ref_type in filt.pat_add and ref not in filt.pat_rem
-    return ref_type not in filt.pat_rem or ref in filt.pat_add
+        return (ref_type in filt.pat_add and ref not in filt.pat_rem) or ref in filt.pat_add
+    return (ref_type not in filt.pat_rem and ref not in filt.pat_rem) or ref in filt.pat_add
 
 
 def hide_property_if_named(prop: Any, property_name: str) -> None:
