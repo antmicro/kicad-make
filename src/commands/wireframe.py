@@ -170,6 +170,67 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
 
+def mirror_footprint_text(fp: Footprint) -> Footprint:
+    fpp = []
+    for p in fp.properties:
+        if p.effects is None:
+            p.effects = Effects()
+        p.effects.justify.mirror = True
+        fpp.append(p)
+    fp.properties = fpp
+
+    fpgi = []
+    for g in fp.graphicItems:
+        if isinstance(g, FpText):
+            g.effects.justify.mirror = True
+        fpgi.append(g)
+    fp.graphicItems = fpgi
+    return fp
+
+
+def mirror_texts(board: Board) -> Board:
+    board.footprints = [mirror_footprint_text(fp) for fp in board.footprints]
+
+    brdgi = []
+    for g in board.graphicItems:
+        if isinstance(g, GrText):
+            g.effects.justify.mirror = True
+        brdgi.append(g)
+    board.graphicItems = brdgi
+
+    brdd = []
+    for d in board.dimensions:
+        if d.grText is None:
+            d.grText = GrText()
+        d.grText.effects.justify.mirror = True
+        brdd.append(d)
+    board.dimensions = brdd
+    return board
+
+
+def board_process(brd_path: str, side: str) -> None:
+    board = Board.from_file(brd_path)
+
+    # set all lines to same width
+    bgi = []
+    for g in board.graphicItems:
+        if (
+            isinstance(g, GrArc)
+            or isinstance(g, GrLine)
+            or isinstance(g, GrCircle)
+            or isinstance(g, GrPoly)
+            or isinstance(g, GrRect)
+        ) and g.layer == "Edge.Cuts":
+            g.stroke = Stroke(width=0.12)
+        bgi.append(g)
+    board.graphicItems = bgi
+
+    if side == "bottom":
+        board = mirror_texts(board)
+
+    board.to_file()
+
+
 def generate_wireframe(
     oname: str,
     filter_args: Dict[str, Any],
@@ -196,6 +257,8 @@ def generate_wireframe(
             log.info("Run PCB filter")
             pcb_filter_run(kpro, **filter_args)
 
+            board_process(filter_args["outfile"], side)
+
             if set_ref:
                 reset_footprint_val_props(fp.name)
 
@@ -217,10 +280,10 @@ def generate_wireframe(
                     oname_side_l = oname_side
                 else:
                     oname_side_l = oname_side + "_" + layer.replace(".", "_")
-                do_exports(fp.name, output_folder, oname_side_l, layer)
+                do_exports(fp.name, output_folder, oname_side_l, layer, side)
 
 
-def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str) -> None:
+def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, side: str) -> None:
     # SVG
     outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".svg")
     log.info(f"Exporting {layer} svg to {outfile}")
@@ -238,10 +301,13 @@ def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str) ->
         "--page-size-mode",
         "2",
     ]
+    if side == "bottom":
+        svg_export_cli_command.append("--mirror")
+
     run_kicad_cli(svg_export_cli_command, True)
 
     # GERBER
-    outfile = os.path.join(output_folder, oname_side_l + ".gbr")
+    outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".gbr")
     log.info(f"Exporting {layer} gerber to {outfile}")
     gerber_export_cli_command = [
         "pcb",
