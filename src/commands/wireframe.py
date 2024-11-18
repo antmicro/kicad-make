@@ -4,6 +4,10 @@ import os
 import json
 
 from kiutils.board import Board
+from kiutils.footprint import Footprint
+from kiutils.items.common import Effects, Stroke, Position
+from kiutils.items.fpitems import FpText
+from kiutils.items.gritems import GrText, GrLine, GrArc, GrCircle, GrPoly, GrRect
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -12,6 +16,7 @@ from .pcb_filter import pcb_filter_run
 
 from tempfile import NamedTemporaryFile
 from typing import List, Dict, Any
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +51,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="Set footprint references to certain state (reset position, set size, ..)",
     )
     parser.add_argument(
+        "--generate-frame",
+        action="store_true",
+        help="""Generate output that is rectangle created from board outline b-box expanded by 60mm""",
+    )
+    parser.add_argument(
         "-f",
         "--pcb-filter-args",
         type=json.loads,
@@ -60,6 +70,10 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         args.input = ki_pro.pcb_file
     if not len(args.input):
         log.error("PCB file was not detected or does not exists")
+        return
+
+    if args.generate_frame:
+        generate_frame(ki_pro)
         return
 
     if args.reset:
@@ -272,3 +286,53 @@ def reset_footprint_val_props(file: str) -> None:
         log.warning("Add `pcbnew.py` to paths recognized by python")
         log.warning("OR run above block code in KiCad scripting console")
         log.error("Footprint value properties has not be set!")
+
+
+def generate_frame(kpro: KicadProject) -> None:
+    with NamedTemporaryFile(suffix=".kicad_pcb") as fp:
+
+        filter_args = {"outfile": fp.name, "infile": kpro.pcb_file, "keep_edge": True, "allowed_layers": "Edge.Cuts"}
+
+        log.info("Run PCB filter")
+        pcb_filter_run(kpro, **filter_args)
+        board = Board.from_file(fp.name)
+        x = []
+        y = []
+        for item in board.graphicItems:
+            if item.layer != "Edge.Cuts":
+                continue
+            if hasattr(item, "start"):
+                x.append(item.start.X)
+                y.append(item.start.Y)
+            if hasattr(item, "end"):
+                x.append(item.end.X)
+                y.append(item.end.Y)
+            if hasattr(item, "mid"):
+                x.append(item.mid.X)
+                y.append(item.mid.Y)
+            if hasattr(item, "coordinates"):
+                x.append([c.X for c in item.coordinates])
+                y.append([c.Y for c in item.coordinates])
+        border = 60
+        board.graphicItems.append(
+            GrRect(
+                Position(min(x) - border, min(y) - border), Position(max(x) + border, max(y) + border), layer="Margin"
+            )
+        )
+        board.to_file()
+
+        outfile = Path(kpro.fab_dir) / "wireframe" / "margin.gbr"
+        log.info(f"Exporting `Margin` gerber to {outfile}")
+        gerber_export_cli_command = [
+            "pcb",
+            "export",
+            "gerber",
+            fp.name,
+            "-o",
+            str(outfile),
+            "--precision",
+            "6",
+            "-l",
+            "Margin",
+        ]
+        run_kicad_cli(gerber_export_cli_command, True)
