@@ -190,19 +190,28 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
 
+def mirror_text_justify(effects: Effects) -> Effects:
+    effects.justify.mirror = True
+    if effects.justify.horizontally == "right":
+        effects.justify.horizontally = "left"
+    elif effects.justify.horizontally == "left":
+        effects.justify.horizontally = "right"
+    return effects
+
+
 def mirror_footprint_text(fp: Footprint) -> Footprint:
     fpp = []
     for p in fp.properties:
         if p.effects is None:
             p.effects = Effects()
-        p.effects.justify.mirror = True
+        p.effects = mirror_text_justify(p.effects)
         fpp.append(p)
     fp.properties = fpp
 
     fpgi = []
     for g in fp.graphicItems:
         if isinstance(g, FpText):
-            g.effects.justify.mirror = True
+            g.effects = mirror_text_justify(g.effects)
         fpgi.append(g)
     fp.graphicItems = fpgi
     return fp
@@ -214,15 +223,15 @@ def mirror_texts(board: Board) -> Board:
     brdgi = []
     for g in board.graphicItems:
         if isinstance(g, GrText):
-            g.effects.justify.mirror = True
+            g.effects = mirror_text_justify(g.effects)
         brdgi.append(g)
     board.graphicItems = brdgi
 
     brdd = []
     for d in board.dimensions:
-        if d.grText is None:
+        if d.grText is not None:
             d.grText = GrText()
-        d.grText.effects.justify.mirror = True
+        d.grText.effects = mirror_text_justify(d.grText.effects)
         brdd.append(d)
     board.dimensions = brdd
     return board
