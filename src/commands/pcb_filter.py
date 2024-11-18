@@ -291,8 +291,6 @@ class RefFilter:
         self.mode_additive = filter_pat[0] == "+"
         self.pat_add = typefilt("+")
         self.pat_rem = typefilt("-")
-        print(self.pat_add)
-        print(self.pat_rem)
 
 
 def check_primary_side(fp: Footprint, side: str) -> bool:
