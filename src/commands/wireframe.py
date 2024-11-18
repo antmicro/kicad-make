@@ -62,6 +62,14 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="""Additional arguments to be passed to pcb-filter; 
         eg. `-f '{"ref_filter":"+J+D-D1"}'` """,
     )
+    parser.add_argument(
+        "-a",
+        "--pcb-filter-args-append",
+        type=json.loads,
+        help="""Additional arguments to be passed to pcb-filter
+        (lists/string will be appended to default ones)
+        eg. `-p simple -a '{"ref_filter":"+M1"}'` (results in `"ref_filter":"-M-A+M1"`)""",
+    )
     parser.set_defaults(func=run)
 
 
@@ -166,6 +174,16 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             ["User.9,Edge.Cuts"],
         )
     preset[1].update(args.pcb_filter_args if args.pcb_filter_args is not None else {})
+
+    def append_dict_val(key: str) -> None:
+        args.pcb_filter_args_append[key] = args.pcb_filter_args[key] + args.pcb_filter_args_append.get(key, "")
+
+    if args.pcb_filter_args_append is not None:
+        append_dict_val("ref_filter")
+        append_dict_val("ref_filter_other")
+        append_dict_val("allowed_layers")
+        append_dict_val("allowed_layers_full")
+        preset[1].update(args.pcb_filter_args_append)
 
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
