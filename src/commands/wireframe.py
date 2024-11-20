@@ -5,9 +5,10 @@ import json
 
 from kiutils.board import Board
 from kiutils.footprint import Footprint
-from kiutils.items.common import Effects, Stroke, Position
+from kiutils.items.common import Effects, Stroke, Position, Font, Justify
 from kiutils.items.fpitems import FpText
 from kiutils.items.gritems import GrText, GrLine, GrArc, GrCircle, GrPoly, GrRect
+from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -15,8 +16,9 @@ from common.kmake_helper import run_kicad_cli
 from .pcb_filter import pcb_filter_run
 
 from tempfile import NamedTemporaryFile
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Self
 from pathlib import Path
+from math import inf
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +71,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="""Additional arguments to be passed to pcb-filter
         (lists/string will be appended to default ones)
         eg. `-p simple -a '{"ref_filter":"+M1"}'` (results in `"ref_filter":"-M-A+M1"`)""",
+    )
+    parser.add_argument(
+        "--skip-dimension-mod",
+        action="store_true",
+        help="Do not modify main dimensions",
     )
     parser.set_defaults(func=run)
 
@@ -187,10 +194,13 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         append_dict_val("allowed_layers_full")
         preset[1].update(args.pcb_filter_args_append)
 
-    generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
+    generate_wireframe(
+        preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref, args.skip_dimension_mod
+    )
 
 
 def mirror_text_justify(effects: Effects) -> Effects:
+    """Set text mirrored & flip its justification"""
     effects.justify.mirror = True
     if effects.justify.horizontally == "right":
         effects.justify.horizontally = "left"
@@ -200,6 +210,7 @@ def mirror_text_justify(effects: Effects) -> Effects:
 
 
 def mirror_footprint_text(fp: Footprint) -> Footprint:
+    """Mirror texts inside footprint (property & standalone texts)"""
     fpp = []
     for p in fp.properties:
         if p.effects is None:
@@ -218,6 +229,7 @@ def mirror_footprint_text(fp: Footprint) -> Footprint:
 
 
 def mirror_texts(board: Board) -> Board:
+    """Mirror all text in pcb (footprint, dimension & standalone texts)"""
     board.footprints = [mirror_footprint_text(fp) for fp in board.footprints]
 
     brdgi = []
@@ -237,7 +249,66 @@ def mirror_texts(board: Board) -> Board:
     return board
 
 
-def board_process(brd_path: str, side: str) -> None:
+def standardize_main_dimensions(board: Board, side: str) -> List[Dimension]:
+    """Remove largest dimensions and add new standardized ones
+    (new dimensions will be on right board side for top and on left for bottom w text mirrored)"""
+
+    dims = board.dimensions
+    vertical = []
+    horizontal = []
+    rest = []
+    (maxlen_x, maxlen_y) = (0, 0)
+    # remove largest dimensions
+    for d in dims:
+        len_x = abs(d.pts[0].X - d.pts[1].X)
+        len_y = abs(d.pts[0].Y - d.pts[1].Y)
+        if (d.type == "aligned" and len_x * 10 < len_y) or (d.type == "orthogonal" and d.orientation == 1):
+            vertical.append(d)
+            if maxlen_y < len_y:
+                maxlen_y = len_y
+        elif (d.type == "aligned" and len_x > 10 * len_y) or (d.type == "orthogonal" and d.orientation == 0):
+            horizontal.append(d)
+            if maxlen_x < len_x:
+                maxlen_x = len_x
+        else:
+            rest.append(d)
+    vertical = [d for d in vertical if maxlen_y - abs(d.pts[0].Y - d.pts[1].Y) > 0.01]
+    horizontal = [d for d in horizontal if maxlen_x - abs(d.pts[0].X - d.pts[1].X) > 0.01]
+
+    # Add new vertical dimension based on outline
+    [minx, maxx, miny, maxy] = get_outline_bbox(board)
+    if side == "bottom":
+        dim_pts = [Position(miny.aux_min, miny.main), Position(maxy.aux_min, maxy.main)]
+        height = minx.main - miny.aux_min - 8
+        mirror = True
+        tpos = Position(miny.aux_min + height + 1.25, (miny.main + maxy.main) / 2, 90)
+    else:
+        dim_pts = [Position(miny.aux_max, miny.main), Position(maxy.aux_max, maxy.main)]
+        height = maxx.main - miny.aux_max + 8
+        mirror = False
+        tpos = Position(miny.aux_max + height - 1.25, (miny.main + maxy.main) / 2, 270)
+
+    new_dim_x = Dimension(
+        type="orthogonal",
+        layer="Dwgs.User",
+        pts=[Position(minx.main, minx.aux_max), Position(maxx.main, maxx.aux_max)],
+        height=maxy.main - minx.aux_max + 8,
+        orientation=0,
+        grText=GrText(effects=Effects(font=Font(width=1, height=1, thickness=0.15), justify=Justify(mirror=mirror))),
+        format=DimensionFormat(precision=1, suppressZeroes=True),
+        style=DimensionStyle(thickness=0.15, arrowLength=1.27, extensionOffset=0.5, extensionHeight=0.58),
+    )
+    new_dim_y = new_dim_x
+    new_dim_y.style.textPositionMode = 3
+    new_dim_y.grText.position = tpos
+    new_dim_y.pts = dim_pts
+    new_dim_y.height = height
+
+    return vertical + rest + [new_dim_x, new_dim_y]
+
+
+def board_process(brd_path: str, side: str, skip_dim: bool) -> None:
+    """Unify edge.cuts thickness, mirror texts, Standardize main dimensions"""
     board = Board.from_file(brd_path)
 
     # set all lines to same width
@@ -257,6 +328,9 @@ def board_process(brd_path: str, side: str) -> None:
     if side == "bottom":
         board = mirror_texts(board)
 
+    if not skip_dim:
+        board.dimensions = standardize_main_dimensions(board, side)
+
     board.to_file()
 
 
@@ -268,9 +342,12 @@ def generate_wireframe(
     kpro: KicadProject,
     ifile: str,
     set_ref: bool,
+    skip_dim: bool,
 ) -> None:
+    """Preprocess board and export it to SVG & GBR"""
     output_folder = os.path.join(kpro.fab_dir, "wireframe/")
     os.makedirs(output_folder, exist_ok=True)
+    skip_dim = skip_dim or filter_args.get("dimensions", False) is True
 
     for side in sides:
         with NamedTemporaryFile(suffix=".kicad_pcb") as fp:
@@ -286,8 +363,10 @@ def generate_wireframe(
             log.info("Run PCB filter")
             pcb_filter_run(kpro, **filter_args)
 
-            board_process(filter_args["outfile"], side)
+            board_process(filter_args["outfile"], side, skip_dim)
+            # import subprocess
 
+            # subprocess.run(["pcbnew", fp.name])
             if set_ref:
                 reset_footprint_val_props(fp.name)
 
@@ -313,6 +392,7 @@ def generate_wireframe(
 
 
 def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, side: str) -> None:
+    """Run kicad-cli and do exports to SVG and gerber"""
     # SVG
     outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".svg")
     log.info(f"Exporting {layer} svg to {outfile}")
@@ -354,6 +434,7 @@ def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
 
 
 def reset_footprint_val_props(file: str) -> None:
+    """Reset footprint value property settings (font, position, visibility, ..)"""
     try:
         import pcbnew
 
@@ -383,7 +464,68 @@ def reset_footprint_val_props(file: str) -> None:
         log.error("Footprint value properties has not be set!")
 
 
+class BBoxPoint:
+    """Class representing limiting position value, together with related span of other dimension"""
+
+    main: float
+    """Position in main direction"""
+    aux_min: float
+    """Minimal other axis value for main axis == self.main"""
+    aux_max: float
+    """Maximal other axis value for main axis == self.main"""
+
+    def __init__(self, main: float, aux_min: float = inf, aux_max: float = -inf) -> None:
+        self.main = main
+        self.aux_min = aux_min
+        self.aux_max = aux_max
+
+    def update(self, ismin: bool, main: float, aux: float) -> Self:
+        """Compare `(main,aux)` point with limits stored in self, return more extreme value"""
+        op = min if ismin else max
+
+        if (ismin and main - self.main > 0.1) or (not ismin and main - self.main < -0.1):
+            return self
+
+        if abs(main - self.main) < 0.1:
+            self.aux_min = min(aux, self.aux_min)
+            self.aux_max = max(aux, self.aux_max)
+        else:
+            self.aux_min = aux
+            self.aux_max = aux
+
+        self.main = op(main, self.main)
+
+        return self
+
+
+def get_outline_bbox(board: Board) -> List[BBoxPoint]:
+    """Returns board outline bbox coordinates together with ranges where board touches bbox"""
+
+    pts = []
+    (minx, maxx, miny, maxy) = (BBoxPoint(inf), BBoxPoint(-inf), BBoxPoint(inf), BBoxPoint(-inf))
+    for item in board.graphicItems:
+        if item.layer != "Edge.Cuts":
+            continue
+        if hasattr(item, "start"):
+            pts.append(item.start)
+        if hasattr(item, "end"):
+            pts.append(item.end)
+        if hasattr(item, "mid"):
+            pts.append(item.mid)
+        if hasattr(item, "coordinates"):
+            pts.append(item.coordinates)
+
+    for p in pts:
+        minx = minx.update(True, p.X, p.Y)
+        miny = miny.update(True, p.Y, p.X)
+        maxx = maxx.update(False, p.X, p.Y)
+        maxy = maxy.update(False, p.Y, p.X)
+    return [minx, maxx, miny, maxy]
+
+
 def generate_frame(kpro: KicadProject) -> None:
+    """Add graphical rectangle to pcb, that is expanded outline bbox"""
+
     with NamedTemporaryFile(suffix=".kicad_pcb") as fp:
 
         filter_args = {"outfile": fp.name, "infile": kpro.pcb_file, "keep_edge": True, "allowed_layers": "Edge.Cuts"}
@@ -391,27 +533,13 @@ def generate_frame(kpro: KicadProject) -> None:
         log.info("Run PCB filter")
         pcb_filter_run(kpro, **filter_args)
         board = Board.from_file(fp.name)
-        x = []
-        y = []
-        for item in board.graphicItems:
-            if item.layer != "Edge.Cuts":
-                continue
-            if hasattr(item, "start"):
-                x.append(item.start.X)
-                y.append(item.start.Y)
-            if hasattr(item, "end"):
-                x.append(item.end.X)
-                y.append(item.end.Y)
-            if hasattr(item, "mid"):
-                x.append(item.mid.X)
-                y.append(item.mid.Y)
-            if hasattr(item, "coordinates"):
-                x.append([c.X for c in item.coordinates])
-                y.append([c.Y for c in item.coordinates])
         border = 60
+        [minx, maxx, miny, maxy] = get_outline_bbox(board)
         board.graphicItems.append(
             GrRect(
-                Position(min(x) - border, min(y) - border), Position(max(x) + border, max(y) + border), layer="Margin"
+                Position(minx.main - border, miny.main - border),
+                Position(maxx.main + border, maxy.main + border),
+                layer="Margin",
             )
         )
         board.to_file()
