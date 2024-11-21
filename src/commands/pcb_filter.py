@@ -447,7 +447,7 @@ def mirror_texts(board: Board) -> Board:
 
     brdd = []
     for d in board.dimensions:
-        if d.grText is not None:
+        if d.grText is None:
             d.grText = GrText()
         d.grText.effects = mirror_text_justify(d.grText.effects)
         brdd.append(d)
