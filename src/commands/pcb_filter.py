@@ -51,7 +51,8 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store",
         help="""Pattern based component filter
          eg. `-x "+J+D-D1"` - remove components other than connectors(J) and diodes(D), diode D1 will also be removed,
-         eg. `-x "-J-D+D1"` - remove connectors(J) and diodes(D), other components and diode D1 will left untouched
+         eg. `-x="-J-D+D1"` - remove connectors(J) and diodes(D), other components and diode D1 will left untouched
+         (note `=` when first character is `-`)
          """,
     )
     parser.add_argument(

@@ -46,7 +46,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.refpcb.footprintsB = self.refpcb.footprintsB_J
 
     def test_pcb_filter_exclude(self) -> None:
-        self.command_test(["-x", "-J"])
+        self.command_test(["-x='-J'"])
         self.refpcb.footprintsT -= self.refpcb.footprintsT_J
         self.refpcb.footprintsB -= self.refpcb.footprintsB_J
         self.refpcb.footprintsT_J = 0
