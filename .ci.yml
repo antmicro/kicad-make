@@ -87,7 +87,6 @@ build-deploy-testing-kmake-kicad8:
 test-kicad8-docker:
   extends: .pytest-base
   image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing
-  allow_failure: true
 
 .check-code:
   image: python:3.11
