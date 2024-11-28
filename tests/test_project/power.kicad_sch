@@ -2045,8 +2045,24 @@
 		(uuid "fe08873f-a8e5-49ce-96ef-cf51e35afc1d")
 	)
 	(no_connect
+		(at 265.43 147.32)
+		(uuid "1a51d308-d559-48b9-b7b6-da9d47527ab9")
+	)
+	(no_connect
+		(at 273.05 147.32)
+		(uuid "5f0ffde4-c28b-473a-943c-aa7ddebc82d6")
+	)
+	(no_connect
 		(at 127 116.84)
 		(uuid "6b9665b9-ac1c-4fe6-863e-bed9e41b1ca9")
+	)
+	(no_connect
+		(at 273.05 139.7)
+		(uuid "a7a09202-0b75-4b30-8a1d-687b91d73d2f")
+	)
+	(no_connect
+		(at 265.43 139.7)
+		(uuid "d26d5e35-009e-456a-9f52-5ba2333cfd4a")
 	)
 	(wire
 		(pts
@@ -3821,6 +3837,76 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 273.05 143.51 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7a1750f9-51df-4f36-8758-50130f2afa54")
+		(property "Reference" "R12"
+			(at 275.59 142.2399 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "220"
+			(at 275.59 144.7799 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 271.272 143.51 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 273.05 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 273.05 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7cf7054e-603c-4676-9c82-c53e6a086323")
+		)
+		(pin "2"
+			(uuid "fc280dc1-944e-4a72-a090-3cea388c0cc0")
+		)
+		(instances
+			(project "test_project"
+				(path "/59f522e0-0cf7-48a6-bc09-47b340553d24/9fb9e3b9-702c-4bf6-8780-47a0645875b6"
+					(reference "R12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+3V3")
 		(at 74.93 102.87 0)
 		(unit 1)
@@ -4302,6 +4388,76 @@
 			(project "test_project"
 				(path "/59f522e0-0cf7-48a6-bc09-47b340553d24/9fb9e3b9-702c-4bf6-8780-47a0645875b6"
 					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 265.43 143.51 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a750221a-1358-412c-bfd9-d43ba5871fee")
+		(property "Reference" "R8"
+			(at 267.97 142.2399 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "220"
+			(at 267.97 144.7799 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 263.652 143.51 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 265.43 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 265.43 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f1adecb3-2c21-4ceb-9055-3b514a0bc44d")
+		)
+		(pin "2"
+			(uuid "22bca54f-0c3e-4d85-a5a7-e7fd2777b56f")
+		)
+		(instances
+			(project "test_project"
+				(path "/59f522e0-0cf7-48a6-bc09-47b340553d24/9fb9e3b9-702c-4bf6-8780-47a0645875b6"
+					(reference "R8")
 					(unit 1)
 				)
 			)

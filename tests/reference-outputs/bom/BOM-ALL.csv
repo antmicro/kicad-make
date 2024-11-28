@@ -10,7 +10,7 @@
 "J4","1","Conn_01x35_Pin","PinHeader_1x35_P1.00mm_Vertical_SMD_Pin1Left","",""
 "R1 R2 R3","3","10k","R_0402_1005Metric","",""
 "R4","1","330","R_0402_1005Metric","",""
-"R5","1","220","R_0402_1005Metric","",""
+"R5 R8 R12","3","220","R_0402_1005Metric","",""
 "R6 R7 R10","3","0R","R_0402_1005Metric","",""
 "R9 R11","2","100k","R_0402_1005Metric","",""
 "U1","1","ASDMB-xxxMHz","Oscillator_SMD_Abracon_ASDMB-4Pin_2.5x2.0mm","","ASDMB-28.6363MHz-XY"
