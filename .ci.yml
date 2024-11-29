@@ -145,18 +145,9 @@ production-release:
   <<: *test-base
 
 build-docs:
-  image: $CI_DOCS_DOCKER_IMAGE
   stage: build_docs
-  variables:
-    SCALENODE_CPU: 2
-    SCALENODE_RAM: 8000
-    SCALENODE_DISK: 20
   before_script:
     - pip3 install -r docs/requirements.txt
-    # We need to be able to load kmake to generate usage docs,
-    # but we don't really need it working properly
-    # create dummy pcbnew, so we don't have to install kicad
-    - echo -e "class BOARD:\n    pass\nclass FOOTPRINT:\n    pass" > /tmp/pcbnew.py
     # install kmake as it is required to generate usage page
     - pip3 install .
   script:
@@ -164,28 +155,13 @@ build-docs:
     - PYTHONPATH="/tmp/" make html latexpdf
     - cp build/latex/*.pdf build/html/
     - tar cf ../$CI_DOCS_ARCHIVE -C build/html/ .
-  artifacts:
-    paths:
-      - $CI_DOCS_ARCHIVE
+  except: []
   only:
     - main
     - merge_requests
 
 deploy-docs:
-  image: $CI_DOCS_DOCKER_IMAGE
-  variables:
-    GIT_STRATEGY: none
-    SCALENODE_CPU: 2
-    SCALENODE_RAM: 8000
-    SCALENODE_DISK: 20
-  dependencies:
-    - build-docs
-  stage: deploy
-  tags: ["docs"]
-  script: echo 'Deploying docs'
-  artifacts:
-    paths:
-      - $CI_DOCS_ARCHIVE
+  except: []
   only:
     refs:
       - main
