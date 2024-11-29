@@ -152,7 +152,7 @@ build-docs:
     - pip3 install .
   script:
     - cd docs
-    - PYTHONPATH="/tmp/" make html latexpdf
+    - make html latexpdf
     - cp build/latex/*.pdf build/html/
     - tar cf ../$CI_DOCS_ARCHIVE -C build/html/ .
   except: []
