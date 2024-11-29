@@ -162,9 +162,6 @@ build-docs:
 
 deploy-docs:
   except: []
-  only:
-    refs:
-      - main
 
 .deploy-main-kmake:
   extends: .build-kmake-docker-image
