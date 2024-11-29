@@ -81,7 +81,8 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             f"There are {cleanup_count} schematic components that "
             f'have their DNP properties malformed: [{" ".join(cleanup_list)}].'
         )
-    elif cleanup_count > 0:
+        return
+    if cleanup_count > 0:
         log.info(f"There are {cleanup_count} schematic components that have their DNP properties malformed")
         log.debug(f"[{' '.join(cleanup_list)}]")
         # Cleanup components
