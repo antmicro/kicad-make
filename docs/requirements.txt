@@ -1,3 +1,4 @@
+sphinx~=7.2.0
 https://github.com/antmicro/antmicro-sphinx-utils/archive/main.zip
 sphinx-inline-tabs
 sphinx-argparse
