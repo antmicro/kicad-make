@@ -2,7 +2,7 @@
 
 Copyright (c) 2019-2024 [Antmicro](https://www.antmicro.com)
 
-`kmake` is a simple utility that automates handling of [KiCad](https://www.kicad.org/) projects.
+This is a simple utility that automates handling of [KiCad](https://www.kicad.org/) projects.
 `kmake` provides a unified way to generate KiCad production files and manage project structure.
 The script can be used locally and in conjunction with CI infrastructure.
 `Kmake` is developed with KiCad 8+ and a CI environment in mind.
@@ -74,6 +74,6 @@ To check which version of `kmake` is installed in your system, run:
 python3 -m pip show kmake | grep "Version:"
 ```
 
-## License
+## Licensing
 
 This project is licensed under the [Apache-2.0](LICENSE) license.
