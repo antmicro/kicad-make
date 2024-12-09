@@ -49,7 +49,8 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "-f",
         "--pcb-filter-args",
         type=json.loads,
-        help="""Additional arguments to be passed to pcb-filter; 
+        help="""Additional arguments to be passed to pcb-filter;
+        (overrides argument value from preset)
         eg. `-f '{"ref_filter":"+J+D-D1"}'` """,
     )
     parser.add_argument(
@@ -57,7 +58,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--pcb-filter-args-append",
         type=json.loads,
         help="""Additional arguments to be passed to pcb-filter
-        (lists/string will be appended to default ones)
+        (lists/string will be appended to ones defined in preset)
         eg. `-p simple -a '{"ref_filter":"+M1"}'` (results in `"ref_filter":"-M-A+M1"`)""",
     )
     parser.set_defaults(func=run)
