@@ -470,7 +470,7 @@ class BBoxPoint:
         self.aux_min = aux_min
         self.aux_max = aux_max
 
-    def update(self, ismin: bool, main: float, aux: float) -> BBoxPoint:
+    def update(self, ismin: bool, main: float, aux: float) -> "BBoxPoint":
         """Compare `(main,aux)` point with limits stored in self, return more extreme value"""
         op = min if ismin else max
 
