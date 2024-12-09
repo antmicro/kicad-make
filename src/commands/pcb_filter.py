@@ -16,7 +16,7 @@ from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property
-from typing import List, Any, Optional, Self
+from typing import List, Any, Optional
 from copy import deepcopy
 
 from math import sin, cos, radians, inf
@@ -470,7 +470,7 @@ class BBoxPoint:
         self.aux_min = aux_min
         self.aux_max = aux_max
 
-    def update(self, ismin: bool, main: float, aux: float) -> Self:
+    def update(self, ismin: bool, main: float, aux: float) -> BBoxPoint:
         """Compare `(main,aux)` point with limits stored in self, return more extreme value"""
         op = min if ismin else max
 
