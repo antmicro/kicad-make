@@ -9,7 +9,7 @@ import sys
 from typing import Any, Dict, List, Union
 
 from kiutils.board import Board
-from kiutils.items.brditems import StackupLayer
+from kiutils.items.brditems import StackupLayer, LayerToken
 
 from common.kicad_project import KicadProject
 
@@ -69,16 +69,18 @@ def export_stackup(board: Board) -> List[Dict[str, Any]]:
         log.error("Stackup wasn't set for the project. " "User needs to open the editor and save it. Aborting")
         sys.exit(1)
     for layer in board.setup.stackup.layers:
-        layers.append(export_layer(layer))
+        layers.append(export_layer(layer, board.layers))
         if len(layer.subLayers) > 0:
             for i, _ in enumerate(layer.subLayers):
-                layers.append(export_layer(layer, i))
+                layers.append(export_layer(layer, board.layers, i))
     return layers
 
 
-def export_layer(layer: StackupLayer, sublayer: Union[int, None] = None) -> Dict[str, Any]:
-    """Converts kiutil layer representation to our representation.
-    If sublayer is passed it exports it as it were a layer"""
+def export_layer(
+    layer: StackupLayer, layer_names: List[LayerToken], sublayer: Union[int, None] = None
+) -> Dict[str, Any]:
+    """Converts kiutils layer representation to our representation.
+    If sublayer is passed script exports it as if it were a layer"""
     out = {}
     if len(layer.subLayers) > 0:
         if sublayer is None:
@@ -99,7 +101,12 @@ def export_layer(layer: StackupLayer, sublayer: Union[int, None] = None) -> Dict
         out["material"] = layer.material
         out["epsilon"] = layer.epsilonR
         out["lossTangent"] = layer.lossTangent
-
+    user_layer_names: Dict[str, str] = {}
+    for l_name in layer_names:
+        user_layer_names.update(
+            {l_name.name: (l_name.userName if l_name.userName is not None else l_name.name).replace(".", "_")}
+        )
+    out.update({"user-name": user_layer_names.get(out["name"], out["name"])})
     return out
 
 
@@ -116,7 +123,7 @@ def save_csv(stackup: Any, filename: str) -> None:
     log.info("Saving stackup information as csv: %s", filename)
     with open(filename, "w", encoding="utf-8") as file_handle:
         csv_writer = csv.writer(file_handle, delimiter=";")
-        csv_writer.writerow(["Name", "Type", "Material", "Thickness[mm]", "Constant"])
+        csv_writer.writerow(["Name", "Type", "Material", "Thickness[mm]", "Constant", "User-Name"])
         for layer in stackup:
             csv_writer.writerow(
                 [
@@ -125,5 +132,6 @@ def save_csv(stackup: Any, filename: str) -> None:
                     layer["material"],
                     layer["thickness"],
                     layer["epsilon"],
+                    layer.get("user-name", layer["name"]),
                 ]
             )
