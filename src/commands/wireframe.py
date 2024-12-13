@@ -50,16 +50,31 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--pcb-filter-args",
         type=json.loads,
         help="""Additional arguments to be passed to pcb-filter;
-        (overrides argument value from preset)
-        eg. `-f '{"ref_filter":"+J+D-D1"}'` """,
+        (overrides argument value from preset, unless `--pcb-filter-args-append` specified)
+        eg. `-f '{"allowed_layers":"+J+D-D1"}'` """,
     )
     parser.add_argument(
         "-a",
         "--pcb-filter-args-append",
-        type=json.loads,
-        help="""Additional arguments to be passed to pcb-filter
-        (lists/string will be appended to ones defined in preset)
-        eg. `-p simple -a '{"ref_filter":"+M1"}'` (results in `"ref_filter":"-M-A+M1"`)""",
+        action="store_true",
+        help="""Lists/strings, that are passed to pcb-filter (`pcb-filter-args`, `ref-filter`, `ref-filter-other`) 
+        will be appended to ones defined in preset""",
+    )
+    parser.add_argument(
+        "-x",
+        "--ref-filter",
+        action="store",
+        help="""Argument passed to pcb-filter: Pattern based component filter
+         eg. `-x "+J+D-D1"` - remove components other than connectors(J) and diodes(D), diode D1 will also be removed,
+         eg. `-x="-J-D+D1"` - remove connectors(J) and diodes(D), other components and diode D1 will left untouched
+         (note `=` when first character is `-`)
+         """,
+    )
+    parser.add_argument(
+        "-xo",
+        "--ref-filter-other",
+        action="store",
+        help="Argument passed to pcb-filter: `--ref-filter` filter  used on side opposite to `--side`",
     )
     parser.set_defaults(func=run)
 
@@ -170,19 +185,30 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             ["top", "bottom"],
             ["User.9,Edge.Cuts"],
         )
-    preset[1].update(args.pcb_filter_args if args.pcb_filter_args is not None else {})
 
-    def append_dict_val(key: str) -> None:
-        pres = preset[1].get(key)
-        if pres is not None:
-            args.pcb_filter_args_append[key] = pres + args.pcb_filter_args_append.get(key, "")
+    args.pcb_filter_args = args.pcb_filter_args if args.pcb_filter_args is not None else {}
+    if args.pcb_filter_args_append:
 
-    if args.pcb_filter_args_append is not None:
+        def append_dict_val(key: str) -> None:
+            pres = preset[1].get(key)
+            if pres is not None:
+                args.pcb_filter_args[key] = pres + args.pcb_filter_args.get(key, "")
+
+        if args.ref_filter is not None:
+            args.pcb_filter_args["ref_filter"] = args.ref_filter
+        if args.ref_filter_other is not None:
+            args.pcb_filter_args["ref_filter_other"] = args.ref_filter_other
         append_dict_val("ref_filter")
         append_dict_val("ref_filter_other")
         append_dict_val("allowed_layers")
         append_dict_val("allowed_layers_full")
-        preset[1].update(args.pcb_filter_args_append)
+        preset[1].update(args.pcb_filter_args)
+    else:
+        preset[1].update(args.pcb_filter_args)
+        if args.ref_filter is not None:
+            preset[1].update({"ref_filter": args.ref_filter})
+        if args.ref_filter_other is not None:
+            preset[1].update({"ref_filter_other": args.ref_filter_other})
 
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
 
