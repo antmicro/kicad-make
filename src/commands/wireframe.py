@@ -49,6 +49,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "-f",
         "--pcb-filter-args",
         type=json.loads,
+        default={},
         help="""Additional arguments to be passed to pcb-filter;
         (overrides argument value from preset, unless `--pcb-filter-args-append` specified)
         eg. `-f '{"allowed_layers":"+J+D-D1"}'` """,
@@ -186,7 +187,6 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             ["User.9,Edge.Cuts"],
         )
 
-    args.pcb_filter_args = args.pcb_filter_args if args.pcb_filter_args is not None else {}
     if args.pcb_filter_args_append:
 
         def append_dict_val(key: str) -> None:
