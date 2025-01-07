@@ -49,6 +49,9 @@ fp-info-cache
 *.stp
 *.wrl
 *.vrml
+
+# Archives
+*.zip
 """
 
 
