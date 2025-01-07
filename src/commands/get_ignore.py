@@ -39,6 +39,9 @@ fp-info-cache
 # Exported BOM files
 *.xml
 *.csv
+
+# Except stackup.csv
+!stackup.csv
 """
 
 
