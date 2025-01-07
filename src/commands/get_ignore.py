@@ -17,6 +17,7 @@ GITIGNORE = """
 *.bck
 *.kicad_pcb-bak
 *.kicad_sch-bak
+*.kicad_sym_bak
 *-backups
 *.kicad_prl
 *.sch-bak
