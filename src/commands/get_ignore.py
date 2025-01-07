@@ -43,6 +43,12 @@ fp-info-cache
 
 # Except stackup.csv
 !stackup.csv
+
+# Mechanical design files
+*.step
+*.stp
+*.wrl
+*.vrml
 """
 
 
