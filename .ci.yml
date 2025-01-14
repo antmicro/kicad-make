@@ -146,11 +146,17 @@ production-release:
 
 build-docs:
   stage: build_docs
+  before_get_sources:
+    - apt-get update
+    - apt-get install python3-venv python3-pip python3 -y
   before_script:
+    - python3 -m venv .venv/
+    - source .venv/bin/activate
     - pip3 install -r docs/requirements.txt
     # install kmake as it is required to generate usage page
     - pip3 install .
   script:
+    - source .venv/bin/activate
     - cd docs
     - make html latexpdf
     - cp build/latex/*.pdf build/html/
