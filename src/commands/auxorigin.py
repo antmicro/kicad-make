@@ -1,9 +1,10 @@
 import sys
 import argparse
 import logging
-
+import math
 from kiutils.board import Board
 from kiutils.schematic import Position
+from kiutils.items.gritems import GrCircle
 
 from common.kicad_project import KicadProject
 
@@ -55,12 +56,24 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
     x = []
     y = []
     for item in board.graphicItems:
-        if item.layer == "Edge.Cuts":
-            if not hasattr(item, "start"):
-                continue
-            x.append(item.start.X)
-            x.append(item.end.X)
+        if item.layer != "Edge.Cuts":
+            continue
+        # Circle case
+        if isinstance(item, GrCircle):
+            log.info("Detected circular PCB shape")
+            # Coordinates of the square circumscribed by circle
+            r = math.hypot(abs(item.center.X - item.end.X), abs(item.center.Y - item.end.Y))
+            x.append(item.center.X + r)
+            x.append(item.center.X - r)
+            y.append(item.center.Y + r)
+            y.append(item.center.Y - r)
+            continue
+        # Rectangle, segment case
+        if hasattr(item, "start"):
             y.append(item.start.Y)
+            x.append(item.start.X)
+        if hasattr(item, "end"):
+            x.append(item.end.X)
             y.append(item.end.Y)
 
     for footprint in board.footprints:
