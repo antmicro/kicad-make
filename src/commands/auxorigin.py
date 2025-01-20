@@ -75,6 +75,9 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
         if hasattr(item, "end"):
             x.append(item.end.X)
             y.append(item.end.Y)
+        if hasattr(item, "mid"):
+            x.append(item.mid.X)
+            y.append(item.mid.Y)
 
     for footprint in board.footprints:
         if footprint.position is None:
