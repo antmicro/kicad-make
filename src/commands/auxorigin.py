@@ -51,45 +51,44 @@ def set_aux_axis_origin(board: Board, x: float, y: float) -> None:
     save_board(board)
 
 
-# Calculates center point and radius of the circle defined with an arc
-def calculate_circle(item: GrArc) -> tuple[float, float, float]:
+def calculate_circle(arc: GrArc) -> tuple[float, float, float]:
+    """Calculates center point and radius of the circle defined with an arc"""
+    # Squared distance of triangle points to origin
+    a = pow(arc.start.X, 2) + pow(arc.start.Y, 2)
+    b = pow(arc.mid.X, 2) + pow(arc.mid.Y, 2)
+    c = pow(arc.end.X, 2) + pow(arc.end.Y, 2)
     # Determinant
-    det = (item.mid.X - item.start.X) * (item.end.Y - item.start.Y) - (item.end.X - item.start.X) * (
-        item.mid.Y - item.start.Y
-    )
-    # Calculate square distances
-    a = pow(item.start.X, 2) + pow(item.start.Y, 2)
-    b = pow(item.mid.X, 2) + pow(item.mid.Y, 2)
-    c = pow(item.end.X, 2) + pow(item.end.Y, 2)
-    # Calculate circle center - intersecting point of perpendicular bisectors of a triangle
-    # sides are the center point of the circle circumscribed on that triangle.
-    circle_x = -((item.mid.Y - item.start.Y) * (c - a) - (item.end.Y - item.start.Y) * (b - a)) / (2 * det)
-    circle_y = -((item.end.X - item.start.X) * (b - a) - (item.mid.X - item.start.X) * (c - a)) / (2 * det)
+    det = (arc.mid.X - arc.start.X) * (arc.end.Y - arc.start.Y) - (arc.end.X - arc.start.X) * (arc.mid.Y - arc.start.Y)
+    # Circle center calculated based on circumcircle equations - perpendicular bisectors of a triangle
+    # sides are intersecting in center point of the circle circumscribed on that triangle.
+    circle_x = -((arc.mid.Y - arc.start.Y) * (c - a) - (arc.end.Y - arc.start.Y) * (b - a)) / (2 * det)
+    circle_y = -((arc.end.X - arc.start.X) * (b - a) - (arc.mid.X - arc.start.X) * (c - a)) / (2 * det)
     # Calculate radius - pythagorean theorem
-    r = math.hypot(item.start.X - circle_x, item.start.Y - circle_y)
+    r = math.hypot(arc.start.X - circle_x, arc.start.Y - circle_y)
     return circle_x, circle_y, r
 
 
-# Calculates arc extremum in x and y axes
-def find_arc_extrema(circle_x: float, circle_y: float, r: float, item: GrArc) -> tuple[float, float, float, float]:
-    # Finds normalized angle in radians between selected point and circle mid point
+def find_arc_extrema(circle_x: float, circle_y: float, r: float, arc: GrArc) -> tuple[float, float, float, float]:
+    """Calculates arc extremum in x and y axes"""
+
     def angle(x: float, y: float) -> float:
+        """Finds normalized angle in radians between selected point and circle mid point"""
         angle = math.atan2(y - circle_y, x - circle_x)
         angle %= 2 * math.pi
         return angle
 
-    # Verifies if angle is in range [start_angle, end_angle] in cartesian system
     def is_angle_in_range(angle: float, start_angle: float, end_angle: float) -> bool:
+        """Verifies if angle is in range [start_angle, end_angle] in cartesian system"""
         if start_angle <= end_angle:
             return start_angle <= angle <= end_angle
         return angle >= start_angle or angle <= end_angle
 
     # Calculates angles for arc defining points
-    start_angle = angle(item.start.X, item.start.Y)
-    end_angle = angle(item.end.X, item.end.Y)
+    start_angle = angle(arc.start.X, arc.start.Y)
+    end_angle = angle(arc.end.X, arc.end.Y)
 
     # Add arc defining points as potential extremum
-    extrema = [(item.start.X, item.start.Y), (item.mid.X, item.mid.Y), (item.end.X, item.end.Y)]
+    extrema = [(arc.start.X, arc.start.Y), (arc.mid.X, arc.mid.Y), (arc.end.X, arc.end.Y)]
 
     # Add extremum occuring for arc on axes
     for candidate_angle in [0, math.pi / 2, math.pi, 3 * math.pi / 2]:
