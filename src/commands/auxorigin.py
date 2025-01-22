@@ -51,6 +51,20 @@ def set_aux_axis_origin(board: Board, x: float, y: float) -> None:
     save_board(board)
 
 
+def angle(x: float, y: float, ref_x: float, ref_y: float) -> float:
+    """Finds normalized angle in radians between selected point and reference point"""
+    angle = math.atan2(y - ref_y, x - ref_x)
+    angle %= 2 * math.pi
+    return angle
+
+
+def is_angle_in_range(angle: float, start_angle: float, end_angle: float) -> bool:
+    """Verifies if angle is in range [start_angle, end_angle] in cartesian system"""
+    if start_angle <= end_angle:
+        return start_angle <= angle <= end_angle
+    return angle >= start_angle or angle <= end_angle
+
+
 def calculate_circle(arc: GrArc) -> tuple[float, float, float]:
     """Calculates center point and radius of the circle defined with an arc"""
     # Squared distance of triangle points to origin
@@ -70,22 +84,9 @@ def calculate_circle(arc: GrArc) -> tuple[float, float, float]:
 
 def find_arc_extrema(circle_x: float, circle_y: float, r: float, arc: GrArc) -> tuple[float, float, float, float]:
     """Calculates arc extremum in x and y axes"""
-
-    def angle(x: float, y: float) -> float:
-        """Finds normalized angle in radians between selected point and circle mid point"""
-        angle = math.atan2(y - circle_y, x - circle_x)
-        angle %= 2 * math.pi
-        return angle
-
-    def is_angle_in_range(angle: float, start_angle: float, end_angle: float) -> bool:
-        """Verifies if angle is in range [start_angle, end_angle] in cartesian system"""
-        if start_angle <= end_angle:
-            return start_angle <= angle <= end_angle
-        return angle >= start_angle or angle <= end_angle
-
     # Calculates angles for arc defining points
-    start_angle = angle(arc.start.X, arc.start.Y)
-    end_angle = angle(arc.end.X, arc.end.Y)
+    start_angle = angle(x=arc.start.X, y=arc.start.Y, ref_x=circle_x, ref_y=circle_y)
+    end_angle = angle(x=arc.end.X, y=arc.end.Y, ref_x=circle_x, ref_y=circle_y)
 
     # Add arc defining points as potential extremum
     extrema = [(arc.start.X, arc.start.Y), (arc.mid.X, arc.mid.Y), (arc.end.X, arc.end.Y)]
