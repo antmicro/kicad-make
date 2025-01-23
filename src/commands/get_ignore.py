@@ -42,7 +42,7 @@ fp-info-cache
 *.csv
 
 # Except stackup.csv
-!stackup.csv
+!assets/stackup.csv
 
 # Mechanical design files
 *.step
