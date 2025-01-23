@@ -58,6 +58,13 @@ fp-info-cache
 config/*
 blender_renders/*
 *blendcfg.yaml
+
+# Python related files
+build/
+*.pyc
+*.sw*
+venv/
+.venv/
 """
 
 
