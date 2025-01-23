@@ -52,6 +52,12 @@ fp-info-cache
 
 # Archives
 *.zip
+
+# Exports used by Antmicro's tools
+*slices/*
+config/*
+blender_renders/*
+*blendcfg.yaml
 """
 
 
