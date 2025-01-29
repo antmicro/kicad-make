@@ -117,10 +117,6 @@ assembly-release:
   stage: test_docker
   when: never
 
-debug:
-  stage: test_docker
-  when: never
-
 documentation-release:
   <<: *test-base
 
