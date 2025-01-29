@@ -1,5 +1,5 @@
 """Functions operating on raw .kicad_pcb, .kicad_sch,
-    .kicad_mod, .kicad_sym, .kicad_lib files"""
+.kicad_mod, .kicad_sym, .kicad_lib files"""
 
 import argparse
 import logging
