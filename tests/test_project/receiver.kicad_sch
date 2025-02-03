@@ -266,8 +266,8 @@
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
-			(property "Reference" "U"
-				(at -30.48 49.53 0)
+			(property "Reference" "U2"
+				(at 2.1941 -50.8 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -276,12 +276,12 @@
 				)
 			)
 			(property "Value" "ADV7611"
-				(at 30.48 49.53 0)
+				(at 2.1941 -53.34 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
-					(justify right)
+					(justify left)
 				)
 			)
 			(property "Footprint" "Package_QFP:LQFP-64-1EP_10x10mm_P0.5mm_EP5x5mm"
@@ -1174,7 +1174,7 @@
 				(pin output line
 					(at 33.02 -40.64 180)
 					(length 2.54)
-					(name "MCLK/INT2"
+					(name "MCLK"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1188,6 +1188,7 @@
 							)
 						)
 					)
+					(alternate "INT2" output line)
 				)
 				(pin power_in line
 					(at -7.62 50.8 270)
@@ -4850,7 +4851,6 @@
 	)
 	(label "P17"
 		(at 269.24 55.88 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4861,7 +4861,6 @@
 	)
 	(label "ADV7611_CK_N"
 		(at 179.07 58.42 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4872,7 +4871,6 @@
 	)
 	(label "hdmi_in.CEC"
 		(at 147.32 60.96 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4883,7 +4881,6 @@
 	)
 	(label "P19"
 		(at 269.24 50.8 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4894,7 +4891,6 @@
 	)
 	(label "ADV7611_D2_N"
 		(at 179.07 43.18 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4905,7 +4901,6 @@
 	)
 	(label "P20"
 		(at 269.24 48.26 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4916,7 +4911,6 @@
 	)
 	(label "P22"
 		(at 269.24 43.18 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4927,7 +4921,6 @@
 	)
 	(label "P12"
 		(at 269.24 68.58 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4938,7 +4931,6 @@
 	)
 	(label "ADV7611_D0_P"
 		(at 179.07 50.8 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4949,7 +4941,6 @@
 	)
 	(label "hdmi_in.D0-"
 		(at 160.02 53.34 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4960,7 +4951,6 @@
 	)
 	(label "P10"
 		(at 269.24 73.66 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4971,7 +4961,6 @@
 	)
 	(label "hdmi_in.D1-"
 		(at 160.02 48.26 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4982,7 +4971,6 @@
 	)
 	(label "xtal_p"
 		(at 182.88 123.19 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4993,7 +4981,6 @@
 	)
 	(label "P23"
 		(at 269.24 40.64 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5004,7 +4991,6 @@
 	)
 	(label "P0"
 		(at 269.24 99.06 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5015,7 +5001,6 @@
 	)
 	(label "P16"
 		(at 269.24 58.42 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5026,7 +5011,6 @@
 	)
 	(label "P5"
 		(at 269.24 86.36 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5037,7 +5021,6 @@
 	)
 	(label "hdmi_in.D2-"
 		(at 160.02 43.18 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5048,7 +5031,6 @@
 	)
 	(label "hdmi_in.SDA"
 		(at 158.75 66.04 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5059,7 +5041,6 @@
 	)
 	(label "P21"
 		(at 269.24 45.72 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5070,7 +5051,6 @@
 	)
 	(label "P4"
 		(at 269.24 88.9 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5081,7 +5061,6 @@
 	)
 	(label "ADV7611_D1_P"
 		(at 179.07 45.72 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5092,7 +5071,6 @@
 	)
 	(label "hdmi_in.CK+"
 		(at 160.02 55.88 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5103,7 +5081,6 @@
 	)
 	(label "P14"
 		(at 269.24 63.5 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5114,7 +5091,6 @@
 	)
 	(label "P15"
 		(at 269.24 60.96 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5125,7 +5101,6 @@
 	)
 	(label "P13"
 		(at 269.24 66.04 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5136,7 +5111,6 @@
 	)
 	(label "P9"
 		(at 269.24 76.2 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5147,7 +5121,6 @@
 	)
 	(label "ADV7611_CK_P"
 		(at 179.07 55.88 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5158,7 +5131,6 @@
 	)
 	(label "P18"
 		(at 269.24 53.34 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5169,7 +5141,6 @@
 	)
 	(label "hdmi_in.D0+"
 		(at 160.02 50.8 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5180,7 +5151,6 @@
 	)
 	(label "hdmi_in.D1+"
 		(at 160.02 45.72 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5191,7 +5161,6 @@
 	)
 	(label "P1"
 		(at 269.24 96.52 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5202,7 +5171,6 @@
 	)
 	(label "P7"
 		(at 269.24 81.28 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5213,7 +5181,6 @@
 	)
 	(label "ADV7611_D0_N"
 		(at 179.07 53.34 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5224,7 +5191,6 @@
 	)
 	(label "hdmi_in.D2+"
 		(at 160.02 40.64 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5235,7 +5201,6 @@
 	)
 	(label "hdmi_in.CK-"
 		(at 160.02 58.42 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5246,7 +5211,6 @@
 	)
 	(label "hdmi_in.SCL"
 		(at 158.75 63.5 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5257,7 +5221,6 @@
 	)
 	(label "xtal_p"
 		(at 186.69 88.9 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5268,7 +5231,6 @@
 	)
 	(label "ADV7611_D2_P"
 		(at 179.07 40.64 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5279,7 +5241,6 @@
 	)
 	(label "ADV7611_D1_N"
 		(at 179.07 48.26 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5290,7 +5251,6 @@
 	)
 	(label "P8"
 		(at 269.24 78.74 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5301,7 +5261,6 @@
 	)
 	(label "P6"
 		(at 269.24 83.82 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5312,7 +5271,6 @@
 	)
 	(label "P3"
 		(at 269.24 91.44 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5323,7 +5281,6 @@
 	)
 	(label "P2"
 		(at 269.24 93.98 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5334,7 +5291,6 @@
 	)
 	(label "P11"
 		(at 269.24 71.12 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5345,7 +5301,6 @@
 	)
 	(label "hdmi_in.HPD"
 		(at 158.75 68.58 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5357,7 +5312,6 @@
 	(hierarchical_label "hdmi_in{HDMI}"
 		(shape input)
 		(at 144.78 38.1 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5369,7 +5323,6 @@
 	(hierarchical_label "SCL"
 		(shape input)
 		(at 166.37 73.66 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5381,7 +5334,6 @@
 	(hierarchical_label "SCLK"
 		(shape input)
 		(at 267.97 119.38 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5393,7 +5345,6 @@
 	(hierarchical_label "~{RESET}"
 		(shape input)
 		(at 166.37 86.36 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5405,7 +5356,6 @@
 	(hierarchical_label "HS"
 		(shape input)
 		(at 267.97 106.68 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5417,7 +5367,6 @@
 	(hierarchical_label "INT1"
 		(shape input)
 		(at 267.97 127 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5429,7 +5378,6 @@
 	(hierarchical_label "LLC"
 		(shape input)
 		(at 267.97 111.76 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5441,7 +5389,6 @@
 	(hierarchical_label "SDA"
 		(shape input)
 		(at 166.37 81.28 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5453,7 +5400,6 @@
 	(hierarchical_label "DE"
 		(shape input)
 		(at 267.97 104.14 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5465,7 +5411,6 @@
 	(hierarchical_label "AP"
 		(shape input)
 		(at 267.97 116.84 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5477,7 +5422,6 @@
 	(hierarchical_label "P[0..23]"
 		(shape input)
 		(at 271.78 38.1 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5489,7 +5433,6 @@
 	(hierarchical_label "INT2"
 		(shape input)
 		(at 267.97 124.46 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5501,7 +5444,6 @@
 	(hierarchical_label "VS"
 		(shape input)
 		(at 267.97 109.22 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8971,6 +8913,7 @@
 		)
 		(pin "51"
 			(uuid "e2b5e35a-6c73-4498-9d0c-cf7bc0b64d8b")
+			(alternate "INT2")
 		)
 		(pin "61"
 			(uuid "c35939de-b216-4261-b48a-15247efb13bb")

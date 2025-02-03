@@ -3,7 +3,7 @@
 "C15 C17 C19 C21 C23 C25 C27 C28 C30 C32 C33 C35 C37","13","10u","C_0402_1005Metric","",""
 "D1 D2","2","LED","LED_0402_1005Metric","",""
 "FB1 FB2","2","120Z/1.2A","L_0402_1005Metric","",""
-"H1 H2 H3 H4","4","MountingHole_Pad","MountingHole_2.2mm_M2_DIN965_Pad","",""
+"H1 H2 H3","3","MountingHole_Pad","MountingHole_2.2mm_M2_DIN965_Pad","",""
 "J1","1","HDMI_A","HDMI_A_Amphenol_10029449-x01xLF_Horizontal","",""
 "J2","1","Conn_01x02_Pin","JST_XH_B2B-XH-AM_1x02_P2.50mm_Vertical","",""
 "J3","1","Barrel_Jack_MountingPin","BarrelJack_CUI_PJ-063AH_Horizontal","",""

@@ -13,7 +13,7 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
         target_pcb = Board().from_file(filepath=str(self.kpro.pcb_file))
         target_footprints_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
-        self.assertIn("kibuzzard-671B7834", target_footprints_entry_names)
+        self.assertIn("kibuzzard-67891646", target_footprints_entry_names)
 
         # TODO: Check if kibuzzard not exists as graphic in target
 
@@ -32,4 +32,4 @@ class KibuzzardToGraphicTest(KmakeTestCase, unittest.TestCase):
 
         self.assertListEqual(reference_footprints_entry_names, target_footprints_entry_names)
         self.assertListEqual(reference_graphic_items, target_graphic_items)
-        self.assertNotIn("kibuzzard-671B7834", target_footprints_entry_names)
+        self.assertNotIn("kibuzzard-67891646", target_footprints_entry_names)

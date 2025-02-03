@@ -1,0 +1,24 @@
+(version 1)
+#--------------------- HDMI/DP ----------------------
+(rule "(hdmi_inner"
+	(layer inner)
+	(condition "(A.NetClass == '100Ohm-diff_HDMI')")
+	(constraint track_width (opt 0.125mm))
+	(constraint diff_pair_gap  (opt 0.225mm))
+)
+(rule "(hdmi_outer"
+	(layer outer)
+	(condition "(A.NetClass == '100Ohm-diff_HDMI')")
+	(constraint track_width (opt 0.125mm))
+	(constraint diff_pair_gap  (opt 0.125mm))
+)
+
+(rule "(hdmi_clearance"
+	(condition "A.NetClass == '100Ohm-diff_HDMI' && !AB.isCoupledDiffPair() && A.Type == 'Track' && B.Type == 'Track'")
+	(constraint clearance (min 0.2mm))
+)
+#---------------------------------------------
+(rule "clearance1"
+	(constraint clearance (min 0.125mm))
+	(condition "A.NetName == 'GND' && !(A.Type == 'Zone' && B.Type == 'Zone')")
+)

@@ -52,7 +52,7 @@ class BomNetlist(KmakeTestCase, unittest.TestCase):
         self.assertTrue(tool_match)
 
         # Check if every element was matched:uri, source, tool version, date
-        count_uri = 8
+        count_uri = 9
         count_source = 1
         # the date occurs two times (in the netlist header and title block section)
         count_date = 2

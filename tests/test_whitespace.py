@@ -22,7 +22,7 @@ class WhitespaceTest(KmakeTestCase, unittest.TestCase):
         self.kpro = KicadProject()
         self.run_test_command([])
         gerber_count = len(list(self.target_dir.joinpath("fab").glob("test_project-*.gbr")))
-        self.assertEqual(gerber_count, 39)
+        self.assertEqual(gerber_count, 43)
 
 
 if __name__ == "__main__":

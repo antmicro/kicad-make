@@ -19,8 +19,16 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Text
 * SVG graphics
 * KiCad graphics
+* Multi unit symbols
+* Components with alternate pin functions selected
+* PNG image
+* Text with non-default font
+* Net class directive
+* Arcs (greater than 180 deg)
+* Exclude from board symbol
+
 ### PCB:
-* 8 signal layers stackup
+* 8 signal layers asymmetric stackup
 * Custom net classes
 * Custom rules
 * Stackup table
@@ -46,6 +54,21 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Visible properties
 * Polygon with net assigned
 * Text box
+* PNG image
+* Blind, buried and micro vias
+* Vias with removed annular rings
+* Text variables
+* Planes located on only top and bottom
+* Uncommon rotation angle of component
+* Custom DRC rules
+* Concave PCB outline with arcs and holes inside PCB
+* Dimensions objects
+* Custom pad shaped defined as polygons
+* "Not in schematics" footprints
+* Overlapping footprints with pads on top of each other
+* Footprint overrides
+* Text with non-default font
+* Line styles
 
 
  
