@@ -164,6 +164,9 @@ build-docs:
 
 deploy-docs:
   except: []
+  only:
+    - main
+    - merge_requests
 
 .deploy-main-kmake:
   extends: .build-kmake-docker-image
