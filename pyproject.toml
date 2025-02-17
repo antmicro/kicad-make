@@ -25,7 +25,7 @@ requires-python = ">=3.7"
 license = {file = "LICENSE"}
 dependencies = [
     "coloredlogs",
-    "kiutils @ git+https://github.com/antmicro/kiutils.git@f763378f85da3839441e1d9cb60d4b942295e9e2",
+    "kiutils @ git+https://github.com/antmicro/kiutils.git@4deff9dca80ee4aa639cb784fa2209cdb577f08c",
     "natsort==8.3.1",
     "termcolor",
     "Pillow",

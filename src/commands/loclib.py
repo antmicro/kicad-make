@@ -238,7 +238,7 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolLib:
     local_lib_path = f"{ki_pro.lib_dir}/{ki_pro.name}.{ki_pro.sym_lib_ext}"
     if args.force:
         log.info("Localize symbols in force mode")
-        local_lib = SymbolLib(version="20211014", generator="kmake_loclib")
+        local_lib = SymbolLib(version="20231120", generator="kmake_loclib")
         local_lib.filePath = local_lib_path
     else:
         log.info("Localize symbols in append mode")
@@ -247,7 +247,7 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolLib:
             local_lib = SymbolLib.from_file(local_lib_path)
         except Exception:
             log.warning("Local library not found")
-            local_lib = SymbolLib(version="20211014", generator="kmake_loclib")
+            local_lib = SymbolLib(version="20231120", generator="kmake_loclib")
             local_lib.filePath = local_lib_path
             local_lib.to_file()
             log.info("Created empty local library")
