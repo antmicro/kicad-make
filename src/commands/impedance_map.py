@@ -121,7 +121,7 @@ def export_impedance_gerbers(pcb_file: str, output_folder: Path) -> None:
 
 
 class NetClass:
-    def __init__(self, class_json: Dict, patterns: Dict) -> None:
+    def __init__(self, class_json: Dict, patterns: List) -> None:
         self.name = class_json["name"]
 
         self.patterns = []
@@ -140,8 +140,20 @@ class NetClass:
         try:
             classes_patterns = project_json["net_settings"]["netclass_patterns"]
         except KeyError:
-            log.error("Failed to parse the project file, only KiCAD7 projects are supported")
+            log.error("Failed to parse the project file, only KiCAD8 projects are supported")
             exit(1)
+
+        for pattern in classes_patterns:
+            # normalize KiCad wildcard patterns to python regex
+            pattern["pattern"] = (
+                pattern["pattern"]
+                .replace(r"{", r"\{")
+                .replace(r"}", r"\}")
+                .replace(r".", r"\.")
+                .replace(r"*", r".*")
+                .replace(r"?", r".?")
+                .replace(r"+", r"\+")
+            )
 
         net_classes = []
         for class_json in classes_json:

@@ -18,7 +18,7 @@ class ImpedanceTest(KmakeTestCase, unittest.TestCase):
 
         board = Board.from_file(f"{self.kpro.fab_dir}/impedance_map.kicad_pcb")
 
-        self.assertEqual(len(board.traceItems), 328)
+        self.assertEqual(len(board.traceItems), 270)
         self.assertEqual(len(board.footprints), 0)
         self.assertEqual(len(board.zones), 0)
 
