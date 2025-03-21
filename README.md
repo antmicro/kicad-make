@@ -1,6 +1,6 @@
 # KiCad Make (kmake)
 
-Copyright (c) 2019-2024 [Antmicro](https://www.antmicro.com)
+Copyright (c) 2019-2025 [Antmicro](https://www.antmicro.com)
 
 This is a simple utility that automates handling of [KiCad](https://www.kicad.org/) projects.
 `kmake` provides a unified way to generate KiCad production files and manage project structure.
