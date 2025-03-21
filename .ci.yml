@@ -8,6 +8,9 @@ include:
   - project: repositories/antmicro-pcb-release-ci-template
     ref: main
     file: .ci.yml
+  - project: repositories/antmicro-pcb-release-ci-template
+    ref: main
+    file: .docs.yml
 
 stages:
   - code-check
@@ -39,7 +42,6 @@ build-kmake:
   only:
     - main
     - merge_requests
-  script:
   variables:
     DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
     IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}-testing
@@ -108,10 +110,6 @@ ruff:
   extends: .check-code
   script:
     - ruff check .
-
-ohp-check:
-  stage: test_docker
-  when: never
 
 assembly-release:
   stage: test_docker
