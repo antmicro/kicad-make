@@ -242,19 +242,9 @@ def generate_wireframe(
 
             if set_ref:
                 reset_footprint_val_props(fp.name)
-
             for layer in export_layers:
                 slayer = layer.split(",")
-                for idx, sl in enumerate(slayer):
-                    if side == "top":
-                        slayer[idx] = sl.replace("$side", "F")
-                        slayer[idx] = sl.replace("$numside", "1")
-                    elif side == "bottom":
-                        slayer[idx] = sl.replace("$side", "B")
-                        slayer[idx] = sl.replace("$numside", "2")
-                    else:  # side==""
-                        slayer[idx] = sl.replace("$side", "F") + "," + sl.replace("$side", "B")
-                        slayer[idx] = sl.replace("$numside", "1") + "," + sl.replace("$numside", "2")
+                slayer = [substitute_layer_vars(sl, side) for sl in slayer]
                 layer = ",".join(slayer)
 
                 if len(export_layers) == 1:
@@ -335,3 +325,17 @@ def reset_footprint_val_props(file: str) -> None:
         log.warning("Add `pcbnew.py` to paths recognized by python")
         log.warning("OR run above block code in KiCad scripting console")
         log.error("Footprint value properties has not be set!")
+
+
+def substitute_layer_vars(layer: str, side: str) -> str:
+    """Substitute `$side` and `$numside` in string"""
+    if side == "top":
+        layer = layer.replace("$side", "F")
+        layer = layer.replace("$numside", "1")
+    elif side == "bottom":
+        layer = layer.replace("$side", "B")
+        layer = layer.replace("$numside", "2")
+    else:  # side==""
+        layer = layer.replace("$side", "F") + "," + layer.replace("$side", "B")
+        layer = layer.replace("$numside", "1") + "," + layer.replace("$numside", "2")
+    return layer
