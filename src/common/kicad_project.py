@@ -214,14 +214,13 @@ class KicadProject:
 
         if os.path.exists(self.comm_cfg_path):
             with open(self.comm_cfg_path, encoding="utf-8") as kicad_conf:
-                if "environment" in json.load(kicad_conf).items():
-                    for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
-                        os.environ[envvar] = val
-                else:
-                    os.environ[self.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
-                    os.environ[self.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
+                cfg = json.load(kicad_conf)
+                cfg_env = cfg.get("environment", None)
+                cfg_vars = cfg_env.get("vars") if cfg_env and cfg_env.get("vars", None) else {}
+                for envvar, val in cfg_vars.items():
+                    os.environ[envvar] = val
         else:
-            os.environ[self.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
-            os.environ[self.env_var_name_fp_lib] = "/usr/share/kicad/footprints"
             log.warning(f"KiCad Common file ({self.comm_cfg_path}) not found. Using default environment values.")
+        os.environ.setdefault(self.env_var_name_sym_lib, "/usr/share/kicad/symbols")
+        os.environ.setdefault(self.env_var_name_fp_lib, "/usr/share/kicad/footprints")
         os.environ["KIPRJMOD"] = os.path.abspath(".")
