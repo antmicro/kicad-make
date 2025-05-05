@@ -179,7 +179,7 @@ def update_pcb(
             remove_tht_paste(footprint)
         if get_property(footprint, "Reference") in references:
             set_fp_dnp(footprint, remove_paste, restore_paste)
-        elif not footprint.attributes.boardOnly:
+        elif not footprint.attributes.boardOnly and get_property(footprint, "MPN"):
             footprint.attributes.excludeFromPosFiles = False
             footprint.attributes.excludeFromBom = False
             footprint.attributes.dnp = False
