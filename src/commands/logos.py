@@ -12,6 +12,7 @@ from PIL import Image as PIL_Image
 from xdg import BaseDirectory
 
 from common.kicad_project import KicadProject
+from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -87,11 +88,12 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         logos = get_current_logos(schematic=schematic)
         logos.extend(new_logos)
         position_logos(logos=logos, schematic=schematic, args=args)
-        schematic.images.extend(new_logos)
+        schematic.graphicalItems.extend(new_logos)
         schematic.to_file()
         log.info(f"Saved {schematic.filePath}")
         for logo in args.logo:
             log.info(f"Added {logo} to {schematic.filePath}")
+    prettify(kicad_project, argparse.Namespace())
 
 
 # Check page size (acceptable sizes are A3/A4)

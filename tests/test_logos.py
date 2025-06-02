@@ -52,7 +52,7 @@ class LogosTest(KmakeTestCase, unittest.TestCase):
         self.run_test_command(args)
         changed_files = [item.a_path for item in self.project_repo.index.diff(None)]
         # Skip first line, it contains coordinates that will change
-        logo = "\n".join([line.strip() for line in reflogo.splitlines()[1:]])
+        logo = "\n".join([line.strip() for line in reflogo.splitlines()[2:]])
         for file in changed_files:
             with open(file, "r") as f:
                 file_contents = "\n".join([line.strip().strip('"') for line in f.readlines()])

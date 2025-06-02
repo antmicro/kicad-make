@@ -17,6 +17,7 @@ from kiutils.symbol import Symbol, SymbolLib
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property, set_property
+from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -530,3 +531,4 @@ def loclib_project(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     # Generate/extend fp-lib-table
     kiprjmod_fp_lib_path = f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.name}-footprints/"
     add_lib_to_fp_lib_table(lib_name=f"{ki_pro.name}-footprints", fp_lib_path=kiprjmod_fp_lib_path)
+    prettify(ki_pro, argparse.Namespace())

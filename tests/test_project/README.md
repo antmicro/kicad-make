@@ -1,11 +1,11 @@
 # KiCad Test Design
 This is a design used as an input for unit testing kmake commands.
-It was designed in KiCad version `8.0.5` and contains components only from the [official KiCad library](https://gitlab.com/kicad/libraries).
+It was designed in KiCad version `9.0.0` and contains components only from the [official KiCad library](https://gitlab.com/kicad/libraries).
 ## List of the project features:
 ### Schematic:
 * Bus defined with array
 * Bus alias 
-* DNP components
+* DNP/NotInBom/NotInSimulation components
 * Hierarchical labels
 * Local labels
 * Global labels
@@ -26,6 +26,16 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Net class directive
 * Arcs (greater than 180 deg)
 * Exclude from board symbol
+* ERC exclusion with comment
+* Component class (via symbol field & rule area)
+* Rule areas
+* Table
+* Net with multiple netclasses
+* Manual ERC Warning/Error
+* Bezier curves (sch & sym)
+* Sheet level DNP, NotInBom, property
+* Img with changed image origin
+* Embedded font
 
 ### PCB:
 * 8 signal layers asymmetric stackup
@@ -69,6 +79,17 @@ It was designed in KiCad version `8.0.5` and contains components only from the [
 * Footprint overrides
 * Text with non-default font
 * Line styles
-
-
- 
+* DRC exclusion with comment
+* Table (pcb & fp)
+* Manual DRC Warning/Error
+* Bezier curves  (pcb & fp)
+* Multi channel design
+* Track soldermask expansion
+* Zone with cutout
+* Img with changed image origin
+* User layer marked as bottom/top
+* Embedded font
+* Footprint embdeded data
+* Layer pair definition
+* Via tenting settings
+* Changed PTH/Via padstacks

@@ -47,12 +47,9 @@ def prettify(source: str, quote_char: str = '"') -> str:
     column = 0
     backslash_count = 0
 
-    def is_whitespace(char: str) -> bool:
-        return char in (" ", "\t", "\n", "\r")
-
     def next_non_whitespace(index: int) -> Optional[tuple[str, int]]:
         seek = index
-        while seek < len(source) and is_whitespace(source[seek]):
+        while seek < len(source) and source[seek].isspace():
             seek += 1
         if seek == len(source):
             return None  # Reached the end of source
@@ -70,12 +67,12 @@ def prettify(source: str, quote_char: str = '"') -> str:
         return False
 
     while cursor < len(source):
-        next_char_info = next_non_whitespace(cursor)
-        if next_char_info is None:
-            break
-        next_char, _ = next_char_info
-
-        if is_whitespace(source[cursor]) and not in_quote:
+        schar = source[cursor]
+        if schar.isspace() and not in_quote:
+            next_char_info = next_non_whitespace(cursor)
+            if next_char_info is None:
+                break
+            next_char, _ = next_char_info
             if (
                 not has_inserted_space
                 and list_depth > 0
@@ -97,7 +94,7 @@ def prettify(source: str, quote_char: str = '"') -> str:
         else:
             has_inserted_space = False
 
-            if source[cursor] == "(" and not in_quote:
+            if schar == "(" and not in_quote:
                 current_is_xy = is_xy(cursor)
 
                 if list_depth == 0:
@@ -115,7 +112,7 @@ def prettify(source: str, quote_char: str = '"') -> str:
 
                 in_xy = current_is_xy
                 list_depth += 1
-            elif source[cursor] == ")" and not in_quote:
+            elif schar == ")" and not in_quote:
                 if list_depth > 0:
                     list_depth -= 1
 
@@ -131,18 +128,18 @@ def prettify(source: str, quote_char: str = '"') -> str:
                     formatted.append(")")
                     column += 1
             else:
-                if source[cursor] == "\\":
+                if schar == "\\":
                     backslash_count += 1
-                elif source[cursor] == quote_char and (backslash_count % 2) == 0:
+                elif schar == quote_char and (backslash_count % 2) == 0:
                     in_quote = not in_quote
 
-                if source[cursor] != "\\":
+                if schar != "\\":
                     backslash_count = 0
 
-                formatted.append(source[cursor])
+                formatted.append(schar)
                 column += 1
 
-            last_non_whitespace = source[cursor]
+            last_non_whitespace = schar
 
         cursor += 1
 

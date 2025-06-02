@@ -78,7 +78,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 def export_gerbers(
     kicad_project: KicadProject,
     output_folder: str = '""',
-    layers: str = '""',
+    layers: str = "",
     exclude_refdes: bool = False,
     exclude_value: bool = False,
     include_border_title: bool = False,

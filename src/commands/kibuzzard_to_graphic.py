@@ -8,6 +8,7 @@ from kiutils.items.fpitems import FpPoly
 from math import sin, cos, radians
 
 from common.kicad_project import KicadProject
+from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def main(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             gr_poly.coordinates = fp_item.coordinates.copy()
 
             for pos in gr_poly.coordinates:
-                # Add foorprint offset and rotation to gr_poly coordiantes
+                # Add footprint offset and rotation to gr_poly coordinates
                 rotation = footprint.position.angle
                 if rotation is None:
                     rotation = 0
@@ -65,6 +66,7 @@ def main(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         log.debug(f"Deleted KiBuzzard footprint ({footprint.entryName})")
 
     board.to_file(pcb_path)
+    prettify(kicad_project, argparse.Namespace())
 
 
 def run(project: KicadProject, args: argparse.Namespace) -> None:

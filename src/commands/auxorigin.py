@@ -6,6 +6,7 @@ from kiutils.board import Board
 from kiutils.schematic import Position
 from kiutils.items.gritems import GrCircle, GrArc, GrPoly
 
+from .prettify import run as prettify
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
@@ -189,3 +190,4 @@ def set_aux_origin(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         set_aux_axis_origin(board, x, y)
     else:
         set_aux_origin_on_size(board, args.side)
+    prettify(ki_pro, argparse.Namespace())

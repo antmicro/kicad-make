@@ -10,8 +10,10 @@ from common.kmake_helper import run_kicad_cli
 
 from .pcb_filter import pcb_filter_run
 
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import List, Dict, Any
+from pathlib import Path
+import shutil
 
 log = logging.getLogger(__name__)
 
@@ -272,6 +274,7 @@ def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
         "--exclude-drawing-sheet",
         "--page-size-mode",
         "2",
+        "--mode-single",
     ]
     if side == "bottom":
         svg_export_cli_command.append("--mirror")
@@ -280,20 +283,26 @@ def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
 
     # GERBER
     outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".gbr")
+    base_layer, _, common_layers = layer.partition(",")
     log.info(f"Exporting {layer} gerber to {outfile}")
-    gerber_export_cli_command = [
-        "pcb",
-        "export",
-        "gerber",
-        ifile,
-        "-o",
-        outfile,
-        "--precision",
-        "6",
-        "-l",
-        layer,
-    ]
-    run_kicad_cli(gerber_export_cli_command, True)
+    with TemporaryDirectory() as tempdir:
+        gerber_export_cli_command = [
+            "pcb",
+            "export",
+            "gerbers",
+            ifile,
+            "-o",
+            tempdir,
+            "--precision",
+            "6",
+            "--no-protel-ext",
+            "--layers",
+            base_layer,
+            "--common-layers",
+            common_layers,
+        ]
+        run_kicad_cli(gerber_export_cli_command, True)
+        shutil.move(next(Path(tempdir).glob("*.gbr")), outfile)
 
 
 def reset_footprint_val_props(file: str) -> None:

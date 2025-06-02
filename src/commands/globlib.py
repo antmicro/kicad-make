@@ -14,6 +14,7 @@ from kiutils.symbol import Symbol, SymbolLib
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property, set_property
+from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -316,6 +317,7 @@ def globlib_project(kicad_project: KicadProject, args: argparse.Namespace) -> No
     failures = globlib_project_symbols(kicad_project, args)
     if not args.exclude_pcb:
         globlib_footprints(kicad_project, args)
+    prettify(kicad_project, argparse.Namespace())
 
     if not failures:
         log.info("All links in symbols were updated successfully.")

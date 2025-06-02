@@ -75,7 +75,7 @@ def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
             if item.net not in nets:
                 continue
 
-            item.layer = f"In{target_layer}.Cu"
+            item.layers = [f"In{target_layer}.Cu"]
             item.dirty = False
 
     board.traceItems = [i for i in board.traceItems if not i.dirty]

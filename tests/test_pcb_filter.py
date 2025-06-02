@@ -93,8 +93,8 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
     def test_pcb_filter_layers(self) -> None:
         self.command_test(["-l", "User.9,Edge.Cuts,User.Drawings"])
         self.refpcb.graphicItems = (
-            9  # some graphics items should be left: SHA, Testpoints/connectors descriptions, Board Edge, ..
-            # 2x test-point description + 6x dimmensions object + 1x PCB SHA
+            14  # some graphics items should be left: SHA, Testpoints/connectors descriptions, Board Edge, ..
+            # 2x test-point description + 6x dimmensions object + 1x PCB SHA + 5x bezier
         )
         self.check_ref_val = True
         self.refpcb.references_visible = 0

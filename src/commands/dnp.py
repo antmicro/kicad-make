@@ -11,6 +11,7 @@ from kiutils.schematic import Schematic
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property, remove_property
+from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -112,6 +113,8 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     pcb = Board().from_file(kicad_project.pcb_file)
     update_pcb(references, pcb, args.no_paste, args.set_paste, args.set_tht_paste, args.reset_tht_paste)
     pcb.to_file()
+
+    prettify(kicad_project, argparse.Namespace())
 
 
 def get_dnp_components(schematics: list[Schematic]) -> List[SchematicSymbol]:

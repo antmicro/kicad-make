@@ -9,6 +9,7 @@ from kiutils.board import Board
 from kiutils.schematic import Schematic
 from kiutils.items.common import PageSettings
 from common.kicad_project import KicadProject
+from .prettify import run as prettify
 from typing import Union
 
 
@@ -388,6 +389,7 @@ def main(project: KicadProject, args: argparse.Namespace) -> None:
         force_title=args.force_title,
         paper_size=args.size,
     )
+    prettify(project, argparse.Namespace())
 
 
 def run(project: KicadProject, args: argparse.Namespace) -> None:

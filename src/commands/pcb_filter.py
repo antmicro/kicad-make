@@ -16,6 +16,7 @@ from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property
+from .prettify import run as prettify
 from typing import List, Any, Optional
 from copy import deepcopy
 
@@ -290,6 +291,10 @@ def pcb_filter_run(
 
     log.info(f"Saving filtred PCB: {outfile}")
     board.to_file(outfile)
+    pcb_file_org = ki_pro.pcb_file
+    ki_pro.pcb_file = outfile
+    prettify(ki_pro, argparse.Namespace())
+    ki_pro.pcb_file = pcb_file_org
 
 
 def copy_edge_from_footprint(board: Board) -> None:
@@ -503,8 +508,8 @@ def get_outline_bbox(board: Board) -> List[BBoxPoint]:
             pts.append(item.end)
         if hasattr(item, "mid"):
             pts.append(item.mid)
-        if hasattr(item, "coordinates"):
-            pts.append(item.coordinates)
+        if hasattr(item, "pts"):
+            pts.extend(item.pts)
 
     for p in pts:
         minx = minx.update(True, p.X, p.Y)
@@ -583,6 +588,6 @@ def generate_frame_f(board: Board, bbox_limits: List[BBoxPoint]) -> None:
         GrRect(
             Position(minx.main - border, miny.main - border),
             Position(maxx.main + border, maxy.main + border),
-            layer="Margin",
+            layers=["Margin"],
         )
     )

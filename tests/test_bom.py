@@ -49,7 +49,7 @@ class BomTest(KmakeTestCase, unittest.TestCase):
 
     def test_all(self) -> None:
         self.template_test(
-            ["--all", "--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"],
+            ["--all", "--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN", "DNP"],
             self.ref_dir / "BOM-ALL.csv",
             self.target_dir / "doc" / "test_project-BOM-ALL.csv",
             False,
@@ -65,7 +65,18 @@ class BomTest(KmakeTestCase, unittest.TestCase):
 
     def test_no_ignore(self) -> None:
         self.template_test(
-            ["--all", "--no-ignore", "--fields", "Reference", "Quantity", "Value", "Footprint", "Manufacturer", "MPN"],
+            [
+                "--all",
+                "--no-ignore",
+                "--fields",
+                "Reference",
+                "Quantity",
+                "Value",
+                "Footprint",
+                "Manufacturer",
+                "MPN",
+                "DNP",
+            ],
             self.ref_dir / "BOM-ALL-no-ignore.csv",
             self.target_dir / "doc" / "test_project-BOM-ALL.csv",
             False,

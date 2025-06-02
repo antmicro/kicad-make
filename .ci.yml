@@ -58,13 +58,13 @@ build-kmake:
     - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
 
-build-deploy-testing-kmake-kicad8:
+build-deploy-testing-kmake-kicad9:
   extends: .build-kmake-docker-image
   variables:
-    KICAD_VERSION: "kicad8"
+    KICAD_VERSION: "kicad9"
 
 .test-base: &test-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing
+  image: $CI_REGISTRY_IMAGE/kmake-kicad9:${CI_COMMIT_REF_SLUG}-testing
   stage: test_docker
   dependencies: []
   when: on_success
@@ -86,9 +86,9 @@ build-deploy-testing-kmake-kicad8:
       - tests/results
       - dist
 
-test-kicad8-docker:
+test-kicad9-docker:
   extends: .pytest-base
-  image: $CI_REGISTRY_IMAGE/kmake-kicad8:${CI_COMMIT_REF_SLUG}-testing
+  image: $CI_REGISTRY_IMAGE/kmake-kicad9:${CI_COMMIT_REF_SLUG}-testing
 
 .check-code:
   image: python:3.11
@@ -174,7 +174,8 @@ deploy-docs:
   variables:
     IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}
 
-deploy-main-kmake-kicad8:
+deploy-main-kmake-kicad9:
   extends: .deploy-main-kmake
   variables:
-    KICAD_VERSION: "kicad8"
+    KICAD_VERSION: "kicad9"
+

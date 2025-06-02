@@ -11,6 +11,7 @@
 "R4","1","330","R_0402_1005Metric","",""
 "R5 R8 R12","3","220","R_0402_1005Metric","",""
 "R6 R7 R10","3","0R","R_0402_1005Metric","",""
+"R13 R14 R15 R16","4","100k","R_0402_1005Metric","",""
 "U1","1","ASDMB-xxxMHz","Oscillator_SMD_Abracon_ASDMB-4Pin_2.5x2.0mm","","ASDMB-28.6363MHz-XY"
 "U2","1","ADV7611","LQFP-64-1EP_10x10mm_P0.5mm_EP5x5mm","",""
 "U3","1","LM3880","SOT-23-6","",""
