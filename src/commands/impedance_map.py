@@ -140,7 +140,7 @@ class NetClass:
         try:
             classes_patterns = project_json["net_settings"]["netclass_patterns"]
         except KeyError:
-            log.error("Failed to parse the project file, only KiCAD8 projects are supported")
+            log.error("Failed to parse the project file, only KiCAD8+ projects are supported")
             exit(1)
 
         for pattern in classes_patterns:

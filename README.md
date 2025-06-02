@@ -8,6 +8,8 @@ The script can be used locally and in conjunction with CI infrastructure.
 `Kmake` is developed with KiCad 8+ and a CI environment in mind.
 It uses the KiCad CLI where possible and [kiutils](https://github.com/antmicro/kiutils) for functions that require raw file manipulation.
 
+> KiCad 8 files should be fully supported (they will be upgraded on fly), however this has not been extensively tested.
+
 ## Documentation
 
 Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for more information about usage and development of `kmake`.
@@ -18,39 +20,23 @@ Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for mo
 
 `kmake` depends on the following packages:
 
-* `KiCad 8.0.x`
+* `KiCad 9.0.x`
 * `python >= 3.7`
-* `pip`
 
 ### Installation (Debian)
-
-1. Configure PATH:
-
-    ```bash
-    export PATH=$HOME/.local/bin:$PATH
-    ```
 
 1. Install requirements
 
     ```bash
-    sudo apt install kicad python3 python3-pip
+    sudo apt install kicad python3 pipx
+    pipx ensurepath
     ```
-    
-1. Update `pip`
+
+2. Clone and install `kmake` repository:
 
     ```bash
-    python3 -m pip install --upgrade pip
+    pipx install 'git+https://github.com/antmicro/kicad-make.git'
     ```
-
-1. Clone `kmake` repository:
-
-    ```bash
-    git clone https://github.com/antmicro/kmake
-    cd kmake
-    python3 -m pip install .
-    ```
-
-    > Important: In some system configurations you may need to add the `--break-system-packages` flag to the command above.
 
 ## Usage
 
@@ -66,12 +52,12 @@ kmake --help
 ## Version
 
 As an convention, the `kmake` version is derived from the `KiCad` version supported by the release.
-For example, `kmake` version `8.0.x` supports `KiCad` version `8.0.x`.
+For example, `kmake` version `9.0.x` supports `KiCad` version `9.0.x`.
 
 To check which version of `kmake` is installed in your system, run:
 
 ```bash
-python3 -m pip show kmake | grep "Version:"
+kmake version
 ```
 
 ## Licensing
