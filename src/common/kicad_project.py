@@ -211,11 +211,11 @@ class KicadProject:
         return self.read_lib_table_file(name, self.system_sym_lib_table)
 
     def load_kicad_environ_vars(self) -> None:
-
         if os.path.exists(self.comm_cfg_path):
             with open(self.comm_cfg_path, encoding="utf-8") as kicad_conf:
-                if "environment" in json.load(kicad_conf).items():
-                    for envvar, val in json.load(kicad_conf)["environment"]["vars"].items():
+                json_cfg = json.load(kicad_conf)
+                if "environment" in json_cfg.keys():
+                    for envvar, val in json_cfg["environment"]["vars"].items():
                         os.environ[envvar] = val
                 else:
                     os.environ[self.env_var_name_sym_lib] = "/usr/share/kicad/symbols"
