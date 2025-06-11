@@ -45,7 +45,6 @@ class KmakeTestCase:
         self.project_repo.index.commit("initial")
 
         self.kpro = KicadProject()
-        self.migrate_project()
 
     def tearDown(self) -> None:
         """Check if Kicad files are not corrupted & remove tmp directory after test"""
@@ -58,17 +57,3 @@ class KmakeTestCase:
         os.chdir(self.target_dir)
         run_kicad_cli(["pcb", "export", "gerbers", self.kpro.pcb_file], False)
         run_kicad_cli(["sch", "export", "pdf", self.kpro.sch_root], False)
-
-    def migrate_project(self) -> None:
-        """Ensure that test project version is the same as KiCad"""
-        try:
-            from pcbnew import LoadBoard, SaveBoard  # type:ignore  # noqa: F403
-
-            for file in Path.cwd().glob("*.kicad_pcb"):
-                # Migrate pcb
-                pcb = LoadBoard(file)  # type: ignore  # noqa: F405
-                SaveBoard(file, pcb)  # type: ignore  # noqa: F405
-        except ModuleNotFoundError:
-            print("`pcbnew` module not found! Skipping project migration.")
-        self.project_repo.git.add(all=True)
-        self.project_repo.index.commit("Migrate project to tested KiCad version")
