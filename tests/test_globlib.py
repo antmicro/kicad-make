@@ -75,7 +75,9 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
         target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
-        for footprint_lib, footprint_entry_name in zip(target_footprint_libs, target_footprint_entry_names):
+        for footprint_lib, footprint_entry_name in zip(
+            target_footprint_libs, target_footprint_entry_names, strict=True
+        ):
             if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are omitted by loclib and globlib
                 self.assertEqual(footprint_lib, "test_project-footprints")
 
@@ -92,7 +94,9 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         target_footprint_libs = [footprint.libraryNickname for footprint in target_pcb.footprints]
         target_footprint_entry_names = [footprint.entryName for footprint in target_pcb.footprints]
 
-        for footprint_lib, footprint_entry_name in zip(target_footprint_libs, target_footprint_entry_names):
+        for footprint_lib, footprint_entry_name in zip(
+            target_footprint_libs, target_footprint_entry_names, strict=True
+        ):
             if not footprint_entry_name.startswith("kibuzzard"):  # kibuzzards are omitted by loclib and globlib
                 self.assertEqual(footprint_lib, "test_project-footprints")
 

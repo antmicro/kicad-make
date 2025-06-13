@@ -7,7 +7,7 @@ from common.kicad_project import KicadProject
 log = logging.getLogger(__name__)
 
 # based on: https://raw.githubusercontent.com/github/gitignore/master/KiCad.gitignore
-GITIGNORE = """
+GITIGNORE = r"""
 # For PCBs designed using KiCad: https://www.kicad.org/
 # Format documentation: https://kicad.org/help/file-formats/
 

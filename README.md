@@ -21,7 +21,7 @@ Visit the [`kmake` documentation](https://antmicro.github.io/kicad-make/) for mo
 `kmake` depends on the following packages:
 
 * `KiCad 9.0.x`
-* `python >= 3.7`
+* `python >= 3.11`
 
 ### Installation (Debian)
 
