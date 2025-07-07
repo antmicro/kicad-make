@@ -160,12 +160,6 @@ build-docs:
     - main
     - merge_requests
 
-deploy-docs:
-  except: []
-  only:
-    - main
-    - merge_requests
-
 .deploy-main-kmake:
   extends: .build-kmake-docker-image
   stage: deploy
