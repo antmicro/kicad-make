@@ -312,7 +312,7 @@ def copy_edge_from_footprint(board: Board) -> None:
                 continue
             if isinstance(item, FpLine):
                 board.graphicItems.append(
-                    GrLine(start=glob_pos(item.start), end=glob_pos(item.end), layer="Edge.Cuts", stroke=item.stroke)
+                    GrLine(start=glob_pos(item.start), end=glob_pos(item.end), layers="Edge.Cuts", stroke=item.stroke)
                 )
             if isinstance(item, FpArc):
                 board.graphicItems.append(
@@ -320,7 +320,7 @@ def copy_edge_from_footprint(board: Board) -> None:
                         start=glob_pos(item.start),
                         mid=glob_pos(item.mid),
                         end=glob_pos(item.end),
-                        layer="Edge.Cuts",
+                        layers="Edge.Cuts",
                         stroke=item.stroke,
                     )
                 )
