@@ -37,7 +37,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "-p",
         "--preset",
-        choices=["simple", "dimensions", "descriptions", "assembly_drawing", "margin_frame"],
+        choices=["simple", "dimensions", "descriptions", "assembly_drawing", "margin_frame", "first_pads_only"],
         action="store",
         help="Generate SVG according to preset",
     )
@@ -176,6 +176,22 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             dict(std_edge=True, ref_filter="-REF", generate_frame=True),
             [""],
             ["Margin"],
+        ),
+        (
+            "first_pads_only",
+            dict(
+                stackup=True,
+                dimensions=True,
+                vias=True,
+                zones=True,
+                std_edge=True,
+                tracks=True,
+                ref_filter="-TP-MP-SP-H-REF**",
+                allowed_layers_full="Edge.Cuts",
+                first_pads_only=True,
+            ),
+            ["top", "bottom"],
+            ["$side.Cu"],
         ),
     ]
     for preset in presets:

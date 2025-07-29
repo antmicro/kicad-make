@@ -141,6 +141,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Mirror text if side is bottom",
     )
+    parser.add_argument(
+        "--first-pads-only",
+        action="store_true",
+        help="Remove all pads from footprints except the first one",
+    )
     parser.set_defaults(func=run)
 
 
@@ -170,9 +175,16 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             "generate_frame",
             "mirror_bottom",
             "std_dimension",
+            "first_pads_only",
         ]
     }
     pcb_filter_run(ki_pro, **argsf)
+
+
+def keep_first_pads_only(source_pcb: Board) -> None:
+    pad_one_markings = ["1", "A1"]
+    for footprint in source_pcb.footprints:
+        footprint.pads = [pad for pad in footprint.pads if pad.number in pad_one_markings]
 
 
 def pcb_filter_run(
@@ -196,6 +208,7 @@ def pcb_filter_run(
     generate_frame: bool = False,
     mirror_bottom: bool = False,
     std_dimension: bool = False,
+    first_pads_only: bool = False,
 ) -> None:
     if not outfile.endswith(".kicad_pcb"):
         outfile += ".kicad_pcb"
@@ -288,6 +301,9 @@ def pcb_filter_run(
     if std_dimension:
         board.dimensions = remove_main_dimensions(board)
         board.dimensions += add_main_dimensions(side, bbox_limits)
+
+    if first_pads_only:
+        keep_first_pads_only(board)
 
     log.info(f"Saving filtred PCB: {outfile}")
     board.to_file(outfile)
