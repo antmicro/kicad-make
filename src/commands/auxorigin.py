@@ -2,9 +2,11 @@ import sys
 import argparse
 import logging
 import math
+from typing import List
 from kiutils.board import Board
 from kiutils.schematic import Position
 from kiutils.items.gritems import GrCircle, GrArc, GrPoly
+from kiutils.items.common import BaseArc
 
 from .prettify import run as prettify
 from common.kicad_project import KicadProject
@@ -66,7 +68,7 @@ def is_angle_in_range(angle: float, start_angle: float, end_angle: float) -> boo
     return angle >= start_angle or angle <= end_angle
 
 
-def calculate_circle(arc: GrArc) -> tuple[float, float, float]:
+def calculate_circle(arc: BaseArc) -> tuple[float, float, float]:
     """Calculates center point and radius of the circle defined with an arc"""
     # Squared distance of triangle points to origin
     a = pow(arc.start.X, 2) + pow(arc.start.Y, 2)
@@ -83,7 +85,7 @@ def calculate_circle(arc: GrArc) -> tuple[float, float, float]:
     return circle_x, circle_y, r
 
 
-def find_arc_extrema(circle_x: float, circle_y: float, r: float, arc: GrArc) -> tuple[float, float, float, float]:
+def find_arc_extrema(circle_x: float, circle_y: float, r: float, arc: BaseArc) -> tuple[float, float, float, float]:
     """Calculates arc extremum in x and y axes"""
     # Calculates angles for arc defining points
     start_angle = angle(x=arc.start.X, y=arc.start.Y, ref_x=circle_x, ref_y=circle_y)
@@ -105,6 +107,20 @@ def find_arc_extrema(circle_x: float, circle_y: float, r: float, arc: GrArc) -> 
     return max(x), min(x), max(y), min(y)
 
 
+def handle_arc(arc: BaseArc, x: List[float], y: List[float]) -> None:
+    try:
+        circ_x, circ_y, r = calculate_circle(arc)
+        max_x, min_x, max_y, min_y = find_arc_extrema(circ_x, circ_y, r, arc)
+    # Handle determinant == 0 in calculated circle
+    except ZeroDivisionError:
+        log.warning("Found arc object with colinear points, omitting")
+        return
+    x.append(max_x)
+    x.append(min_x)
+    y.append(max_y)
+    y.append(min_y)
+
+
 def set_aux_origin_on_size(board: Board, side: str) -> None:
     log.info("Reading PCB dimmmensions")
     x = []
@@ -123,23 +139,16 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
             continue
         # Arc case
         if isinstance(item, GrArc):
-            try:
-                circ_x, circ_y, r = calculate_circle(item)
-                max_x, min_x, max_y, min_y = find_arc_extrema(circ_x, circ_y, r, item)
-            # Handle determinant == 0 in calculated circle
-            except ZeroDivisionError:
-                log.warning("Found arc object with colinear points, omitting")
-                continue
-            x.append(max_x)
-            x.append(min_x)
-            y.append(max_y)
-            y.append(min_y)
+            handle_arc(item, x, y)
             continue
         # Poly case
         if isinstance(item, GrPoly):
-            for point in item.coordinates:
-                x.append(point.X)
-                y.append(point.Y)
+            for p in item.pts:
+                if isinstance(p, BaseArc):
+                    handle_arc(item, x, y)
+                else:
+                    x.append(p.X)
+                    y.append(p.Y)
             continue
         # Rectangle, segment case
         if hasattr(item, "start"):
