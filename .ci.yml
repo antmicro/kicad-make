@@ -5,12 +5,8 @@ variables:
   GIT_SUBMODULE_STRATEGY: none
 
 include:
-  - project: repositories/antmicro-pcb-release-ci-template
-    ref: main
-    file: .ci.yml
-  - project: repositories/antmicro-pcb-release-ci-template
-    ref: main
-    file: .docs.yml
+  - antmicro-pcb-release-ci-template@main:.kmake-test-ci.yml
+  - antmicro-pcb-release-ci-template@main:.docs.yml
 
 stages:
   - code-check
@@ -111,33 +107,6 @@ ruff:
   script:
     - ruff check .
 
-assembly-release:
-  stage: test_docker
-  when: never
-
-documentation-release:
-  <<: *test-base
-
-ohp-release:
-  stage: test_docker
-  dependencies: []
-  when: never
-  
-hrafn-release:
-  stage: test_docker
-  when: never
-  
-deploy-hrafn-assets:
-  stage: test_docker
-  dependencies: []
-  when: never
-
-customer-release:
-  <<: *test-base
-
-production-release:
-  <<: *test-base
-
 build-docs:
   stage: build_docs
   before_get_sources:
@@ -172,4 +141,3 @@ deploy-main-kmake-kicad9:
   extends: .deploy-main-kmake
   variables:
     KICAD_VERSION: "kicad9"
-
