@@ -103,6 +103,9 @@ class ComponentGroup:
             - components with `MP` designator (mounting pads)
             - components without designator
         """
+        if self.mpn:
+            # Components with MPN present should not be blacklisted
+            return False
         if any("TP" in ref for ref in self.refs):
             return True
         if any("MP" in ref for ref in self.refs):
