@@ -18,7 +18,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.refpcb = self.inpcb
 
     def setUp(self) -> None:
-        super().setUp()
+        KmakeTestCase.setUp(self)
         self.check_ref_val = False
         self.inpcb = BoardStats(str(self.kpro.pcb_file))
 
@@ -37,7 +37,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.assertEqual(self.refpcb.tracks, self.outpcb.tracks)
         self.assertEqual(self.refpcb.graphicItems, self.outpcb.graphicItems)
 
-        super().tearDown()
+        KmakeTestCase.tearDown(self)
 
     def test_pcb_filter_allow(self) -> None:
         self.command_test(["-x", "+J"])

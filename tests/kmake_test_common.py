@@ -20,8 +20,13 @@ class KmakeTestCase:
         self.test_cmd = test_cmd
         self.ref_dir = KmakeTestCase.TEST_DIR / "reference-outputs" / test_cmd
 
+    def run_kmake_command(self, arguments: List[str]) -> None:
+        "Template for running kmake commands"
+        args = kmake.parse_arguments(arguments)
+        args.func(self.kpro, args)
+
     def run_test_command(self, arguments: List[str]) -> None:
-        "Template for running commands"
+        "Template for running tested command"
         args = kmake.parse_arguments([self.test_cmd] + arguments)
         args.func(self.kpro, args)
 

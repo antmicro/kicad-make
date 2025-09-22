@@ -1,7 +1,6 @@
 import unittest
 from kiutils.schematic import Schematic
 from kiutils.board import Board
-import kmake
 from kmake_test_common import KmakeTestCase
 from common.kmake_helper import get_property, set_property
 from pathlib import Path
@@ -14,16 +13,8 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         unittest.TestCase.__init__(self, method_name)
 
     def setUp(self) -> None:
-        super().setUp()
+        KmakeTestCase.setUp(self)
         self.r1_sch = str(Path(self.kpro.dir) / "receiver.kicad_sch")
-
-    def loclib_test_project(self) -> None:
-        """
-        Loclib test project
-        """
-
-        args = kmake.parse_arguments(["loclib"])
-        args.func(self.kpro, args)
 
     def compare_symbols_libraries(self) -> None:
         """
@@ -56,7 +47,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         Test if symbols and footprints are from global library
         """
-        self.loclib_test_project()
+        self.run_kmake_command(["loclib"])
         self.run_test_command(["--include-kicad-lib"])
 
         self.compare_symbols_libraries()
@@ -66,7 +57,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         Test if only symbols and are globlibed when --exclude-pcb switch is used
         """
-        self.loclib_test_project()
+        self.run_kmake_command(["loclib"])
         self.run_test_command(["--include-kicad-lib", "--exclude-pcb"])
 
         self.compare_symbols_libraries()
@@ -85,7 +76,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         Test if symbols in files provided by -s flag are globlibed
         """
-        self.loclib_test_project()
+        self.run_kmake_command(["loclib"])
         self.run_test_command(["--include-kicad-lib", "-s", self.r1_sch])
 
         self.compare_symbols_libraries()
@@ -104,7 +95,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         Test if symbol protperites are updated when --update-properties flag is used
         """
-        self.loclib_test_project()
+        self.run_kmake_command(["loclib"])
 
         sch_file = Schematic().from_file(filepath=self.r1_sch)
         symbols = sch_file.schematicSymbols
@@ -143,7 +134,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         Test if footprint properties are updated when --update-properties flag is used
         """
-        self.loclib_test_project()
+        self.run_kmake_command(["loclib"])
 
         pcb_file = Board().from_file(filepath=str(self.kpro.pcb_file))
         footprints = pcb_file.footprints
@@ -172,7 +163,7 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
         """
         Test if properties of symbols from global libs are update when --update-all switch is used
         """
-        self.loclib_test_project()
+        self.run_kmake_command(["loclib"])
         # Change symbol properites
 
         sch_file = Schematic().from_file(filepath=self.r1_sch)

@@ -46,7 +46,7 @@ class RenameTest(KmakeTestCase, unittest.TestCase):
                 with open(file, "r", encoding="latin-1") as f:
                     content = f.read()
                     self.assertTrue(self.old_kpro.name not in content)
-        super().tearDown()
+        KmakeTestCase.tearDown(self)
 
 
 if __name__ == "__main__":
