@@ -17,7 +17,7 @@ stages:
   - deploy
 
 build-kmake:
-  image: "debian:bookworm"
+  image: "debian:trixie"
   stage: build
   script:
     - apt update
