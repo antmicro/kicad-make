@@ -71,6 +71,6 @@ def export_step(
 ) -> None:
     """Generate 3D STEP model from the given PCB file."""
 
-    step_export_cli_command = ["pcb", "export", "step", input_pcb_file, "-o", output_file_name]
+    step_export_cli_command = ["pcb", "export", "step", "--subst-models", input_pcb_file, "-o", output_file_name]
 
     run_kicad_cli(step_export_cli_command, verbose)
