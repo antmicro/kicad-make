@@ -1,6 +1,7 @@
 import argparse
 import logging
 from typing import List
+import sys
 
 import kiutils.items
 import kiutils.schematic
@@ -85,7 +86,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             f"There are {cleanup_count} schematic components that "
             f'have their DNP properties malformed: [{" ".join(cleanup_list)}].'
         )
-        return
+        sys.exit(1)
     if cleanup_count > 0:
         log.info(f"There are {cleanup_count} schematic components that have their DNP properties malformed")
         log.debug(f"[{' '.join(cleanup_list)}]")
