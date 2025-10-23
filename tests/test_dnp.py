@@ -113,11 +113,13 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
     def test_list_malformed(self) -> None:
         """Test output for -l command (list malformed)"""
         with self.assertLogs(level=logging.WARNING) as log:
-            self.run_test_command(["-l"])
+            with self.assertRaises(SystemExit) as se:
+                self.run_test_command(["-l"])
         self.assertIn(
             "There are 3 schematic components that have their DNP properties malformed:",
             log.output[0][18:96],
         )
+        self.assertEqual(se.exception.code, 1)
 
     def test_clean_symbol(self) -> None:
         "Test if dnp symbols have `Exlude from bill of materials` and `Do not populate` fields set correctly"
