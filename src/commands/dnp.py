@@ -77,6 +77,9 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     # Count components that need cleanup
     cleanup_count = sum(needs_cleanup(component) for component in dnp_components)
     cleanup_list = [get_property(comp, "Reference") for comp in dnp_components if needs_cleanup(comp)]
+    if cleanup_count == 0 and args.list_broken:
+        log.info("Nothing to do")
+        return
     if cleanup_count > 0 and args.list_broken:
         log.warning(
             f"There are {cleanup_count} schematic components that "
