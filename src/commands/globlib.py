@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple, Union
+import re
 
 from kiutils.board import Board
 from kiutils.footprint import Footprint
@@ -118,6 +119,10 @@ def get_global_footprint_list(lib_mapping: Dict[str, str]) -> Dict[str, Tuple[st
     return fp_list
 
 
+def normalize_mpn(mpn: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", mpn.lower()).strip("-")
+
+
 def search_by_mpn(
     local_symbol: UniSymbol,
     global_symbols: Dict[str, Tuple[str, UniSymbol]],
@@ -133,7 +138,7 @@ def search_by_mpn(
 
     for _, (global_lib_name, global_symbol) in global_symbols.items():
         global_mpn = get_property(global_symbol, "MPN")
-        if global_mpn is not None and global_mpn == local_mpn:
+        if global_mpn is not None and normalize_mpn(global_mpn) == normalize_mpn(local_mpn):
             matching_symbols.append((global_lib_name, global_symbol))
 
     if not matching_symbols:
