@@ -1,6 +1,7 @@
 import argparse
 import logging
 from typing import Optional
+from pathlib import Path
 
 from common.kicad_project import KicadProject
 
@@ -14,17 +15,17 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.info("Prettyfying kicad files")
-    formatted = ""
-    with open(kicad_project.pcb_file, "r") as file:
-        formatted = prettify(file.read())
-    with open(kicad_project.pcb_file, "w") as file:
-        file.write(formatted)
+    prettify_file(Path(kicad_project.pcb_file))
     for sch_file in kicad_project.all_sch_files:
-        formatted = ""
-        with open(sch_file, "r") as file:
-            formatted = prettify(file.read())
-        with open(sch_file, "w") as file:
-            file.write(formatted)
+        prettify_file(Path(sch_file))
+
+
+def prettify_file(path: Path) -> None:
+    formatted = ""
+    with open(path, "r") as file:
+        formatted = prettify(file.read())
+    with open(path, "w") as file:
+        file.write(formatted)
 
 
 def prettify(source: str, quote_char: str = '"') -> str:

@@ -9,6 +9,7 @@ from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 
 from .pcb_filter import pcb_filter_run
+from .prettify import prettify_file
 
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import List, Dict, Any
@@ -107,6 +108,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         log.info("Finished changing layer of outline items for all footprints")
         log.info("Saving PCB")
         board.to_file(args.input)
+        prettify_file(args.input)
         return
 
     # (name, filter_args, side)

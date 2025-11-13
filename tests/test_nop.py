@@ -2,6 +2,8 @@ import unittest
 from kmake_test_common import KmakeTestCase
 from kiutils.schematic import Schematic
 from kiutils.board import Board
+import argparse
+from commands.prettify import run as prettify
 
 
 class NOPTest(KmakeTestCase, unittest.TestCase):
@@ -19,5 +21,6 @@ class NOPTest(KmakeTestCase, unittest.TestCase):
 
         pcb = Board().from_file(self.kpro.pcb_file)
         pcb.to_file()
+        prettify(self.kpro, argparse.Namespace())
         for d in self.project_repo.index.diff(None):
             self.assertEqual(d.diff, "", f"Difference found in {d.a_path}:\n{d.diff}")

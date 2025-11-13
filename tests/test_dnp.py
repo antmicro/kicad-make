@@ -5,6 +5,8 @@ from kmake_test_common import KmakeTestCase
 from kiutils.footprint import Footprint
 from kiutils.schematic import Schematic
 from kiutils.board import Board
+import argparse
+from commands.prettify import run as prettify
 
 from common.kmake_helper import get_property, set_property, remove_property
 
@@ -184,3 +186,4 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
                 fp.attributes.excludeFromBom = False
                 fp.attributes.excludeFromPosFiles = False
         pcb.to_file()
+        prettify(self.kpro, argparse.Namespace())

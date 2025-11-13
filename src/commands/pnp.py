@@ -2,11 +2,13 @@ import argparse
 import logging
 import os
 import tempfile
+from pathlib import Path
 
 from kiutils.board import Board
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
+from .prettify import prettify_file
 
 log = logging.getLogger(__name__)
 
@@ -132,6 +134,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             unset_exclude_from_position_file(board)
 
         board.to_file(temporary_board_file.name)
+        prettify_file(Path(temporary_board_file.name))
         board_path = temporary_board_file.name
 
     pnp_path_base = f"{kicad_project.fab_dir}/{kicad_project.name}"
