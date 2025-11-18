@@ -10,7 +10,7 @@ from kiutils.footprint import Footprint
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic
 
-from common.kicad_project import KicadProject
+from common.kicad_project import KicadProject, SchProject, PropSet
 from common.kmake_helper import get_property, remove_property
 from .prettify import run as prettify
 
@@ -67,12 +67,10 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         args.no_paste and args.set_paste
     ), "Only one of [`--remove-dnp-paste`, `--restore-dnp-paste`] can be specified"
 
-    schematics = []
-    for sch_file in kicad_project.all_sch_files:
-        schematics.append(kiutils.schematic.Schematic.from_file(sch_file))
+    schpro = kicad_project.sch_project()
 
     # Get all components that are marked DNP
-    dnp_components = get_dnp_components(schematics)
+    dnp_components = get_dnp_components(schpro)
     log.debug(f"Found {len(dnp_components)} schematic components marked DNP")
 
     # Count components that need cleanup
@@ -95,10 +93,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         for component in dnp_components:
             clean_up_component(component)
 
-        # Save all changes to schematic files
-        log.debug("Saving all schematic changes to file")
-        for schematic in schematics:
-            schematic.to_file()
+        schpro.save()
 
     # Get references
     log.debug("Searching for components on PCB")
@@ -109,6 +104,17 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             for path in instance.paths:
                 if path.reference not in references:
                     references.append(path.reference)
+    # resolve sheet level dnp
+    for schematic in schpro.schematics:
+        for symbol in schematic.schematicSymbols:
+            for instance in symbol.instances:
+                for path in instance.paths:
+                    if path.reference.startswith("#"):
+                        continue
+                    if path.reference not in references and any(
+                        [uid in path.sheetInstancePath and prop.dnp for uid, prop in schpro.sheet_prop.items()]
+                    ):
+                        references.append(path.reference)
     log.debug(f"DNP references from schematic {sorted(references)}")
 
     # Update PCB footprints
@@ -121,9 +127,9 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     prettify(kicad_project, argparse.Namespace())
 
 
-def get_dnp_components(schematics: list[Schematic]) -> List[SchematicSymbol]:
+def get_dnp_components(schpro: SchProject) -> List[SchematicSymbol]:
     components = []
-    for schematic in schematics:
+    for schematic in schpro.schematics:
         for symbol in schematic.schematicSymbols:
             if is_dnp(symbol):
                 components.append(symbol)
