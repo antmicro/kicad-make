@@ -3,14 +3,11 @@ import logging
 from typing import List
 import sys
 
-import kiutils.items
-import kiutils.schematic
 from kiutils.board import Board
 from kiutils.footprint import Footprint
 from kiutils.items.schitems import SchematicSymbol
-from kiutils.schematic import Schematic
 
-from common.kicad_project import KicadProject, SchProject, PropSet
+from common.kicad_project import KicadProject, SchProject
 from common.kmake_helper import get_property, remove_property
 from .prettify import run as prettify
 
