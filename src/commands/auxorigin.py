@@ -163,12 +163,26 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
             continue
         for item in footprint.graphicItems:
             if item.layer == "Edge.Cuts":
+                ref = next((p.value for p in footprint.properties if p.key == "Reference"), None)
                 if not hasattr(item, "start"):
+                    log.warning(f"{ref} has graphicItem without start parameter")
                     continue
-                x.append(item.start.X + footprint.position.X)
-                x.append(item.end.X + footprint.position.X)
-                y.append(item.start.Y + footprint.position.Y)
-                y.append(item.end.Y + footprint.position.Y)
+
+                angle = math.radians(-footprint.position.angle if footprint.position.angle is not None else 0)
+                sina, cosa = math.sin(angle), math.cos(angle)
+
+                if angle != 0:
+                    log.debug(f"Angle of {ref} is {angle}")
+                x.append(item.start.X * cosa - item.start.Y * sina + footprint.position.X)
+                x.append(item.end.X * cosa - item.end.Y * sina + footprint.position.X)
+                y.append(item.start.Y * cosa - item.start.X * sina + footprint.position.Y)
+                y.append(item.end.Y * cosa - item.end.X * sina + footprint.position.Y)
+
+                log.debug(f"Coordinates of {ref}")
+                log.debug(f"  X start: {x[-2]}")
+                log.debug(f"  X end: {x[-1]}")
+                log.debug(f"  Y start: {y[-2]}")
+                log.debug(f"  Y end: {y[-1]}")
 
     if "r" in side:
         aux_x = max(x)
