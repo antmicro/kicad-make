@@ -6,9 +6,9 @@ import re
 from kiutils.board import Board
 from kiutils.footprint import Footprint
 from kiutils.items.gritems import GrText, GrLine, GrArc
-from kiutils.items.brditems import Via
+from kiutils.items.brditems import Via, LayerList
 from kiutils.items.fpitems import FpLine, FpArc
-from kiutils.items.common import Position
+from kiutils.items.common import Position, PositionStart, PositionMid, PositionEnd
 from kiutils.items.common import Effects, Stroke, Font, Justify
 from kiutils.items.fpitems import FpText
 from kiutils.items.gritems import GrCircle, GrPoly, GrRect
@@ -289,7 +289,7 @@ def pcb_filter_run(
     if vias:
         board.traceItems = [item for item in board.traceItems if not isinstance(item, Via)]
 
-    if side == "bottom":
+    if side == "bottom" and mirror_bottom:
         board = mirror_texts(board)
 
     if generate_frame or std_dimension:
@@ -328,15 +328,20 @@ def copy_edge_from_footprint(board: Board) -> None:
                 continue
             if isinstance(item, FpLine):
                 board.graphicItems.append(
-                    GrLine(start=glob_pos(item.start), end=glob_pos(item.end), layers="Edge.Cuts", stroke=item.stroke)
+                    GrLine(
+                        start=PositionStart(glob_pos(item.start)),
+                        end=PositionEnd(glob_pos(item.end)),
+                        layers=LayerList(["Edge.Cuts"]),
+                        stroke=item.stroke,
+                    )
                 )
             if isinstance(item, FpArc):
                 board.graphicItems.append(
                     GrArc(
-                        start=glob_pos(item.start),
-                        mid=glob_pos(item.mid),
-                        end=glob_pos(item.end),
-                        layers="Edge.Cuts",
+                        start=PositionStart(glob_pos(item.start)),
+                        mid=PositionMid(glob_pos(item.mid)),
+                        end=PositionEnd(glob_pos(item.end)),
+                        layers=LayerList(["Edge.Cuts"]),
                         stroke=item.stroke,
                     )
                 )
