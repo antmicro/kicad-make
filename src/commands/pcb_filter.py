@@ -367,6 +367,10 @@ def unify_edge_cuts(board: Board) -> None:
 
 class RefFilter:
     def __init__(self, filter_pat: str) -> None:
+        if filter_pat == "":
+            self.mode_additive = True
+            self.pat_add = []
+            return
         pat = re.split("([+-][0-9A-Za-z]+)", filter_pat)[1::2]
         pat_dict = {}
 
