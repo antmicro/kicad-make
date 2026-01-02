@@ -9,7 +9,7 @@ from kiutils.items.gritems import GrText, GrLine, GrArc
 from kiutils.items.brditems import Via, LayerList
 from kiutils.items.fpitems import FpLine, FpArc
 from kiutils.items.common import Position, PositionStart, PositionMid, PositionEnd
-from kiutils.items.common import Effects, Stroke, Font, Justify
+from kiutils.items.common import Effects, Stroke
 from kiutils.items.fpitems import FpText
 from kiutils.items.gritems import GrCircle, GrPoly, GrRect
 from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
@@ -146,6 +146,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Remove all pads from footprints except the first one",
     )
+    parser.add_argument(
+        "--std-graphics",
+        action="store_true",
+        help="Standardize graphics/text size/thickness",
+    )
     parser.set_defaults(func=run)
 
 
@@ -176,6 +181,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             "mirror_bottom",
             "std_dimension",
             "first_pads_only",
+            "std_graphics",
         ]
     }
     pcb_filter_run(ki_pro, **argsf)
@@ -209,6 +215,7 @@ def pcb_filter_run(
     mirror_bottom: bool = False,
     std_dimension: bool = False,
     first_pads_only: bool = False,
+    std_graphics: bool = False,
 ) -> None:
     if not outfile.endswith(".kicad_pcb"):
         outfile += ".kicad_pcb"
@@ -226,8 +233,8 @@ def pcb_filter_run(
         side = ""
 
     if std_edge:
+        # has to be before any footprint removal
         copy_edge_from_footprint(board)
-        unify_edge_cuts(board)
 
     filter_main = None if ref_filter is None else RefFilter(ref_filter)
     filter_other = None if ref_filter_other is None else RefFilter(ref_filter_other)
@@ -289,9 +296,6 @@ def pcb_filter_run(
     if vias:
         board.traceItems = [item for item in board.traceItems if not isinstance(item, Via)]
 
-    if side == "bottom" and mirror_bottom:
-        board = mirror_texts(board)
-
     if generate_frame or std_dimension:
         bbox_limits = get_outline_bbox(board)
 
@@ -301,6 +305,12 @@ def pcb_filter_run(
     if std_dimension:
         board.dimensions = remove_main_dimensions(board)
         board.dimensions += add_main_dimensions(side, bbox_limits)
+
+    if std_graphics:
+        unify_graphics(board)
+
+    if side == "bottom" and mirror_bottom:
+        board = mirror_texts(board)
 
     if first_pads_only:
         keep_first_pads_only(board)
@@ -347,9 +357,8 @@ def copy_edge_from_footprint(board: Board) -> None:
                 )
 
 
-def unify_edge_cuts(board: Board) -> None:
-    """Unify thickness of graphics on Edge.Cuts layer"""
-
+def unify_style_graphics(board: Board, layers: [str], width: float) -> None:
+    """Set thickness of graphics on specified layer"""
     # set all lines to same width
     bgi = []
     for g in board.graphicItems:
@@ -359,10 +368,77 @@ def unify_edge_cuts(board: Board) -> None:
             or isinstance(g, GrCircle)
             or isinstance(g, GrPoly)
             or isinstance(g, GrRect)
-        ) and g.layer == "Edge.Cuts":
-            g.stroke = Stroke(width=0.12)
+        ) and g.layer in layers:
+            if g.stroke is None:
+                g.stroke = Stroke
+            g.stroke.width = width
         bgi.append(g)
     board.graphicItems = bgi
+
+
+def std_grtext(text: GrText) -> None:
+    if text.effects is None:
+        text.effects = Effects()
+    text.effects.font.width = 2.5
+    text.effects.font.height = 2.5
+    text.effects.font.thickness = 0.25
+    text.effects.font.bold = False
+    text.effects.font.face = "Lato"
+
+
+def unify_style_text(board: Board, layers: [str]) -> None:
+    """Set text style on specified layer"""
+    bgi = []
+    for g in board.graphicItems:
+        if isinstance(g, GrText) and g.layer in layers:
+            std_grtext(g)
+        bgi.append(g)
+    board.graphicItems = bgi
+
+
+def unify_style_dimensions(board: Board, layers: [str]) -> None:
+    """Set text style on specified layer"""
+    # set all lines to same width
+    bdi = []
+    for d in board.dimensions:
+        if d.layer in layers:
+            d.format = DimensionFormat(
+                precision=1,  # one fraction digit
+                units=2,  # milimeters
+                unitsFormat=0,  # bare value, no unit suffix
+                suppressZeroes=False,
+            )
+            d.style = DimensionStyle(
+                extensionOffset=0.5,
+                extensionHeight=0.5,
+                thickness=0.15,
+                arrowLength=1,
+                textPositionMode=0,
+                # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
+                # modes are as follows:
+                # - 0: Text is outside the dimension line
+                # - 1: Text is in line with the dimension line
+                # - 2: Text has been manually placed by the user"""
+                arrowDirection=d.style.arrowDirection,  # inward/outward
+                textFrame=d.style.textFrame,
+                keepTextAligned=True,
+            )
+            if d.grText is None:
+                d.grText = GrText()
+            std_grtext(d.grText)
+
+        bdi.append(d)
+    board.dimensions = bdi
+
+
+def unify_graphics(board: Board) -> None:
+    """Unify graphics font/thickness"""
+    unify_style_graphics(board, ["Edge.Cuts"], 0.3)
+    layers = ["Eco1.User", "Eco2.User", "Cmts.User", "Dwgs.User"] + [f"User.{i}" for i in range(20)]
+    unify_style_graphics(board, layers, 0.4)
+    unify_style_graphics(board, ["User.9"], 0.02)
+    unify_style_text(board, layers)
+    unify_style_dimensions(board, layers)
 
 
 class RefFilter:
@@ -578,13 +654,9 @@ def add_main_dimensions(side: str, bbox_limits: List[BBoxPoint]) -> List[Dimensi
     if side == "bottom":
         dim_pts = [Position(miny.aux_min, miny.main), Position(maxy.aux_min, maxy.main)]
         height = minx.main - miny.aux_min - 8
-        mirror = True
-        tpos = Position(miny.aux_min + height + 1.25, (miny.main + maxy.main) / 2, 90)
     else:
         dim_pts = [Position(miny.aux_max, miny.main), Position(maxy.aux_max, maxy.main)]
         height = maxx.main - miny.aux_max + 8
-        mirror = False
-        tpos = Position(miny.aux_max + height - 1.25, (miny.main + maxy.main) / 2, 270)
 
     new_dim_x = Dimension(
         type="orthogonal",
@@ -592,14 +664,9 @@ def add_main_dimensions(side: str, bbox_limits: List[BBoxPoint]) -> List[Dimensi
         pts=[Position(minx.main, minx.aux_max), Position(maxx.main, maxx.aux_max)],
         height=maxy.main - minx.aux_max + 8,
         orientation=0,
-        grText=GrText(effects=Effects(font=Font(width=1, height=1, thickness=0.15), justify=Justify(mirror=mirror))),
-        format=DimensionFormat(precision=1, suppressZeroes=True),
-        style=DimensionStyle(thickness=0.15, arrowLength=1.27, extensionOffset=0.5, extensionHeight=0.58),
     )
     new_dim_y = deepcopy(new_dim_x)
-    new_dim_y.style.textPositionMode = 3
     new_dim_y.orientation = 1
-    new_dim_y.grText.position = tpos
     new_dim_y.pts = dim_pts
     new_dim_y.height = height
     return [new_dim_x, new_dim_y]
