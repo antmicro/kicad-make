@@ -293,6 +293,8 @@ def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
         "--crossout-DNP-footprints-on-fab-layers",
         "--page-size-mode",
         "2",
+        "--drill-shape-opt",
+        "0",
         "--mode-single",
     ]
     if side == "bottom":
