@@ -80,6 +80,8 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store",
         help="Argument passed to pcb-filter: `--ref-filter` filter  used on side opposite to `--side`",
     )
+    parser.add_argument("--svg", action="store_true", help="Output SVG")
+    parser.add_argument("--gerber", action="store_true", help="Output Gerber")
     parser.set_defaults(func=run)
 
 
@@ -89,6 +91,8 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     if not len(args.input):
         log.error("PCB file was not detected or does not exists")
         return
+    if not args.svg and not args.gerber:
+        args.svg, args.gerber = True, True
 
     if args.reset:
         log.info("Loading PCB")
@@ -230,7 +234,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         if args.ref_filter_other is not None:
             preset[1].update({"ref_filter_other": args.ref_filter_other})
 
-    generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args.input, args.set_ref)
+    generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args)
 
 
 def generate_wireframe(
@@ -239,8 +243,7 @@ def generate_wireframe(
     sides: List[str],
     export_layers: List[str],
     kpro: KicadProject,
-    ifile: str,
-    set_ref: bool,
+    args: argparse.Namespace,
 ) -> None:
     """Preprocess board and export it to SVG & GBR"""
     output_folder = os.path.join(kpro.fab_dir, "wireframe/")
@@ -254,13 +257,13 @@ def generate_wireframe(
                 oname_side = f"{oname}"
 
             filter_args["outfile"] = fp.name
-            filter_args["infile"] = ifile
+            filter_args["infile"] = args.input
             filter_args["side"] = side
 
             log.info("Run PCB filter")
             pcb_filter_run(kpro, **filter_args)
 
-            if set_ref:
+            if args.set_ref:
                 reset_footprint_val_props(fp.name)
             for layer in export_layers:
                 slayer = layer.split(",")
@@ -271,11 +274,14 @@ def generate_wireframe(
                     oname_side_l = oname_side
                 else:
                     oname_side_l = oname_side + "_" + layer.replace(".", "_")
-                do_exports(fp.name, output_folder, oname_side_l, layer, side)
+                if args.svg:
+                    export_svg(fp.name, output_folder, oname_side_l, layer, side)
+                if args.gerber:
+                    export_gerber(fp.name, output_folder, oname_side_l, layer)
 
 
-def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, side: str) -> None:
-    """Run kicad-cli and do exports to SVG and gerber"""
+def export_svg(ifile: str, output_folder: str, oname_side_l: str, layer: str, side: str) -> None:
+    """Run kicad-cli and do exports to SVG"""
     # SVG
     outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".svg")
     log.info(f"Exporting {layer} svg to {outfile}")
@@ -302,7 +308,9 @@ def do_exports(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
 
     run_kicad_cli(svg_export_cli_command, True)
 
-    # GERBER
+
+def export_gerber(ifile: str, output_folder: str, oname_side_l: str, layer: str) -> None:
+    """Run kicad-cli and do exports to gerber"""
     outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".gbr")
     base_layer, _, common_layers = layer.partition(",")
     log.info(f"Exporting {layer} gerber to {outfile}")
@@ -367,6 +375,6 @@ def substitute_layer_vars(layer: str, side: str) -> str:
         layer = layer.replace("$side", "B")
         layer = layer.replace("$numside", "2")
     else:  # side==""
-        layer = layer.replace("$side", "F") + "," + layer.replace("$side", "B")
-        layer = layer.replace("$numside", "1") + "," + layer.replace("$numside", "2")
+        layer = layer.replace("$side", "F") + "," + layer.replace("$side", "B") if "$side" in layer else layer
+        layer = layer.replace("$numside", "1") + "," + layer.replace("$numside", "2") if "$numside" in layer else layer
     return layer
