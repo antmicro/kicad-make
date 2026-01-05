@@ -181,7 +181,6 @@ def update_pcb(
         log.info("Restoring solder paste on DNP components")
     if remove_paste:
         log.info("Removing solder paste from DNP components")
-
     for footprint in board.footprints:
         if tht_paste_add:
             add_tht_paste(footprint)
@@ -254,49 +253,51 @@ def restore_fp_paste(footprint: Footprint) -> None:
 # Sets pads of THT components to have solder paste on pads
 def add_tht_paste(footprint: Footprint) -> None:
     changed = 0
-    if footprint.attributes.type is None:
+    if footprint.attributes.type != "through_hole":
         return
     for pad in footprint.pads:
         if pad.type != "thru_hole":
             continue
-        if "*.Cu" in pad.layers:
+        if "*.Cu" in pad.layers and not any(
+            ["*.Paste" in pad.layers, "F.Paste" in pad.layers, "B.Paste" in pad.layers]
+        ):
             add_pad_layer(pad.layers, "*.Paste")
             add_pad_layer(pad.layers, "User.3")
             add_pad_layer(pad.layers, "User.4")
             changed += 1
-        else:
-            if "F.Cu" in pad.layers:
-                add_pad_layer(pad.layers, "F.Paste")
-                add_pad_layer(pad.layers, "User.3")
-            if "B.Cu" in pad.layers:
-                add_pad_layer(pad.layers, "B.Paste")
-                add_pad_layer(pad.layers, "User.4")
+        elif "F.Cu" in pad.layers and "F.Paste" not in pad.layers:
+            add_pad_layer(pad.layers, "F.Paste")
+            add_pad_layer(pad.layers, "User.3")
+            changed += 1
+        elif "B.Cu" in pad.layers and "B.Paste" not in pad.layers:
+            add_pad_layer(pad.layers, "B.Paste")
+            add_pad_layer(pad.layers, "User.4")
+            changed += 1
 
     if changed != 0:
-        log.debug(f"Added solder paste on THT pins of {get_property(footprint, 'Reference')}")
+        log.debug(f"Added solder paste on THT pads of {get_property(footprint, 'Reference')}")
 
 
 # Remove solder paste from pads of THT components
 def remove_tht_paste(footprint: Footprint) -> None:
     changed = 0
-    if footprint.attributes.type is None:
+    if footprint.attributes.type != "through_hole":
         return
     for pad in footprint.pads:
         if pad.type != "thru_hole":
             continue
         if "User.3" in pad.layers and "User.4" in pad.layers:
-            remove_pad_layers(pad.layers, ["User.3", "User.4", "*.Paste", "User.6", "User.7"])
+            remove_pad_layers(pad.layers, ["User.3", "User.4", "*.Paste"])
             changed += 1
-        else:
-            if "User.3" in pad.layers:
-                remove_pad_layers(pad.layers, ["User.3", "F.Paste", "User.6"])
-                changed += 1
-            if "User.4" in pad.layers:
-                remove_pad_layers(pad.layers, ["User.4", "B.Paste", "User.7"])
-                changed += 1
+        elif "User.3" in pad.layers:
+            remove_pad_layers(pad.layers, ["User.3", "F.Paste"])
+            changed += 1
+        elif "User.4" in pad.layers:
+            remove_pad_layers(pad.layers, ["User.4", "B.Paste"])
+            changed += 1
 
     if changed != 0:
-        log.debug(f"Removed solder paste from THT pins of {get_property(footprint, 'Reference')}")
+        log.debug(f"Removed solder paste from THT pads of {get_property(footprint, 'Reference')}")
 
 
 def add_pad_layer(lis: List[str], add: str) -> None:
