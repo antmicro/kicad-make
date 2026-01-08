@@ -17,7 +17,7 @@ from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property
 from .prettify import run as prettify
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Set
 from copy import deepcopy
 
 from math import sin, cos, radians, inf
@@ -296,7 +296,7 @@ def pcb_filter_run(
     if vias:
         board.traceItems = [item for item in board.traceItems if not isinstance(item, Via)]
 
-    if generate_frame or std_dimension:
+    if generate_frame or std_dimension or std_graphics:
         bbox_limits = get_outline_bbox(board)
 
     if generate_frame:
@@ -307,7 +307,7 @@ def pcb_filter_run(
         board.dimensions += add_main_dimensions(side, bbox_limits)
 
     if std_graphics:
-        unify_graphics(board)
+        unify_graphics(board, bbox_limits)
 
     if side == "bottom" and mirror_bottom:
         board = mirror_texts(board)
@@ -357,7 +357,7 @@ def copy_edge_from_footprint(board: Board) -> None:
                 )
 
 
-def unify_style_graphics(board: Board, layers: [str], width: float) -> None:
+def unify_style_graphics(board: Board, layers: Set[str], width: float) -> None:
     """Set thickness of graphics on specified layer"""
     # set all lines to same width
     bgi = []
@@ -374,71 +374,6 @@ def unify_style_graphics(board: Board, layers: [str], width: float) -> None:
             g.stroke.width = width
         bgi.append(g)
     board.graphicItems = bgi
-
-
-def std_grtext(text: GrText) -> None:
-    if text.effects is None:
-        text.effects = Effects()
-    text.effects.font.width = 2.5
-    text.effects.font.height = 2.5
-    text.effects.font.thickness = 0.25
-    text.effects.font.bold = False
-    text.effects.font.face = "Lato"
-
-
-def unify_style_text(board: Board, layers: [str]) -> None:
-    """Set text style on specified layer"""
-    bgi = []
-    for g in board.graphicItems:
-        if isinstance(g, GrText) and g.layer in layers:
-            std_grtext(g)
-        bgi.append(g)
-    board.graphicItems = bgi
-
-
-def unify_style_dimensions(board: Board, layers: [str]) -> None:
-    """Set text style on specified layer"""
-    # set all lines to same width
-    bdi = []
-    for d in board.dimensions:
-        if d.layer in layers:
-            d.format = DimensionFormat(
-                precision=1,  # one fraction digit
-                units=2,  # milimeters
-                unitsFormat=0,  # bare value, no unit suffix
-                suppressZeroes=False,
-            )
-            d.style = DimensionStyle(
-                extensionOffset=0.5,
-                extensionHeight=0.5,
-                thickness=0.15,
-                arrowLength=1,
-                textPositionMode=0,
-                # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
-                # modes are as follows:
-                # - 0: Text is outside the dimension line
-                # - 1: Text is in line with the dimension line
-                # - 2: Text has been manually placed by the user"""
-                arrowDirection=d.style.arrowDirection,  # inward/outward
-                textFrame=d.style.textFrame,
-                keepTextAligned=True,
-            )
-            if d.grText is None:
-                d.grText = GrText()
-            std_grtext(d.grText)
-
-        bdi.append(d)
-    board.dimensions = bdi
-
-
-def unify_graphics(board: Board) -> None:
-    """Unify graphics font/thickness"""
-    unify_style_graphics(board, ["Edge.Cuts"], 0.3)
-    layers = ["Eco1.User", "Eco2.User", "Cmts.User", "Dwgs.User"] + [f"User.{i}" for i in range(20)]
-    unify_style_graphics(board, layers, 0.4)
-    unify_style_graphics(board, ["User.9"], 0.02)
-    unify_style_text(board, layers)
-    unify_style_dimensions(board, layers)
 
 
 class RefFilter:
@@ -683,3 +618,76 @@ def generate_frame_f(board: Board, bbox_limits: List[BBoxPoint]) -> None:
             layers=["Margin"],
         )
     )
+
+
+def std_grtext(text: GrText, scale: float) -> None:
+    if text.effects is None:
+        text.effects = Effects()
+    text.effects.font.width = 2 * scale
+    text.effects.font.height = 2 * scale
+    text.effects.font.thickness = 0.2 * scale
+    text.effects.font.bold = False
+
+
+def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
+    """Set text style on specified layer"""
+    bgi = []
+    for g in board.graphicItems:
+        if isinstance(g, GrText) and g.layer in layers:
+            std_grtext(g, scale)
+        bgi.append(g)
+    board.graphicItems = bgi
+
+
+def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None:
+    """Set text style on specified layer"""
+    # set all lines to same width
+    bdi = []
+    for d in board.dimensions:
+        if d.layer in layers:
+            d.format = DimensionFormat(
+                precision=1,  # one fraction digit
+                units=2,  # millimeters
+                unitsFormat=0,  # bare value, no unit suffix
+                suppressZeroes=False,
+            )
+            d.style = DimensionStyle(
+                extensionOffset=0.5,
+                extensionHeight=0.5,
+                thickness=0.2 * scale,
+                arrowLength=1 * scale**0.5,
+                textPositionMode=0,
+                # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
+                # modes are as follows:
+                # - 0: Text is outside the dimension line
+                # - 1: Text is in line with the dimension line
+                # - 2: Text has been manually placed by the user"""
+                arrowDirection=d.style.arrowDirection,  # inward/outward
+                textFrame=d.style.textFrame,
+                keepTextAligned=True,
+            )
+            if d.grText is None:
+                d.grText = GrText()
+            std_grtext(d.grText, scale)
+
+        bdi.append(d)
+    board.dimensions = bdi
+
+
+def unify_graphics(board: Board, bbox_limits: List[BBoxPoint]) -> None:
+    """Unify graphics font/thickness"""
+    board_width = bbox_limits[1].main - bbox_limits[0].main
+    if board_width <= 15:
+        scale = 0.25
+    elif board_width <= 30:
+        scale = 0.5
+    elif board_width <= 120:
+        scale = 1
+    else:
+        scale = 2
+    unify_style_graphics(board, set(["Edge.Cuts"]), 0.1 * scale)
+    layers = set(["Eco1.User", "Eco2.User", "Cmts.User", "Dwgs.User"] + [f"User.{i}" for i in range(20)])
+    unify_style_graphics(board, layers, 0.2 * scale)
+    unify_style_graphics(board, set(["User.9"]), 0.02 * scale**0.5)
+    unify_style_text(board, layers, scale)
+    unify_style_dimensions(board, layers, scale)
