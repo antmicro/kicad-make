@@ -143,11 +143,11 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 std_graphics=True,
                 ref_filter="+J+MH+H+MP",
                 ref_filter_other="+MH+H+MP",
-                allowed_layers="User.9,Edge.Cuts,User.Drawings",
+                allowed_layers="User.9,Edge.Cuts",
                 mirror_bottom=True,
             ),
             ["top", "bottom", ""],
-            ["User.9,Edge.Cuts,User.Drawings"],
+            ["User.9,Edge.Cuts,User.Drawings", "User.9,Edge.Cuts,User.Eco1", "User.9,Edge.Cuts,User.Eco2"],
         ),
         (
             "descriptions",
@@ -276,7 +276,7 @@ def generate_wireframe(
                 if len(export_layers) == 1:
                     oname_side_l = oname_side
                 else:
-                    oname_side_l = oname_side + "_" + layer.replace(".", "_")
+                    oname_side_l = oname_side + "_" + layer.replace(".", "_").replace(",", "_")
                 if args.svg:
                     export_svg(fp.name, output_folder, oname_side_l, layer, side)
                 if args.gerber:
