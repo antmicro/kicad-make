@@ -256,34 +256,7 @@ def pcb_filter_run(
             if values:
                 hide_property_if_named(prop, property_name="Value")
 
-    full_layers_filter = False
-    if allowed_layers_full is not None:
-        full_layers_filter = True
-        allowed_layers = allowed_layers_full
-    if allowed_layers is not None:
-        allowed_layers = (
-            allowed_layers.replace("User.Comments", "Cmts.User")
-            .replace("User.Drawings", "Dwgs.User")
-            .replace("F.Silkscreen", "F.SilkS")
-            .replace("B.Silkscreen", "B.SilkS")
-            .replace("F.Adhesive", "F.Adhes")
-            .replace("B.Adhesive", "B.Adhes")
-            .replace("User.Eco1", "Eco1.User")
-            .replace("User.Eco2", "Eco2.User")
-            .replace("F.Courtyard", "F.CrtYd")
-            .replace("B.Courtyard", "B.CrtYd")
-        )
-
-        layers = [lr.strip() for lr in allowed_layers.split(",")]
-        board.graphicItems = [
-            item for item in board.graphicItems if layer_filter_match(item, layers, full_layers_filter)
-        ]
-        for fp in board.footprints:
-            fp.graphicItems = [item for item in fp.graphicItems if item.layer in layers]
-            for prop in fp.properties:
-                if prop.layer in layers:
-                    continue
-                prop.hide = True
+    layer_filtration(board, allowed_layers, allowed_layers_full)
 
     if dimensions:
         board.dimensions = []
@@ -321,6 +294,47 @@ def pcb_filter_run(
     ki_pro.pcb_file = outfile
     prettify(ki_pro, argparse.Namespace())
     ki_pro.pcb_file = pcb_file_org
+
+
+def layer_filtration(
+    board: Board, allowed_layers: Optional[str], allowed_layers_full: Optional[str]
+) -> None:
+    """Filter board graphics leaving only these on whitelisted layers"""
+    full_layers_filter = False
+    if allowed_layers_full is not None:
+        full_layers_filter = True
+        allowed_layers = allowed_layers_full
+
+    if allowed_layers is not None:
+        layers = std_layer_names(allowed_layers)
+        board.graphicItems = [
+            item for item in board.graphicItems if layer_filter_match(item, layers, full_layers_filter)
+        ]
+        layers = std_layer_names(allowed_layers)
+        for fp in board.footprints:
+            fp.graphicItems = [item for item in fp.graphicItems if item.layer in layers]
+            for prop in fp.properties:
+                if prop.layer in layers:
+                    continue
+                prop.hide = True
+
+
+def std_layer_names(layers_str: str) -> List[str]:
+    """Normalize layer names & split into list"""
+    layers_str = (
+        layers_str.replace("User.Comments", "Cmts.User")
+        .replace("User.Drawings", "Dwgs.User")
+        .replace("F.Silkscreen", "F.SilkS")
+        .replace("B.Silkscreen", "B.SilkS")
+        .replace("F.Adhesive", "F.Adhes")
+        .replace("B.Adhesive", "B.Adhes")
+        .replace("User.Eco1", "Eco1.User")
+        .replace("User.Eco2", "Eco2.User")
+        .replace("F.Courtyard", "F.CrtYd")
+        .replace("B.Courtyard", "B.CrtYd")
+    )
+
+    return [lr.strip() for lr in layers_str.split(",")]
 
 
 def copy_edge_from_footprint(board: Board) -> None:
