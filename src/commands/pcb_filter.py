@@ -651,11 +651,18 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None
                 unitsFormat=0,  # bare value, no unit suffix
                 suppressZeroes=False,
             )
+
+            try:
+                length = ((d.pts[0].X - d.pts[1].X) ** 2 + (d.pts[0].Y - d.pts[1].Y) ** 2) ** 0.5
+                arrow_len = min(1, round(length / 2, 2))
+            except Exception:
+                arrow_len = 1
+
             d.style = DimensionStyle(
                 extensionOffset=0.5,
                 extensionHeight=0.5,
-                thickness=0.2 * scale,
-                arrowLength=1 * scale**0.5,
+                thickness=0.2,
+                arrowLength=arrow_len,
                 textPositionMode=0,
                 # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
                 # modes are as follows:
@@ -685,9 +692,9 @@ def unify_graphics(board: Board, bbox_limits: List[BBoxPoint]) -> None:
         scale = 1
     else:
         scale = 2
-    unify_style_graphics(board, set(["Edge.Cuts"]), 0.1 * scale)
+    unify_style_graphics(board, set(["Edge.Cuts"]), 0.1)
     layers = set(["Eco1.User", "Eco2.User", "Cmts.User", "Dwgs.User"] + [f"User.{i}" for i in range(20)])
-    unify_style_graphics(board, layers, 0.2 * scale)
-    unify_style_graphics(board, set(["User.9"]), 0.02 * scale**0.5)
+    unify_style_graphics(board, layers, 0.2)
+    unify_style_graphics(board, set(["User.9"]), 0.02)
     unify_style_text(board, layers, scale)
     unify_style_dimensions(board, layers, scale)
