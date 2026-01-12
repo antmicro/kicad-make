@@ -147,7 +147,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                 mirror_bottom=True,
             ),
             ["top", "bottom", ""],
-            ["User.9,Edge.Cuts,User.Drawings", "User.9,Edge.Cuts,User.Eco1", "User.9,Edge.Cuts,User.Eco2"],
+            ["User.9,Edge.Cuts,User.Drawings", "User.9,Edge.Cuts,User.6", "User.9,Edge.Cuts,User.7"],
         ),
         (
             "descriptions",
@@ -253,7 +253,7 @@ def generate_wireframe(
     os.makedirs(output_folder, exist_ok=True)
 
     for side in sides:
-        with NamedTemporaryFile(suffix=".kicad_pcb") as fp:
+        with NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as fp:
             if side != "":
                 oname_side = f"{oname}_{side}"
             else:

@@ -296,9 +296,7 @@ def pcb_filter_run(
     ki_pro.pcb_file = pcb_file_org
 
 
-def layer_filtration(
-    board: Board, allowed_layers: Optional[str], allowed_layers_full: Optional[str]
-) -> None:
+def layer_filtration(board: Board, allowed_layers: Optional[str], allowed_layers_full: Optional[str]) -> None:
     """Filter board graphics leaving only these on whitelisted layers"""
     full_layers_filter = False
     if allowed_layers_full is not None:
@@ -344,8 +342,8 @@ def copy_edge_from_footprint(board: Board) -> None:
         sina, cosa = sin(angle), cos(angle)
         tx, ty = fp.position.X, fp.position.Y
 
-        def glob_pos(pos: Position) -> Position:
-            return Position(X=tx + pos.X * cosa - pos.Y * sina, Y=ty + pos.X * sina + pos.Y * cosa)  # noqa: B023
+        def glob_pos(pos: Position) -> dict[str, float]:
+            return {"X": tx + pos.X * cosa - pos.Y * sina, "Y": ty + pos.X * sina + pos.Y * cosa}  # noqa: B023
 
         for item in fp.graphicItems:
             if item.layer != "Edge.Cuts":
@@ -353,8 +351,8 @@ def copy_edge_from_footprint(board: Board) -> None:
             if isinstance(item, FpLine):
                 board.graphicItems.append(
                     GrLine(
-                        start=PositionStart(glob_pos(item.start)),
-                        end=PositionEnd(glob_pos(item.end)),
+                        start=PositionStart(**glob_pos(item.start)),
+                        end=PositionEnd(**glob_pos(item.end)),
                         layers=LayerList(["Edge.Cuts"]),
                         stroke=item.stroke,
                     )
@@ -362,9 +360,9 @@ def copy_edge_from_footprint(board: Board) -> None:
             if isinstance(item, FpArc):
                 board.graphicItems.append(
                     GrArc(
-                        start=PositionStart(glob_pos(item.start)),
-                        mid=PositionMid(glob_pos(item.mid)),
-                        end=PositionEnd(glob_pos(item.end)),
+                        start=PositionStart(**glob_pos(item.start)),
+                        mid=PositionMid(**glob_pos(item.mid)),
+                        end=PositionEnd(**glob_pos(item.end)),
                         layers=LayerList(["Edge.Cuts"]),
                         stroke=item.stroke,
                     )
@@ -641,6 +639,7 @@ def std_grtext(text: GrText, scale: float) -> None:
     text.effects.font.height = 2 * scale
     text.effects.font.thickness = 0.2 * scale
     text.effects.font.bold = False
+    text.effects.font.face = None
 
 
 def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
@@ -664,6 +663,7 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None
                 units=2,  # millimeters
                 unitsFormat=0,  # bare value, no unit suffix
                 suppressZeroes=False,
+                overrideValue=d.format.overrideValue if d.format else None,
             )
 
             try:
@@ -674,7 +674,7 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None
 
             d.style = DimensionStyle(
                 extensionOffset=0.5,
-                extensionHeight=0.5,
+                extensionHeight=0.5 if d.type not in ["leader", "center"] else None,
                 thickness=0.2,
                 arrowLength=arrow_len,
                 textPositionMode=0,
