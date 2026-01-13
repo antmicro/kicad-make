@@ -1,3 +1,4 @@
+import math
 import argparse
 import logging
 import os
@@ -632,14 +633,17 @@ def generate_frame_f(board: Board, bbox_limits: List[BBoxPoint]) -> None:
     )
 
 
-def std_grtext(text: GrText, scale: float) -> None:
+def std_grtext(text: GrText, scale: float) -> float:
     if text.effects is None:
         text.effects = Effects()
+    old_thick = text.effects.font.thickness if text.effects.font.thickness else 0
+    old_height = old_thick + text.effects.font.height
     text.effects.font.width = 2 * scale
     text.effects.font.height = 2 * scale
     text.effects.font.thickness = 0.2 * scale
     text.effects.font.bold = False
     text.effects.font.face = None
+    return text.effects.font.thickness + text.effects.font.height - old_height
 
 
 def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
@@ -652,10 +656,79 @@ def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
     board.graphicItems = bgi
 
 
-def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None:
+def get_aligned_dim_center(dim: Dimension) -> tuple[float, float]:
+    """Gets point that is the center (middle of main dimension line) of dimension"""
+    x1, y1 = dim.pts[0].X, dim.pts[0].Y
+    x2, y2 = dim.pts[1].X, dim.pts[1].Y
+
+    # Midpoint
+    mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+
+    # Direction vector
+    dx, dy = x2 - x1, y2 - y1
+
+    # Orthogonal vector (rotate 90 degrees)
+    ox, oy = -dy, dx
+
+    # Normalize & scale
+    mag = math.hypot(ox, oy)
+    ox, oy = ox * dim.height / mag, oy * dim.height / mag
+
+    # Endpoint of the orthogonal vector
+    return mx + ox, my + oy
+
+
+def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: list[float]) -> None:
     """Set text style on specified layer"""
+    [minx, maxx, miny, maxy] = bbox
+
     # set all lines to same width
     bdi = []
+
+    # 4 quarters left, right, top, bottom
+    qtr_dim: list[list[float]] = [[], [], [], []]
+
+    # dim.uuid: (dim_quarter, dim_pos)
+    dim_qtr_pos: dict[str, tuple[int, float]] = {}
+
+    for d in board.dimensions:
+        if d.type == "aligned":
+            d_center = get_aligned_dim_center(d)
+        elif d.type == "orthogonal":
+            if d.orientation == 0:
+                d_center = (d.pts[0].X + d.pts[1].X) * 0.5, d.pts[0].Y + d.height
+            else:
+                d_center = d.pts[0].X + d.height, (d.pts[0].Y + d.pts[1].Y) * 0.5
+
+        else:
+            continue
+
+        # TODO: resolve quarter
+        if d_center[0] < minx:
+            qtr = 0
+        elif d_center[0] > maxx:
+            qtr = 1
+        elif d_center[1] < miny:
+            qtr = 2
+        elif d_center[1] > maxy:
+            qtr = 3
+        else:
+            # dimension inside board outline
+            continue
+
+        pos = d_center[qtr // 2]
+        similar_pos = [dim for dim in qtr_dim[qtr] if abs(dim - pos) < 0.25]
+        if similar_pos:
+            dim_qtr_pos[d.uuid] = (qtr, similar_pos[0])
+        else:
+            qtr_dim[qtr].append(pos)
+            dim_qtr_pos[d.uuid] = (qtr, pos)
+
+    qtr_dim[0].sort(reverse=True)
+    qtr_dim[1].sort()
+    qtr_dim[2].sort(reverse=True)
+    qtr_dim[3].sort()
+
     for d in board.dimensions:
         if d.layer in layers:
             d.format = DimensionFormat(
@@ -666,15 +739,19 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None
                 overrideValue=d.format.overrideValue if d.format else None,
             )
 
+            arrow_len = 1
             try:
-                length = ((d.pts[0].X - d.pts[1].X) ** 2 + (d.pts[0].Y - d.pts[1].Y) ** 2) ** 0.5
-                arrow_len = min(1, round(length / 2, 2))
+                if d.type in ["center", "leader", "radial"]:
+                    arrow_len = d.style.arrowLength
+                else:
+                    length = ((d.pts[0].X - d.pts[1].X) ** 2 + (d.pts[0].Y - d.pts[1].Y) ** 2) ** 0.5
+                    arrow_len = min(1, round(length / 2, 2))
             except Exception:
-                arrow_len = 1
+                pass
 
             d.style = DimensionStyle(
-                extensionOffset=0.5,
-                extensionHeight=0.5 if d.type not in ["leader", "center"] else None,
+                extensionOffset=d.style.extensionOffset,
+                extensionHeight=d.style.extensionHeight,
                 thickness=0.2,
                 arrowLength=arrow_len,
                 textPositionMode=0,
@@ -689,7 +766,15 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None
             )
             if d.grText is None:
                 d.grText = GrText()
-            std_grtext(d.grText, scale)
+            height_change = std_grtext(d.grText, scale)
+
+            # Extend dimensions to reduce overlaps due to text scaling
+            if d.uuid in dim_qtr_pos:
+                qtr, pos = dim_qtr_pos[d.uuid]
+                dim_idx = qtr_dim[qtr].index(pos)
+                # additional offset for dimmesniosn on the right and bottom of board
+                edge_overlap_cor = 1 if qtr in [1, 3] else 0
+                d.height += math.copysign((dim_idx + edge_overlap_cor) * height_change * 1.66, d.height)
 
         bdi.append(d)
     board.dimensions = bdi
@@ -697,7 +782,8 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float) -> None
 
 def unify_graphics(board: Board, bbox_limits: List[BBoxPoint]) -> None:
     """Unify graphics font/thickness"""
-    board_width = bbox_limits[1].main - bbox_limits[0].main
+    simple_bbox = [b.main for b in bbox_limits]
+    board_width = simple_bbox[1] - simple_bbox[0]
     if board_width <= 15:
         scale = 0.25
     elif board_width <= 30:
@@ -711,4 +797,4 @@ def unify_graphics(board: Board, bbox_limits: List[BBoxPoint]) -> None:
     unify_style_graphics(board, layers, 0.2)
     unify_style_graphics(board, set(["User.9"]), 0.02)
     unify_style_text(board, layers, scale)
-    unify_style_dimensions(board, layers, scale)
+    unify_style_dimensions(board, layers, scale, simple_bbox)
