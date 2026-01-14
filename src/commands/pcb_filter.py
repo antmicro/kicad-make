@@ -685,8 +685,9 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
     # set all lines to same width
     bdi = []
 
+    # qtr_dim is { layer : [ [dim_pos1, dim_pos2, ..] [..] [..] [..] ] }
     # 4 quarters left, right, top, bottom
-    qtr_dim: list[list[float]] = [[], [], [], []]
+    qtr_dim: dict[str, list[list[float]]] = {}
 
     # dim.uuid: (dim_quarter, dim_pos)
     dim_qtr_pos: dict[str, tuple[int, float]] = {}
@@ -717,17 +718,19 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
             continue
 
         pos = d_center[qtr // 2]
-        similar_pos = [dim for dim in qtr_dim[qtr] if abs(dim - pos) < 0.25]
+        qd = qtr_dim.setdefault(d.layer, [[], [], [], []])
+        similar_pos = [dim for dim in qd[qtr] if abs(dim - pos) < 0.25]
         if similar_pos:
             dim_qtr_pos[d.uuid] = (qtr, similar_pos[0])
         else:
-            qtr_dim[qtr].append(pos)
+            qd[qtr].append(pos)
             dim_qtr_pos[d.uuid] = (qtr, pos)
 
-    qtr_dim[0].sort(reverse=True)
-    qtr_dim[1].sort()
-    qtr_dim[2].sort(reverse=True)
-    qtr_dim[3].sort()
+    for layer in qtr_dim:
+        qtr_dim[layer][0].sort(reverse=True)
+        qtr_dim[layer][1].sort()
+        qtr_dim[layer][2].sort(reverse=True)
+        qtr_dim[layer][3].sort()
 
     for d in board.dimensions:
         if d.layer in layers:
@@ -771,7 +774,7 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
             # Extend dimensions to reduce overlaps due to text scaling
             if d.uuid in dim_qtr_pos:
                 qtr, pos = dim_qtr_pos[d.uuid]
-                dim_idx = qtr_dim[qtr].index(pos)
+                dim_idx = qtr_dim[d.layer][qtr].index(pos)
                 # additional offset for dimmesniosn on the right and bottom of board
                 edge_overlap_cor = 1 if qtr in [1, 3] else 0
                 d.height += math.copysign((dim_idx + edge_overlap_cor) * height_change * 1.66, d.height)
