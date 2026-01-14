@@ -276,7 +276,7 @@ def generate_wireframe(
                 if len(export_layers) == 1:
                     oname_side_l = oname_side
                 else:
-                    oname_side_l = oname_side + "_" + layer.replace(".", "_").replace(",", "_")
+                    oname_side_l = oname_side + "_" + layer.split(",")[-1].replace(".", "_")
                 if args.svg:
                     export_svg(fp.name, output_folder, oname_side_l, layer, side)
                 if args.gerber:
@@ -303,13 +303,18 @@ def export_svg(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
         "--page-size-mode",
         "2",
         "--drill-shape-opt",
-        "0",
+        "2",  # this prints black filled circle for each non-via hole
         "--mode-single",
     ]
     if side == "bottom":
         svg_export_cli_command.append("--mirror")
 
     run_kicad_cli(svg_export_cli_command, True)
+
+    ofile = Path(outfile)
+    svg = ofile.read_text()
+    svg = svg.replace("<circle ", '<circle fill="none" stroke="#000000" stroke-width="0.05" stroke-opacity="1" ')
+    ofile.write_text(svg)
 
 
 def export_gerber(ifile: str, output_folder: str, oname_side_l: str, layer: str) -> None:
