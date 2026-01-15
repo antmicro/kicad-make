@@ -8,6 +8,8 @@ from kiutils.board import Board
 class WireframeTest(KmakeTestCase, unittest.TestCase):
 
     def __init__(self, method_name: str = "runTest") -> None:
+        self.layer_suffixes = ["_User_6", "_User_7", "_User_Drawings"]
+        self.side_suffixes = ["top", "bottom"]
         KmakeTestCase.__init__(self, "wireframe")
         unittest.TestCase.__init__(self, method_name)
 
@@ -30,21 +32,26 @@ class WireframeTest(KmakeTestCase, unittest.TestCase):
             for item in footprint.graphicItems:
                 self.assertNotEqual(item.layer, "User.8")
 
-    def wireframe_presets(self, preset: str) -> None:
-        self.run_test_command(["-p", f"{preset}"])
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_top.gbr"))
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_bottom.gbr"))
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_top.svg"))
-        self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_bottom.svg"))
+    def wireframe_presets(self, preset: str, arg: list[str], suffix: list[list[str]]) -> None:
+        self.run_test_command(["-p", f"{preset}"] + arg)
+        suffix_product = [(a, b, c) for a in suffix[0] for b in suffix[1] for c in suffix[2]]
+        for s in suffix_product:
+            self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/wireframe/wireframe_{preset}_{s[0]}{s[1]}.{s[2]}"))
 
     def test_wireframe_presets_simple(self) -> None:
-        self.wireframe_presets("simple")
-
-    def test_wireframe_presets_dimensions(self) -> None:
-        self.wireframe_presets("dimensions")
+        self.wireframe_presets("simple", [], [self.side_suffixes, [""], ["gbr", "svg"]])
 
     def test_wireframe_presets_descriptions(self) -> None:
-        self.wireframe_presets("descriptions")
+        self.wireframe_presets("descriptions", [], [self.side_suffixes, [""], ["gbr", "svg"]])
+
+    def test_wireframe_presets_dimensions(self) -> None:
+        self.wireframe_presets("dimensions", [], [self.side_suffixes, self.layer_suffixes, ["gbr", "svg"]])
+
+    def test_wireframe_presets_dimensions_gbr(self) -> None:
+        self.wireframe_presets("dimensions", ["--gerber"], [self.side_suffixes, self.layer_suffixes, ["gbr"]])
+
+    def test_wireframe_presets_dimensions_svg(self) -> None:
+        self.wireframe_presets("dimensions", ["--svg"], [self.side_suffixes, self.layer_suffixes, ["svg"]])
 
 
 if __name__ == "__main__":
