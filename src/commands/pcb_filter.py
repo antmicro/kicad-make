@@ -704,7 +704,6 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
         else:
             continue
 
-        # TODO: resolve quarter
         if d_center[0] < minx:
             qtr = 0
         elif d_center[0] > maxx:
@@ -755,7 +754,7 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
             d.style = DimensionStyle(
                 extensionOffset=d.style.extensionOffset,
                 extensionHeight=d.style.extensionHeight,
-                thickness=0.2,
+                thickness=0.1,
                 arrowLength=arrow_len,
                 textPositionMode=0,
                 # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
@@ -795,9 +794,9 @@ def unify_graphics(board: Board, bbox_limits: List[BBoxPoint]) -> None:
         scale = 1
     else:
         scale = 2
-    unify_style_graphics(board, set(["Edge.Cuts"]), 0.1)
+    unify_style_graphics(board, set(["Edge.Cuts"]), 0.2)
     layers = set(["Eco1.User", "Eco2.User", "Cmts.User", "Dwgs.User"] + [f"User.{i}" for i in range(20)])
-    unify_style_graphics(board, layers, 0.2)
+    unify_style_graphics(board, layers, 0.1)
     unify_style_graphics(board, set(["User.9"]), 0.02)
     unify_style_text(board, layers, scale)
     unify_style_dimensions(board, layers, scale, simple_bbox)
