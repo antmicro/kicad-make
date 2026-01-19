@@ -90,7 +90,7 @@ test-kicad9-docker:
   image: python:3.11
   stage: code-check
   before_script:
-    - pip3 install black mypy ruff
+    - pip3 install black==25.12.0 mypy ruff
 
 black:
   extends: .check-code
