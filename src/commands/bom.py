@@ -246,15 +246,29 @@ def save_csv(output_file: TextIO, groups: list[ComponentGroup], headers: list[st
 
     writer.writerow(headers)
 
-    for group in groups:
-        if group_references:
-            writer.writerow(prepare_csv_row(group, headers, " ".join(group.refs), group.quantity()))
-        else:
+    if not group_references:
+        for group in groups:
             for ref in group.refs:
-                writer.writerow(prepare_csv_row(group, headers, ref))
+                writer.writerow(prepare_csv_row(group, headers, ref, "1"))
+
+        return
+
+    # group_dict = { [group params] : references in group }
+    group_dict = {}
+    for group in groups:
+        group_params = tuple(prepare_csv_row(group, headers, "$$REF", "$$QTY"))
+        group_entry = group_dict.setdefault(group_params, [])
+        group_entry.extend(group.refs)
+
+    for params, refs in group_dict.items():
+        qty = str(len(refs))
+        row = [" ".join(refs) if p == "$$REF" else qty if p == "$$QTY" else p for p in params]
+        writer.writerow(row)
 
 
-def prepare_csv_row(components: ComponentGroup, headers: list[str], references: str = "", quantity: int = 1) -> list:
+def prepare_csv_row(
+    components: ComponentGroup, headers: list[str], references: str = "", quantity: str = "1"
+) -> list[str]:
     """Generate single row for csv file"""
 
     line = []
@@ -265,7 +279,7 @@ def prepare_csv_row(components: ComponentGroup, headers: list[str], references: 
         if header in valid_headers.reference:
             line.append(references)
         elif header in valid_headers.quantity:
-            line.append(str(quantity))
+            line.append(quantity)
         elif header in valid_headers.value:
             line.append(components.value)
         elif header in valid_headers.footprint:
