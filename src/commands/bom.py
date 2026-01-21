@@ -254,7 +254,7 @@ def save_csv(output_file: TextIO, groups: list[ComponentGroup], headers: list[st
         return
 
     # group_dict = { [group params] : references in group }
-    group_dict = {}
+    group_dict: dict[tuple, list[str]] = {}
     for group in groups:
         group_params = tuple(prepare_csv_row(group, headers, "$$REF", "$$QTY"))
         group_entry = group_dict.setdefault(group_params, [])
