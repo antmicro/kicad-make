@@ -17,8 +17,7 @@ log = logging.getLogger(__name__)
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser(
         "dnp",
-        help="Fix discrepancies between DNP, `exclude-from-bom` and"
-        " `exclude-from-board` atributes in schematic symbols and footprints.",
+        help="Fix discrepancies in DNP between schematic symbols and footprints.",
     )
     parser.add_argument(
         "-l",
@@ -150,18 +149,15 @@ def is_dnp(component: SchematicSymbol) -> bool:
 def needs_cleanup(component: SchematicSymbol) -> bool:
     if not component.dnp:
         return True
-    if component.inBom:
-        return True
     prop = get_property(component, "DNP")
     if prop is not None:
         return True
     return False
 
 
-# Cleans up component - sets dnp, inBom, DNP property
+# Cleans up component - sets dnp and removes legacy DNP property
 def clean_up_component(component: SchematicSymbol) -> None:
     component.dnp = True
-    component.inBom = False
     # Replaces legacy DNP property with default kicad DNP checkbox
     prop = get_property(component, "DNP")
     if prop is not None:
@@ -190,7 +186,6 @@ def update_pcb(
             set_fp_dnp(footprint, remove_paste, restore_paste)
         elif not footprint.attributes.boardOnly and get_property(footprint, "MPN"):
             footprint.attributes.excludeFromPosFiles = False
-            footprint.attributes.excludeFromBom = False
             footprint.attributes.dnp = False
             restore_fp_paste(footprint)
         # Remove additional properties doubling checkboxes functionality
@@ -202,7 +197,6 @@ def update_pcb(
 def set_fp_dnp(footprint: Footprint, remove_paste: bool, restore_paste: bool) -> None:
     log.debug(f"Setting {get_property(footprint, 'Reference')} to DNP")
     footprint.attributes.excludeFromPosFiles = True
-    footprint.attributes.excludeFromBom = True
     footprint.attributes.dnp = True
     if remove_paste:
         remove_fp_paste(footprint)

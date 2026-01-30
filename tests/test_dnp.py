@@ -12,7 +12,6 @@ from common.kmake_helper import get_property, set_property, remove_property
 
 
 class DnpTest(KmakeTestCase, unittest.TestCase):
-
     def __init__(self, method_name: str = "runTest") -> None:
         KmakeTestCase.__init__(self, "dnp")
         unittest.TestCase.__init__(self, method_name)
@@ -21,14 +20,13 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.setUp(self)
         self.reset_repo()
 
-    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False, inbom: bool = True) -> None:
+    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False) -> None:
         """Check if symbol have DNP fields
 
         Parameters:
             components: List of designator to check
             dnp: Define if component is DNP
             dnp_field: Allow component to have a DNP field (when dnp is set to False)
-            inbom: Define if component is in bom
         """
 
         scheet = Schematic().from_file(filepath="receiver.kicad_sch")
@@ -47,10 +45,6 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
                     self.assertTrue(symbol.dnp, "Symbol is not DNP")
                 else:
                     self.assertFalse(symbol.dnp, "Symbol is DNP")
-                if inbom:
-                    self.assertTrue(symbol.inBom, "Symbol is not in BOM")
-                else:
-                    self.assertFalse(symbol.inBom, "Symbol is in BOM")
                 components_checked += 1
 
         self.assertEqual(components_checked, len(components), "Not all components checked, internal test error")
@@ -73,11 +67,9 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             if designator in components:
                 if dnp:
                     self.assertEqual(attributes.excludeFromPosFiles, True, f"{designator} Not excluded from POS files")
-                    self.assertEqual(attributes.excludeFromBom, True, f"{designator} Not excluded from BOM")
                     footprints_checked += 1
                 else:
                     self.assertEqual(attributes.excludeFromPosFiles, False, f"{designator} Excluded from POS files")
-                    self.assertEqual(attributes.excludeFromBom, False, f"{designator} Excluded from BOM")
                     footprints_checked += 1
         self.assertEqual(footprints_checked, len(components), "Not all components checked internal test error")
 
@@ -125,12 +117,12 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
 
     def test_clean_symbol(self) -> None:
         "Test if dnp symbols have `Exlude from bill of materials` and `Do not populate` fields set correctly"
-        self.check_symbol(["R1", "R2"], False, True, True)
-        self.check_symbol(["R3"], True, False, True)
-        self.check_symbol(["C26", "C27"], False, False, True)
+        self.check_symbol(["R1", "R2"], False, True)
+        self.check_symbol(["R3"], True, False)
+        self.check_symbol(["C26", "C27"], False, False)
         self.run_test_command([])
-        self.check_symbol(["R1", "R2", "R3"], True, False, False)
-        self.check_symbol(["C26", "C27"], False, False, True)
+        self.check_symbol(["R1", "R2", "R3"], True, False)
+        self.check_symbol(["C26", "C27"], False, False)
 
     def test_clean_footprint(self) -> None:
         "Test if DNP footprints have `Exclude from pos files` and `Exclude from bill of material` fields set correctly"
@@ -172,18 +164,15 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             if ref == "R1" or ref == "R2":
                 set_property(s, "DNP", "DNP")
                 s.dnp = False
-                s.inBom = True
             if ref == "R3":
                 s.properties = remove_property(s, "DNP")
                 s.dnp = True
-                s.inBom = True
         sch.to_file()
 
         pcb = Board().from_file(self.kpro.pcb_file)
         for fp in pcb.footprints:
             ref = get_property(fp, "Reference")
             if ref == "R1":
-                fp.attributes.excludeFromBom = False
                 fp.attributes.excludeFromPosFiles = False
         pcb.to_file()
         prettify(self.kpro, argparse.Namespace())
