@@ -45,7 +45,7 @@ class SchProject:
                     sheet.in_bom,
                     list(
                         itertools.chain.from_iterable(
-                            [re.split("[,;\s]", p.value) for p in sheet.properties if p.key == "Variant"]
+                            [re.split(r"[,;\s]", p.value) for p in sheet.properties if p.key == "Variant"]
                         )
                     ),
                 )

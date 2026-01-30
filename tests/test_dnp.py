@@ -110,7 +110,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             with self.assertRaises(SystemExit) as se:
                 self.run_test_command(["-l"])
         self.assertIn(
-            "There are 3 schematic components that have their DNP properties malformed:",
+            "There are 2 schematic components that have their DNP properties malformed:",
             log.output[0][18:96],
         )
         self.assertEqual(se.exception.code, 1)

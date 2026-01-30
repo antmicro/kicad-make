@@ -78,7 +78,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     if cleanup_count > 0 and args.list_broken:
         log.warning(
             f"There are {cleanup_count} schematic components that "
-            f'have their DNP properties malformed: [{" ".join(cleanup_list)}].'
+            f"have their DNP properties malformed: [{' '.join(cleanup_list)}]."
         )
         sys.exit(1)
     if cleanup_count > 0:
