@@ -9,12 +9,12 @@ log = logging.getLogger(__name__)
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
-    parser = subparsers.add_parser("prettify", help="Pretify files to conform with KiCad formatter")
+    parser = subparsers.add_parser("prettify", help="Prettify files to conform with KiCad formatter")
     parser.set_defaults(func=run)
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
-    log.info("Prettyfying kicad files")
+    log.info("Prettifying KiCad files")
     prettify_file(Path(kicad_project.pcb_file))
     for sch_file in kicad_project.all_sch_files:
         prettify_file(Path(sch_file))
