@@ -21,10 +21,10 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         self.reset_repo()
 
     def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False) -> None:
-        """Check if symbol have DNP fields
+        """Check if symbols have DNP attribute
 
         Parameters:
-            components: List of designator to check
+            components: List of designators to check
             dnp: Define if component is DNP
             dnp_field: Allow component to have a DNP field (when dnp is set to False)
         """
@@ -50,7 +50,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         self.assertEqual(components_checked, len(components), "Not all components checked, internal test error")
 
     def check_footprint(self, components: List[str], dnp: bool) -> None:
-        """Check if footprints have `Exclude from position files` and `Exclude from bill of material` fields valid
+        """Check if footprints have `Do not populate` attribute valid
 
         Parameters:
             component: List of designators to check
@@ -62,14 +62,13 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         footprints_checked = 0
         for footprint_id in range(0, footprints_count):
             footprint = footprints[footprint_id]
-            attributes = footprint.attributes
             designator = get_property(footprint, "Reference")
             if designator in components:
                 if dnp:
-                    self.assertEqual(attributes.excludeFromPosFiles, True, f"{designator} Not excluded from POS files")
+                    self.assertEqual(footprint.attributes.dnp, True, f"{designator} not set to 'Do not populate'")
                     footprints_checked += 1
                 else:
-                    self.assertEqual(attributes.excludeFromPosFiles, False, f"{designator} Excluded from POS files")
+                    self.assertEqual(footprint.attributes.dnp, False, f"{designator} set to 'Do not populate'")
                     footprints_checked += 1
         self.assertEqual(footprints_checked, len(components), "Not all components checked internal test error")
 
@@ -98,34 +97,34 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             if designator in components:
                 paste_counter = self.check_paste_layer(footprint)
                 if dnp:
-                    self.assertEqual(paste_counter, 0, "Paste wasnt removed from all pads")
+                    self.assertEqual(paste_counter, 0, "Paste wasn't removed from all pads")
                 else:
                     self.assertEqual(paste_counter, len(footprint.pads))
                 footprints_checked += 1
         self.assertEqual(len(components), footprints_checked, "Not all components checked internal test error")
 
     def test_list_malformed(self) -> None:
-        """Test output for -l command (list malformed)"""
+        """Test output for only listing malformed DNP properties"""
         with self.assertLogs(level=logging.WARNING) as log:
             with self.assertRaises(SystemExit) as se:
                 self.run_test_command(["-l"])
         self.assertIn(
-            "There are 2 schematic components that have their DNP properties malformed:",
-            log.output[0][18:96],
+            "Malformed DNP properties found in 2 schematic components:",
+            log.output[0][21:78],
         )
         self.assertEqual(se.exception.code, 1)
 
     def test_clean_symbol(self) -> None:
-        "Test if dnp symbols have `Exlude from bill of materials` and `Do not populate` fields set correctly"
+        "Test if dnp symbols have `Do not populate` attribute set correctly"
         self.check_symbol(["R1", "R2"], False, True)
         self.check_symbol(["R3"], True, False)
         self.check_symbol(["C26", "C27"], False, False)
-        self.run_test_command([])
+        self.run_test_command(["--fix-legacy"])
         self.check_symbol(["R1", "R2", "R3"], True, False)
         self.check_symbol(["C26", "C27"], False, False)
 
     def test_clean_footprint(self) -> None:
-        "Test if DNP footprints have `Exclude from pos files` and `Exclude from bill of material` fields set correctly"
+        "Test if DNP footprints have `Do not populate` attribute set correctly"
         self.check_footprint(["R1"], False)
         self.check_footprint(["R6"], False)
         self.run_test_command([])
@@ -133,7 +132,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         self.check_footprint(["R6"], False)
 
     def test_remove_restore_paste(self) -> None:
-        "Test if solder pasted was removed and restored from DNP components"
+        "Test if solder paste was removed and restored from DNP components"
         self.check_paste(["R1"], False)
         self.check_paste(["C26"], False)
         self.run_test_command(["--remove-dnp-paste"])
@@ -171,8 +170,8 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
 
         pcb = Board().from_file(self.kpro.pcb_file)
         for fp in pcb.footprints:
-            ref = get_property(fp, "Reference")
-            if ref == "R1":
-                fp.attributes.excludeFromPosFiles = False
+            if get_property(fp, "Reference") == "R1":
+                fp.attributes.dnp = False
+                fp.attributes.excludeFromBom = True
         pcb.to_file()
         prettify(self.kpro, argparse.Namespace())
