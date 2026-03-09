@@ -4,6 +4,8 @@ from pathlib import Path
 
 from kmake_test_common import KmakeTestCase
 
+GERBER_FLASH_APERTURE = "D03*"
+
 
 class GerberTest(KmakeTestCase, unittest.TestCase):
 
@@ -16,7 +18,7 @@ class GerberTest(KmakeTestCase, unittest.TestCase):
         for file_path in file_paths:
             if file_path.exists():
                 with open(file_path) as f:
-                    count += sum(1 for line in f if "D03*" in line)
+                    count += sum(1 for line in f if GERBER_FLASH_APERTURE in line)
         return count
 
     def test_gerber(self) -> None:
