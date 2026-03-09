@@ -1,12 +1,17 @@
 import argparse
 import logging
+import tempfile
+from pathlib import Path
 from typing import List, Optional
 
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
+from kiutils.board import Board, Footprint
+
 from common.kicad_project import KicadProject
-from common.kmake_helper import run_kicad_cli, tag_gerbers
+from common.kmake_helper import run_kicad_cli, tag_gerbers, get_property
+from .prettify import prettify_file
 
 log = logging.getLogger(__name__)
 
@@ -35,31 +40,77 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         dest="drill_origin",
         help="Set drill file origin to absolute origin or plot (relative).",
     )
+    gerber_parser.add_argument(
+        "-rp",
+        "--remove-dnp-paste",
+        dest="no_dnp_paste",
+        action="store_true",
+        help="Remove solder paste from DNP footprints.",
+    )
+    gerber_parser.add_argument(
+        "-atp",
+        "--add-tht-paste",
+        dest="add_tht_paste",
+        action="store_true",
+        help="Add solder paste on THT footprints.",
+    )
     gerber_parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
-    kicad_project.create_fab_dir()
+# Add a layer to pad's layer list
+def add_pad_layer(layers_list: List[str], layer: str) -> None:
+    if layer not in layers_list:
+        layers_list.append(layer)
 
-    common_layers = []  # comma separated list of layers names
 
-    if not args.noedge:
-        common_layers.append("Edge.Cuts")
+# Adds Paste layer on THT pads of footprint
+def add_fp_tht_paste(footprint: Footprint) -> bool:
+    modified = False
+    for pad in [pad for pad in footprint.pads if pad.type == "thru_hole"]:
+        for layer in ["*.Cu", "F.Cu", "B.Cu"]:
+            if layer in pad.layers:
+                add_pad_layer(pad.layers, layer[:-2] + "Paste")
+                modified = True
+    return modified
 
-    export_gerbers(
-        kicad_project,
-        output_folder=f"{kicad_project.dir}/fab/",
-        common_layers=common_layers,
-        verbose=args.debug,
-    )
 
-    export_drill(
-        kicad_project.pcb_file,
-        f"{kicad_project.dir}/fab/",
-        excellon=args.excellon,
-        origin=args.drill_origin,
-    )
+# Remove Paste layer from DNP footprint
+def remove_fp_dnp_paste(footprint: Footprint) -> bool:
+    modified = False
+    for pad in footprint.pads:
+        for layer in ["*.Paste", "F.Paste", "B.Paste"]:
+            if layer in pad.layers:
+                pad.layers.remove(layer)
+                modified = True
+    return modified
 
+
+# Adds Paste layer on THT pads of SMD/THT footprints
+def add_pcb_tht_paste(board: Board) -> None:
+    for fp in board.footprints:
+        if fp.attributes.type:
+            if add_fp_tht_paste(fp):
+                log.debug(f"Added solder paste on THT pads of {get_property(fp, 'Reference')}")
+
+
+# Removes Paste layer from DNP footprints
+def remove_pcb_dnp_paste(board: Board) -> None:
+    for fp in board.footprints:
+        if fp.attributes.dnp:
+            if remove_fp_dnp_paste(fp):
+                log.debug(f"Removed solder paste from DNP footprint {get_property(fp, 'Reference')}")
+
+
+# rename gerber/drill files
+def rename_gbr_files(gbr_dir: str, temp_name: str, prj_name: str) -> None:
+    extensions = [".gbr", ".drl", ".gbrjob"]
+    for file_path in Path(gbr_dir).rglob("*"):
+        if file_path.suffix in extensions:
+            file_path.rename(str(file_path).replace(temp_name, prj_name))
+
+
+# Stamp gerber files with short commit SHA
+def stamp_gerbers(kicad_project: KicadProject) -> None:
     try:
         kicad_project_repo = Repo(f"{kicad_project.dir}")
         modified_files = kicad_project_repo.index.diff(None)
@@ -75,8 +126,44 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         return
 
 
+def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+    kicad_project.create_fab_dir()
+
+    common_layers = []  # comma separated list of layers names
+
+    if not args.noedge:
+        common_layers.append("Edge.Cuts")
+
+    board = Board.from_file(kicad_project.pcb_file)
+    log.info("Creating tmp PCB for manipulation and using it for output generation")
+    with tempfile.NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as temporary_board_file:
+        board.filePath = temporary_board_file.name
+        if args.add_tht_paste:
+            add_pcb_tht_paste(board)
+        if args.no_dnp_paste:
+            remove_pcb_dnp_paste(board)
+        board.to_file(board.filePath)
+        prettify_file(Path(board.filePath))
+
+        export_gerbers(
+            board.filePath,
+            output_folder=f"{kicad_project.dir}/fab/",
+            common_layers=common_layers,
+            verbose=args.debug,
+        )
+        export_drill(
+            board.filePath,
+            f"{kicad_project.dir}/fab/",
+            excellon=args.excellon,
+            origin=args.drill_origin,
+        )
+        rename_gbr_files(f"{kicad_project.dir}/fab/", Path(board.filePath).stem, kicad_project.name)
+
+        stamp_gerbers(kicad_project)
+
+
 def export_gerbers(
-    kicad_project: KicadProject,
+    input_pcb_file: str,
     output_folder: str = '""',
     layers: str = "",
     exclude_refdes: bool = False,
@@ -100,7 +187,7 @@ def export_gerbers(
         "pcb",
         "export",
         "gerbers",
-        kicad_project.pcb_file,
+        input_pcb_file,
         "-o",
         output_folder,
         "--layers",
@@ -108,7 +195,6 @@ def export_gerbers(
         "--precision",
         str(precision),
     ]
-
     if common_layers is not None and len(common_layers) > 0:
         gerbers_export_cli_command.extend(["--common-layers"])
         gerbers_export_cli_command.extend(common_layers)
@@ -133,7 +219,7 @@ def export_gerbers(
         gerbers_export_cli_command.extend(["--no-protel-ext"])
 
     run_kicad_cli(gerbers_export_cli_command, verbose)
-    log.info("Exported gerbers to : %s", output_folder)
+    log.info("Exported gerbers to: %s", output_folder)
 
 
 def export_drill(
@@ -161,4 +247,4 @@ def export_drill(
         drill_export_cli_command.extend(["--format", "gerber"])
 
     run_kicad_cli(drill_export_cli_command, False)
-    log.info("Exported drill files to : %s", output_folder)
+    log.info("Exported drill files to: %s", output_folder)
