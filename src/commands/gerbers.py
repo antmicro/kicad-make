@@ -7,13 +7,18 @@ from typing import List, Optional
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
-from kiutils.board import Board, Footprint
+from askiff.kistruct.board import Board
+from askiff.kistruct.footprint import Footprint
+from askiff.kistruct.common_pcb import Layer
 
 from common.kicad_project import KicadProject
-from common.kmake_helper import run_kicad_cli, tag_gerbers, get_property
+from common.kmake_helper import run_kicad_cli, tag_gerbers
 from .prettify import prettify_file
 
 log = logging.getLogger(__name__)
+
+PASTE_LAYERS = [Layer.PASTE_B, Layer.PASTE_F]
+# potentially this could be PASTE_ALL in askiff?
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -64,13 +69,12 @@ def add_pad_layer(layers_list: List[str], layer: str) -> None:
 
 
 # Adds Paste layer on THT pads of footprint
+# Assumes THT pad always has F and B
 def add_fp_tht_paste(footprint: Footprint) -> bool:
     modified = False
     for pad in [pad for pad in footprint.pads if pad.type == "thru_hole"]:
-        for layer in ["*.Cu", "F.Cu", "B.Cu"]:
-            if layer in pad.layers:
-                add_pad_layer(pad.layers, layer[:-2] + "Paste")
-                modified = True
+        pad.layers.extend(PASTE_LAYERS)
+        modified = True
     return modified
 
 
@@ -78,7 +82,7 @@ def add_fp_tht_paste(footprint: Footprint) -> bool:
 def remove_fp_dnp_paste(footprint: Footprint) -> bool:
     modified = False
     for pad in footprint.pads:
-        for layer in ["*.Paste", "F.Paste", "B.Paste"]:
+        for layer in PASTE_LAYERS:
             if layer in pad.layers:
                 pad.layers.remove(layer)
                 modified = True
@@ -88,9 +92,9 @@ def remove_fp_dnp_paste(footprint: Footprint) -> bool:
 # Adds Paste layer on THT pads of SMD/THT footprints
 def add_pcb_tht_paste(board: Board) -> None:
     for fp in board.footprints:
-        if fp.attributes.type:
-            if add_fp_tht_paste(fp):
-                log.debug(f"Added solder paste on THT pads of {get_property(fp, 'Reference')}")
+        # if fp.attributes.through_hole: # TBD: this omits non-THT footprints, but some mixed connectors are defined as SMD
+        if add_fp_tht_paste(fp):
+            log.debug(f"Added solder paste on THT pads of {fp.properties.ref.value}")
 
 
 # Removes Paste layer from DNP footprints
@@ -98,7 +102,7 @@ def remove_pcb_dnp_paste(board: Board) -> None:
     for fp in board.footprints:
         if fp.attributes.dnp:
             if remove_fp_dnp_paste(fp):
-                log.debug(f"Removed solder paste from DNP footprint {get_property(fp, 'Reference')}")
+                log.info(f"Removed solder paste from DNP footprint {fp.properties.ref.value}")
 
 
 # rename gerber/drill files
@@ -134,7 +138,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     if not args.noedge:
         common_layers.append("Edge.Cuts")
 
-    board = Board.from_file(kicad_project.pcb_file)
+    board = Board.from_file(Path(kicad_project.pcb_file))
     log.info("Creating tmp PCB for manipulation and using it for output generation")
     with tempfile.NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as temporary_board_file:
         board.filePath = temporary_board_file.name
@@ -142,7 +146,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             add_pcb_tht_paste(board)
         if args.no_dnp_paste:
             remove_pcb_dnp_paste(board)
-        board.to_file(board.filePath)
+        board.to_file(Path(board.filePath))
         prettify_file(Path(board.filePath))
 
         export_gerbers(
