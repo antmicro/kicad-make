@@ -7,8 +7,9 @@ import re
 from typing import Dict, List
 from pathlib import Path
 
-from kiutils.board import Board
-from kiutils.items.brditems import LayerToken, Via
+from askiff.kistruct.board import Board, Via
+from askiff.kistruct.common_pcb import Layer, LayerCopper, Net
+from kiutils.items.brditems import LayerToken
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -23,69 +24,57 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
     log.info("Loading net classes from project file")
+
     with open(kicad_project.pro_file) as f:
         j = json.load(f)
 
-    net_classes = NetClass.load_net_classes(j)
-
-    if not len(kicad_project.pcb_file):
+    if not kicad_project.pcb_file:
         log.error("PCB file was not detected or does not exists")
         return
 
     log.info("Loading PCB")
-    board = Board.from_file(kicad_project.pcb_file)
 
-    # Count number of copper layers
-    copper_lcount = 0
-    for layer in board.layers:
-        if "Cu" in layer.name:
-            copper_lcount += 1
-
-    start_layer_id = copper_lcount - 1
-    last_layer_id = start_layer_id
+    board = Board.from_file(Path(kicad_project.pcb_file))
+    net_classes: list[NetClass] = NetClass.load_net_classes(j)
 
     layers: Dict[str, int] = {}
 
     log.info("Processing board items")
+    last_cu_id = max([layer.layer.order_id() for layer in board.layer_map if ".Cu" in layer.layer.value])
+
     # Mark non-impedance controlled traces for removal
-    for item in board.traceItems:
-        item.dirty = True
+    # for item in board.traces:
+    #     item.dirty = True
 
     for net_class in net_classes:
-        net_impedance = net_class.name.split("_")[0]
-        if "ohm-" not in net_impedance.lower():
+        if not net_class.impedance:
             continue
 
-        target_layer = layers.get(net_impedance)
-        if target_layer is None:
-            board.layers.append(LayerToken(last_layer_id, f"In{last_layer_id}.Cu", userName=net_impedance))
-            layers[net_impedance] = last_layer_id
-            target_layer = last_layer_id
-            last_layer_id += 1
+        target_layer = net_class.impedance
 
-        nets = []
-        for pattern in net_class.patterns:
-            for net in board.nets:
-                if re.match(pattern, net.name):
-                    nets.append(net.number)
+        # if target_layer is None:
+        #     board.layer_map.append(Layer(last_cu_id, f"In{last_cu_id}.Cu"))
+        #     layers[net_class.impedance] = last_cu_id
+        #     target_layer = last_cu_id
+        #     last_cu_id += 1
+        for trace in board.traces:
+            # print(item.net)
 
-        for item in board.traceItems:
-            if isinstance(item, Via):
+            if not net_class.contains(trace.net):
                 continue
-            if item.net not in nets:
+            if isinstance(trace, Via):
                 continue
 
-            item.layers = [f"In{target_layer}.Cu"]
-            item.dirty = False
+            trace.layers = [f"In{target_layer}.Cu"]
 
-    board.traceItems = [i for i in board.traceItems if not i.dirty]
+    board.traceItems = [i for i in board.traces if not i.dirty]
     board.footprints = []
     board.zones = []
 
     log.info("Saving the generated impedance map")
     kicad_project.create_fab_dir()
     pcb_file = os.path.join(kicad_project.fab_dir, "impedance_map.kicad_pcb")
-    board.to_file(pcb_file)
+    board.to_file(Path(pcb_file))
 
     log.info("Plotting gerbers")
     output_folder = Path(kicad_project.fab_dir) / "impedance_maps"
@@ -123,11 +112,8 @@ def export_impedance_gerbers(pcb_file: str, output_folder: Path) -> None:
 class NetClass:
     def __init__(self, class_json: Dict, patterns: List) -> None:
         self.name = class_json["name"]
-
-        self.patterns = []
-        for pattern in patterns:
-            if pattern["netclass"] == self.name:
-                self.patterns.append(pattern["pattern"])
+        self.patterns = [pattern["pattern"] for pattern in patterns if pattern["netclass"] == self.name]
+        self.impedance: int | None = self.name.split("_")[0] if "ohm-" in self.name.lower() else None
 
         logging.debug(f"Patterns in class {self.name}: {self.patterns}")
 
@@ -159,3 +145,9 @@ class NetClass:
         for class_json in classes_json:
             net_classes.append(NetClass(class_json, classes_patterns))
         return net_classes
+
+    def contains(self, net: Net) -> bool:
+        try:
+            return any([re.match(pattern, net.name) for pattern in self.patterns])
+        except TypeError:
+            return False
