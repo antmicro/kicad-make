@@ -4,11 +4,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from kiutils.board import Board
+from askiff.kistruct.board import Board
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
-from .prettify import prettify_file
 
 log = logging.getLogger(__name__)
 
@@ -52,24 +51,29 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 def convert_other_to_smd(board: Board) -> Board:
     """Converts components of type `undefined` to `smd` type"""
     for footprint in board.footprints:
-        if footprint.attributes.type is None:
-            footprint.attributes.type = "smd"
+        if (
+            not footprint.attributes.smd
+            and not footprint.attributes.through_hole
+            and not footprint.attributes.board_only
+        ):
+            footprint.attributes.smd = True
     return board
 
 
-def convert_virual_to_smd(board: Board) -> Board:
+def convert_virtual_to_smd(board: Board) -> Board:
     """Converts components of type `virtual` to `smd` type"""
     for footprint in board.footprints:
-        if footprint.attributes.type == "virtual":
-            footprint.attributes.type = "smd"
+        if footprint.attributes.board_only:
+            footprint.attributes.board_only = False
+            footprint.attributes.smd = True
     return board
 
 
 def unset_exclude_from_position_file(board: Board) -> Board:
     """Unsets `Exclude from position file` field on the components"""
     for footprint in board.footprints:
-        if footprint.attributes.excludeFromPosFiles is True:
-            footprint.attributes.excludeFromPosFiles = False
+        if footprint.attributes.exclude_from_pos_files:
+            footprint.attributes.exclude_from_pos_files = False
     return board
 
 
@@ -89,17 +93,27 @@ def export_pnp(
 ) -> None:
     """Generate pick and place position file from the given PCB file."""
 
-    assert board != "", "Empty board filename"
-    assert output_file_name != "", "Empty output file name"
+    if board == "":
+        raise AttributeError("Board filename can't be an empty string")
+    if output_file_name == "":
+        raise AttributeError("Output file name can't be an empty string")
+    if gerber_board_edge and output_format != "gerber":
+        raise AttributeError("Output format must be 'gerber' for gerber_board_edge")
 
-    pnp_export_cli_command = ["pcb", "export", "pos"]
-
-    if gerber_board_edge:
-        assert output_format == "gerber", "gerber_board_edge supported only in gerber format"
-
-    pnp_export_cli_command.extend(
-        [board, "-o", output_file_name, "--format", output_format, "--units", units, "--side", side]
-    )
+    pnp_export_cli_command = [
+        "pcb",
+        "export",
+        "pos",
+        board,
+        "-o",
+        output_file_name,
+        "--format",
+        output_format,
+        "--units",
+        units,
+        "--side",
+        side,
+    ]
 
     if bottom_negate_x:
         pnp_export_cli_command.extend(["--bottom-negate-x"])
@@ -129,20 +143,19 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     if args.virtual or args.excluded or args.other:
         log.info("Loading PCB")
-        board = Board.from_file(kicad_project.pcb_file)
+        board = Board.from_file(Path(kicad_project.pcb_file))
+
         log.info("Creating tmp PCB for manipulation and using it for output generation")
         temporary_board_file = tempfile.NamedTemporaryFile(suffix=".kicad_pcb")
-        board.filePath = temporary_board_file.name
 
         if args.virtual:
-            convert_virual_to_smd(board)
+            convert_virtual_to_smd(board)
         if args.other:
             convert_other_to_smd(board)
         if args.excluded:
             unset_exclude_from_position_file(board)
 
-        board.to_file(temporary_board_file.name)
-        prettify_file(Path(temporary_board_file.name))
+        board.to_file(Path(temporary_board_file.name))
         board_path = temporary_board_file.name
 
     pnp_path_base = f"{kicad_project.fab_dir}/{kicad_project.name}"
