@@ -9,11 +9,11 @@ from git.exc import InvalidGitRepositoryError
 
 from askiff.kistruct.board import Board
 from askiff.kistruct.footprint import Footprint
+from askiff.kistruct.fp_pad import PadTHT
 from askiff.kistruct.common_pcb import Layer
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli, tag_gerbers
-from .prettify import prettify_file
 
 log = logging.getLogger(__name__)
 
@@ -62,17 +62,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     gerber_parser.set_defaults(func=run)
 
 
-# Add a layer to pad's layer list
-def add_pad_layer(layers_list: List[str], layer: str) -> None:
-    if layer not in layers_list:
-        layers_list.append(layer)
-
-
 # Adds Paste layer on THT pads of footprint
 # Assumes THT pad always has F and B
 def add_fp_tht_paste(footprint: Footprint) -> bool:
     modified = False
-    for pad in [pad for pad in footprint.pads if pad.type == "thru_hole"]:
+    for pad in (pad for pad in footprint.pads if isinstance(pad, PadTHT)):
         pad.layers.extend(PASTE_LAYERS)
         modified = True
     return modified
@@ -118,13 +112,17 @@ def stamp_gerbers(kicad_project: KicadProject) -> None:
     try:
         kicad_project_repo = Repo(f"{kicad_project.dir}")
         modified_files = kicad_project_repo.index.diff(None)
+
         for file_path in modified_files:
-            if "pcb" in file_path.a_path:  # type: ignore
+            if not file_path.a_path:
+                continue
+            if "pcb" in file_path.a_path:
                 log.warning("%s changed since last commit", file_path.a_path)
 
         sha = kicad_project_repo.head.commit.hexsha
         short_sha = kicad_project_repo.git.rev_parse(sha, short=7)
         tag_gerbers(f"{kicad_project.dir}/fab", short_sha)
+
     except InvalidGitRepositoryError:
         log.warning("Project is not in repository. Githash not added.")
         return
@@ -132,36 +130,34 @@ def stamp_gerbers(kicad_project: KicadProject) -> None:
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     kicad_project.create_fab_dir()
+    board = Board.from_file(Path(kicad_project.pcb_file))
 
     common_layers = []  # comma separated list of layers names
-
     if not args.noedge:
         common_layers.append("Edge.Cuts")
 
-    board = Board.from_file(Path(kicad_project.pcb_file))
     log.info("Creating tmp PCB for manipulation and using it for output generation")
     with tempfile.NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as temporary_board_file:
-        board.filePath = temporary_board_file.name
         if args.add_tht_paste:
             add_pcb_tht_paste(board)
         if args.no_dnp_paste:
             remove_pcb_dnp_paste(board)
-        board.to_file(Path(board.filePath))
-        prettify_file(Path(board.filePath))
+
+        board.to_file(Path(temporary_board_file.name))
 
         export_gerbers(
-            board.filePath,
+            temporary_board_file.name,
             output_folder=f"{kicad_project.dir}/fab/",
             common_layers=common_layers,
             verbose=args.debug,
         )
         export_drill(
-            board.filePath,
+            temporary_board_file.name,
             f"{kicad_project.dir}/fab/",
             excellon=args.excellon,
             origin=args.drill_origin,
         )
-        rename_gbr_files(f"{kicad_project.dir}/fab/", Path(board.filePath).stem, kicad_project.name)
+        rename_gbr_files(f"{kicad_project.dir}/fab/", Path(temporary_board_file.name).stem, kicad_project.name)
 
         stamp_gerbers(kicad_project)
 
@@ -199,7 +195,7 @@ def export_gerbers(
         "--precision",
         str(precision),
     ]
-    if common_layers is not None and len(common_layers) > 0:
+    if common_layers:
         gerbers_export_cli_command.extend(["--common-layers"])
         gerbers_export_cli_command.extend(common_layers)
 
