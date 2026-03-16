@@ -3,12 +3,12 @@ import argparse
 import logging
 import math
 from typing import List
-from kiutils.board import Board
-from kiutils.schematic import Position
-from kiutils.items.gritems import GrCircle, GrArc, GrPoly
-from kiutils.items.common import BaseArc
+from pathlib import Path
+from askiff.kistruct.board import Board
+from askiff.kistruct.common_pcb import Layer
+from askiff.kistruct.gritems import GrCircle, GrArcPCB, GrPoly
+from askiff.kistruct.common import BaseArc, Position
 
-from .prettify import run as prettify
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ def find_arc_extrema(circle_x: float, circle_y: float, r: float, arc: BaseArc) -
     # Add arc defining points as potential extremum
     extrema = [(arc.start.X, arc.start.Y), (arc.mid.X, arc.mid.Y), (arc.end.X, arc.end.Y)]
 
-    # Add extremum occuring for arc on axes
+    # Add extremum occurring for arc on axes
     for candidate_angle in [0, math.pi / 2, math.pi, 3 * math.pi / 2]:
         x_extreme = circle_x + r * math.cos(candidate_angle)
         y_extreme = circle_y + r * math.sin(candidate_angle)
@@ -122,23 +122,24 @@ def handle_arc(arc: BaseArc, x: List[float], y: List[float]) -> None:
 
 
 def set_aux_origin_on_size(board: Board, side: str) -> None:
-    log.info("Reading PCB dimmmensions")
+    log.info("Reading PCB dimensions")
     x = []
     y = []
-    for item in board.graphicItems:
-        if item.layer != "Edge.Cuts":
+    for item in board.graphic_items:
+        if item.layers != {Layer.EDGE}:
             continue
+
         # Circle case
         if isinstance(item, GrCircle):
             # Coordinates of the square circumscribed by circle
-            r = math.hypot(item.center.X - item.end.X, item.center.Y - item.end.Y)
-            x.append(item.center.X + r)
-            x.append(item.center.X - r)
-            y.append(item.center.Y + r)
-            y.append(item.center.Y - r)
+            r = math.hypot(item.center.x - item.end.x, item.center.y - item.end.y)
+            x.append(item.center.x + r)
+            x.append(item.center.x - r)
+            y.append(item.center.y + r)
+            y.append(item.center.y - r)
             continue
         # Arc case
-        if isinstance(item, GrArc):
+        if isinstance(item, GrArcPCB):
             handle_arc(item, x, y)
             continue
         # Poly case
@@ -152,37 +153,41 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
             continue
         # Rectangle, segment case
         if hasattr(item, "start"):
-            y.append(item.start.Y)
-            x.append(item.start.X)
+            y.append(item.start.y)
+            x.append(item.start.x)
         if hasattr(item, "end"):
-            x.append(item.end.X)
-            y.append(item.end.Y)
+            x.append(item.end.x)
+            y.append(item.end.y)
 
     for footprint in board.footprints:
         if footprint.position is None:
             continue
-        for item in footprint.graphicItems:
-            if item.layer == "Edge.Cuts":
-                ref = next((p.value for p in footprint.properties if p.key == "Reference"), None)
-                if not hasattr(item, "start"):
-                    log.warning(f"{ref} has graphicItem without start parameter")
-                    continue
 
-                angle = math.radians(-footprint.position.angle if footprint.position.angle is not None else 0)
-                sina, cosa = math.sin(angle), math.cos(angle)
+        for item in footprint.graphic_items:
+            if item.layers != {Layer.EDGE}:
+                continue
 
-                if angle != 0:
-                    log.debug(f"Angle of {ref} is {angle}")
-                x.append(item.start.X * cosa - item.start.Y * sina + footprint.position.X)
-                x.append(item.end.X * cosa - item.end.Y * sina + footprint.position.X)
-                y.append(item.start.Y * cosa - item.start.X * sina + footprint.position.Y)
-                y.append(item.end.Y * cosa - item.end.X * sina + footprint.position.Y)
+            ref = next((p.value for p in footprint.properties if p.key == "Reference"), None)
+            if not hasattr(item, "start"):
+                log.warning(f"{ref} has graphicItem without start parameter")
+                continue
 
-                log.debug(f"Coordinates of {ref}")
-                log.debug(f"  X start: {x[-2]}")
-                log.debug(f"  X end: {x[-1]}")
-                log.debug(f"  Y start: {y[-2]}")
-                log.debug(f"  Y end: {y[-1]}")
+            angle = math.radians(-footprint.position.angle if footprint.position.angle is not None else 0)
+            sina, cosa = math.sin(angle), math.cos(angle)
+
+            if angle != 0:
+                log.debug(f"Angle of {ref} is {angle}")
+
+            x.append(item.start.x * cosa - item.start.Y * sina + footprint.position.x)
+            x.append(item.end.x * cosa - item.end.Y * sina + footprint.position.x)
+            y.append(item.start.y * cosa - item.start.X * sina + footprint.position.y)
+            y.append(item.end.y * cosa - item.end.X * sina + footprint.position.y)
+
+            log.debug(f"Coordinates of {ref}")
+            log.debug(f"  X start: {x[-2]}")
+            log.debug(f"  X end: {x[-1]}")
+            log.debug(f"  Y start: {y[-2]}")
+            log.debug(f"  Y end: {y[-1]}")
 
     if "r" in side:
         aux_x = max(x)
@@ -205,7 +210,7 @@ def set_aux_origin(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         sys.exit(1)
 
     log.info("Loading PCB")
-    board = Board.from_file(ki_pro.pcb_file)
+    board = Board.from_file(Path(ki_pro.pcb_file))
     if args.reset:
         set_aux_axis_origin(board, 0, 0)
     elif args.position:
@@ -213,4 +218,3 @@ def set_aux_origin(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         set_aux_axis_origin(board, x, y)
     else:
         set_aux_origin_on_size(board, args.side)
-    prettify(ki_pro, argparse.Namespace())
