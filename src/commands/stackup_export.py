@@ -5,22 +5,20 @@ import csv
 import json
 import logging
 import os
-import sys
-from typing import Any, Dict, List, Union
+from typing import Any
+from pathlib import Path
+import enum
 
-from kiutils.board import Board
-from kiutils.items.brditems import StackupLayer, LayerToken
-
+from askiff.kistruct.board import Board, StackupLayer, LayerDef, StackupLayerDielectricSubLayer
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
 
-
 # Minor version should be with any changes to format.
 # Major only when breaking changes are implemented
 FORMAT_VERSION = "1.0"
-
 FILENAME = "stackup"
+DEF_KEYS = ["name", "type", "color", "material", "thickness", "epsilon_r", "loss_tangent", "user_name"]
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -36,78 +34,79 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     stackup_export_parser.set_defaults(func=run)
 
 
+def get_layerdef(layer: StackupLayer, layer_map: list[LayerDef]) -> LayerDef | None:
+    """Get LayerDef from board's LayerMap corresponding to passed StackupLayer."""
+
+    for lm_layer in layer_map:
+        if layer.layer == lm_layer.layer:
+            return lm_layer
+    return None
+
+
+def get_layer_dict(layer: StackupLayer | StackupLayerDielectricSubLayer) -> dict[str, str | float | None]:
+    """Convert StackupLayer object to a dictionary"""
+
+    layer_dict = dict.fromkeys(DEF_KEYS, None)
+    for key, val in layer.__dict__.items():
+        if not key in DEF_KEYS:
+            continue
+        layer_dict[key] = val
+
+    return layer_dict
+
+
+def get_name(layer: StackupLayer) -> str:
+    """Get layer name"""
+    if isinstance(layer.layer, enum.Enum):
+        return layer.layer.value
+    return layer.layer
+
+
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     """Run stackup-export command"""
-    board = Board().from_file(kicad_project.pcb_file)
-    stackup = {"layers": export_stackup(board)}
+
+    board = Board().from_file(Path(kicad_project.pcb_file))
+    if not board.setup.stackup:
+        raise RuntimeError("Stackup is not set for the project, open the PCB design and save it to update it.")
+
+    layer_dicts = []
+    for layer in board.setup.stackup.layers:
+        layerdef = get_layerdef(layer, board.layer_map)
+        name = get_name(layer)
+        if hasattr(layer, "sublayers"):  # handle layer with sublayers (dielectrics)
+            for idx, sublayer in enumerate(layer.sublayers):
+                sublayer_dict = {k: v for (k, v) in get_layer_dict(sublayer).items() if v}
+                layer_dict = get_layer_dict(layer) | sublayer_dict  # type: ignore
+                layer_dict["name"] = f"{name} ({idx+1}/{len(layer.sublayers)})" if len(layer.sublayers) > 1 else name
+                layer_dict["user_name"] = layerdef.user_name if layerdef else None
+                layer_dicts.append(layer_dict)
+
+        else:  # handle layer without sublayers
+            layer_dict = get_layer_dict(layer)
+            layer_dict["name"] = name
+            layer_dict["user_name"] = layerdef.user_name if layerdef else None
+            layer_dicts.append(layer_dict)
+
     kicad_project.create_fab_dir()
 
     if args.legacy_csv:
         save_csv(
-            stackup["layers"],
+            layer_dicts,
             (
                 args.output_filename
-                if args.output_filename is not None
+                if args.output_filename
                 else os.path.join(kicad_project.relative_fab_path, FILENAME + ".csv")
             ),
         )
     else:
         save_json(
-            stackup,
+            {"layers": layer_dicts},
             (
                 args.output_filename
-                if args.output_filename is not None
+                if args.output_filename
                 else os.path.join(kicad_project.relative_fab_path, FILENAME + ".json")
             ),
         )
-
-
-def export_stackup(board: Board) -> List[Dict[str, Any]]:
-    """Exports stackup as list of layers in custom format"""
-    layers: List[Dict[str, Any]] = []
-    if board.setup.stackup is None:
-        log.error("Stackup wasn't set for the project. " "User needs to open the editor and save it. Aborting")
-        sys.exit(1)
-    for layer in board.setup.stackup.layers:
-        layers.append(export_layer(layer, board.layers))
-        if len(layer.subLayers) > 0:
-            for i, _ in enumerate(layer.subLayers):
-                layers.append(export_layer(layer, board.layers, i))
-    return layers
-
-
-def export_layer(
-    layer: StackupLayer, layer_names: List[LayerToken], sublayer: Union[int, None] = None
-) -> Dict[str, Any]:
-    """Converts kiutils layer representation to our representation.
-    If sublayer is passed script exports it as if it were a layer"""
-    out = {}
-    if len(layer.subLayers) > 0:
-        if sublayer is None:
-            out["name"] = layer.name + " (1/" + str(len(layer.subLayers) + 1) + ")"
-        else:
-            out["name"] = layer.name + " (" + str(sublayer + 2) + "/" + str(len(layer.subLayers) + 1) + ")"
-    else:
-        out["name"] = layer.name
-    out["type"] = layer.type
-    out["color"] = layer.color
-    if sublayer is not None:
-        out["thickness"] = layer.subLayers[sublayer].thickness
-        out["material"] = layer.subLayers[sublayer].material
-        out["epsilon"] = layer.subLayers[sublayer].epsilonR
-        out["lossTangent"] = layer.subLayers[sublayer].lossTangent
-    else:
-        out["thickness"] = layer.thickness
-        out["material"] = layer.material
-        out["epsilon"] = layer.epsilonR
-        out["lossTangent"] = layer.lossTangent
-    user_layer_names: Dict[str, str] = {}
-    for l_name in layer_names:
-        user_layer_names.update(
-            {l_name.name: (l_name.userName if l_name.userName is not None else l_name.name).replace(".", "_")}
-        )
-    out.update({"user-name": user_layer_names.get(out["name"], out["name"])})
-    return out
 
 
 def save_json(obj: Any, filename: str) -> None:
@@ -131,7 +130,7 @@ def save_csv(stackup: Any, filename: str) -> None:
                     layer["type"],
                     layer["material"],
                     layer["thickness"],
-                    layer["epsilon"],
+                    layer["epsilon_r"],
                     layer.get("user-name", layer["name"]),
                 ]
             )
