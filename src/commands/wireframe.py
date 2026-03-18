@@ -3,13 +3,12 @@ import logging
 import os
 import json
 
-from kiutils.board import Board
+from askiff.kistruct.board import Board, Layer, LayerSet
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 
 from .pcb_filter import pcb_filter_run
-from .prettify import prettify_file
 
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import List, Dict, Any
@@ -17,6 +16,95 @@ from pathlib import Path
 import shutil
 
 log = logging.getLogger(__name__)
+
+# (name, filter_args, side)
+PRESETS = [
+    (
+        "simple",
+        dict(
+            stackup=True,
+            dimensions=True,
+            references=True,
+            values=True,
+            std_edge=True,
+            std_graphics=True,
+            ref_filter="-M-A-N-REF**",
+            allowed_layers="User.9,Edge.Cuts",
+            mirror_bottom=True,
+        ),
+        ["top", "bottom"],
+        ["User.9,Edge.Cuts"],
+    ),
+    (
+        "dimensions",
+        dict(
+            stackup=True,
+            references=True,
+            values=True,
+            std_edge=True,
+            std_graphics=True,
+            ref_filter="+J+MH+H+MP",
+            ref_filter_other="+MH+H+MP",
+            allowed_layers="User.9,Edge.Cuts",
+            mirror_bottom=True,
+        ),
+        ["top", "bottom", ""],
+        ["User.9,Edge.Cuts,User.Drawings", "User.9,Edge.Cuts,User.6", "User.9,Edge.Cuts,User.7"],
+    ),
+    (
+        "descriptions",
+        dict(
+            stackup=True,
+            references=True,
+            dimensions=True,
+            values=True,
+            std_edge=True,
+            std_graphics=True,
+            ref_filter="+J+MH+H+MP+SW+TP+D+S",
+            allowed_layers="User.9,Edge.Cuts,User.Comments,User.Eco1,User.Eco2",
+            mirror_bottom=True,
+        ),
+        ["top", "bottom"],
+        ["User.9,Edge.Cuts,User.Comments,User.Eco$numside"],
+    ),
+    (
+        "assembly_drawing",
+        dict(
+            stackup=True,
+            dimensions=True,
+            vias=True,
+            zones=True,
+            std_edge=True,
+            std_graphics=True,
+            ref_filter="-TP-MP-M-A-N-REF**",
+            allowed_layers="User.9,Edge.Cuts,F.SilkS,B.SilkS",
+        ),
+        ["top", "bottom"],
+        "User.9,Edge.Cuts,$side.Fab,$side.Paste".split(","),
+    ),
+    (
+        "margin_frame",
+        dict(std_edge=True, ref_filter="-REF", generate_frame=True),
+        [""],
+        ["Margin"],
+    ),
+    (
+        "first_pads_only",
+        dict(
+            stackup=True,
+            dimensions=True,
+            vias=True,
+            zones=True,
+            std_edge=True,
+            tracks=True,
+            ref_filter="-TP-MP-SP-H-N-REF**",
+            allowed_layers_full="Edge.Cuts",
+            first_pads_only=True,
+        ),
+        ["top", "bottom"],
+        ["$side.Cu"],
+    ),
+]
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -91,119 +179,31 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     if not len(args.input):
         log.error("PCB file was not detected or does not exists")
         return
+
     if not args.svg and not args.gerber:
         args.svg, args.gerber = True, True
 
     if args.reset:
         log.info("Loading PCB")
-        board = Board.from_file(args.input)
+        board = Board.from_file(Path(args.input))
         log.info("Reseting wireframes layer")
 
         for footprint in board.footprints:
             log.debug(f"Processing footprint {footprint.path}")
 
             outline_items = [
-                item for item in footprint.graphicItems if item.layer == "User.9" or item.layer == "User.8"
+                item for item in footprint.graphic_items if item.layers == {Layer.USER9} or item.layers == {Layer.USER8}
             ]
 
             for item in outline_items:
-                item.layer = "User.9"
+                item.layers = LayerSet({Layer.USER9})
 
         log.info("Finished changing layer of outline items for all footprints")
         log.info("Saving PCB")
-        board.to_file(args.input)
-        prettify_file(args.input)
+        board.to_file(Path(args.input))
         return
 
-    # (name, filter_args, side)
-    presets = [
-        (
-            "simple",
-            dict(
-                stackup=True,
-                dimensions=True,
-                references=True,
-                values=True,
-                std_edge=True,
-                std_graphics=True,
-                ref_filter="-M-A-N-REF**",
-                allowed_layers="User.9,Edge.Cuts",
-                mirror_bottom=True,
-            ),
-            ["top", "bottom"],
-            ["User.9,Edge.Cuts"],
-        ),
-        (
-            "dimensions",
-            dict(
-                stackup=True,
-                references=True,
-                values=True,
-                std_edge=True,
-                std_graphics=True,
-                ref_filter="+J+MH+H+MP",
-                ref_filter_other="+MH+H+MP",
-                allowed_layers="User.9,Edge.Cuts",
-                mirror_bottom=True,
-            ),
-            ["top", "bottom", ""],
-            ["User.9,Edge.Cuts,User.Drawings", "User.9,Edge.Cuts,User.6", "User.9,Edge.Cuts,User.7"],
-        ),
-        (
-            "descriptions",
-            dict(
-                stackup=True,
-                references=True,
-                dimensions=True,
-                values=True,
-                std_edge=True,
-                std_graphics=True,
-                ref_filter="+J+MH+H+MP+SW+TP+D+S",
-                allowed_layers="User.9,Edge.Cuts,User.Comments,User.Eco1,User.Eco2",
-                mirror_bottom=True,
-            ),
-            ["top", "bottom"],
-            ["User.9,Edge.Cuts,User.Comments,User.Eco$numside"],
-        ),
-        (
-            "assembly_drawing",
-            dict(
-                stackup=True,
-                dimensions=True,
-                vias=True,
-                zones=True,
-                std_edge=True,
-                std_graphics=True,
-                ref_filter="-TP-MP-M-A-N-REF**",
-                allowed_layers="User.9,Edge.Cuts,F.SilkS,B.SilkS",
-            ),
-            ["top", "bottom"],
-            "User.9,Edge.Cuts,$side.Fab,$side.Paste".split(","),
-        ),
-        (
-            "margin_frame",
-            dict(std_edge=True, ref_filter="-REF", generate_frame=True),
-            [""],
-            ["Margin"],
-        ),
-        (
-            "first_pads_only",
-            dict(
-                stackup=True,
-                dimensions=True,
-                vias=True,
-                zones=True,
-                std_edge=True,
-                tracks=True,
-                ref_filter="-TP-MP-SP-H-N-REF**",
-                allowed_layers_full="Edge.Cuts",
-                first_pads_only=True,
-            ),
-            ["top", "bottom"],
-            ["$side.Cu"],
-        ),
-    ]
-    for preset in presets:
+    for preset in PRESETS:
         if preset[0] == args.preset:
             break
     else:
@@ -217,14 +217,14 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     if args.pcb_filter_args_append:
 
         def append_dict_val(key: str) -> None:
-            pres = preset[1].get(key)
-            if pres is not None:
+            if pres := preset[1].get(key, None):
                 args.pcb_filter_args[key] = pres + args.pcb_filter_args.get(key, "")
 
-        if args.ref_filter is not None:
+        if args.ref_filter:
             args.pcb_filter_args["ref_filter"] = args.ref_filter
-        if args.ref_filter_other is not None:
+        if args.ref_filter_other:
             args.pcb_filter_args["ref_filter_other"] = args.ref_filter_other
+
         append_dict_val("ref_filter")
         append_dict_val("ref_filter_other")
         append_dict_val("allowed_layers")
@@ -232,9 +232,10 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         preset[1].update(args.pcb_filter_args)
     else:
         preset[1].update(args.pcb_filter_args)
-        if args.ref_filter is not None:
+
+        if args.ref_filter:
             preset[1].update({"ref_filter": args.ref_filter})
-        if args.ref_filter_other is not None:
+        if args.ref_filter_other:
             preset[1].update({"ref_filter_other": args.ref_filter_other})
 
     generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args)
@@ -254,10 +255,8 @@ def generate_wireframe(
 
     for side in sides:
         with NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as fp:
-            if side != "":
-                oname_side = f"{oname}_{side}"
-            else:
-                oname_side = f"{oname}"
+
+            oname_side = f"{oname}_{side}" if side != "" else oname
 
             filter_args["outfile"] = fp.name
             filter_args["infile"] = args.input
@@ -268,6 +267,7 @@ def generate_wireframe(
 
             if args.set_ref:
                 reset_footprint_val_props(fp.name)
+
             for layer in export_layers:
                 slayer = layer.split(",")
                 slayer = [substitute_layer_vars(sl, side) for sl in slayer]
@@ -277,6 +277,7 @@ def generate_wireframe(
                     oname_side_l = oname_side
                 else:
                     oname_side_l = oname_side + "_" + layer.split(",")[-1].replace(".", "_")
+
                 if args.svg:
                     export_svg(fp.name, output_folder, oname_side_l, layer, side)
                 if args.gerber:
@@ -322,6 +323,7 @@ def export_gerber(ifile: str, output_folder: str, oname_side_l: str, layer: str)
     outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".gbr")
     base_layer, _, common_layers = layer.partition(",")
     log.info(f"Exporting {layer} gerber to {outfile}")
+
     with TemporaryDirectory() as tempdir:
         gerber_export_cli_command = [
             "pcb",
@@ -368,9 +370,9 @@ def reset_footprint_val_props(file: str) -> None:
         board.Save(file)
         # pcbnew.Refresh() # Used in KiCad scripting console
     except ModuleNotFoundError:
-        log.error("Module `pcbnew`(KiCad API) can not be found!")
+        log.error("Module `pcbnew`(KiCad API) cannot be found!")
         log.warning("Add `pcbnew.py` to paths recognized by python")
-        log.warning("OR run above block code in KiCad scripting console")
+        log.warning("OR run above code block in KiCad scripting console")
         log.error("Footprint value properties has not be set!")
 
 
