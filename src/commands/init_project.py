@@ -4,14 +4,13 @@ import sys
 import datetime
 import os
 
-from kiutils.items.common import TitleBlock
-from kiutils.board import Board
-from kiutils.schematic import Schematic
-from kiutils.items.common import PageSettings
-from common.kicad_project import KicadProject
-from .prettify import run as prettify
-from typing import Union
+from askiff.kistruct.common import TitleBlock, Paper
+from askiff.kistruct.board import Board
 
+from kiutils.schematic import Schematic
+from common.kicad_project import KicadProject
+from typing import Union
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     init_project_parser.add_argument("-c", "--company", dest="company", help="Company name.")
     init_project_parser.add_argument("-t", "--title", nargs="*", dest="title", help="Project title.", required=True)
     init_project_parser.add_argument(
-        "--force-title", dest="force_title", action="store_true", help="Everride existing title."
+        "--force-title", dest="force_title", action="store_true", help="Override existing title."
     )
     init_project_parser.add_argument("-s", "--size", dest="size", default="A3", help="Page size, default A3.")
     init_project_parser.add_argument(
@@ -73,12 +72,12 @@ def set_title_block(
 
     if reload is False:
         title_block.date = date
-        title_block.revision = revision
+        title_block.rev = revision
 
     return title_block
 
 
-def set_paper_size(page: PageSettings, size: str = "A3", verbose: bool = False) -> PageSettings:
+def set_paper_size(page: Paper, size: str = "A3", verbose: bool = False) -> Paper:
     """Set paper size to selected size.
 
     Parameters
@@ -115,14 +114,10 @@ def read_pcb(board_file: str) -> Board:
         board (Board): content of board file
 
     """
-    board = Board()
-
     try:
-        board = Board().from_file(board_file)
-
-    except Exception as err_descriptor:
-        log.error(f"Can't read board file, due to {err_descriptor}")
-        sys.exit(-1)
+        board = Board().from_file(Path(board_file))
+    except Exception:
+        board = Board()
 
     return board
 
@@ -138,13 +133,8 @@ def read_sch(sch_file: str) -> Schematic:
     -------
         schematic (Schematic): content of schematic file
     """
-    try:
-        sch = Schematic().from_file(sch_file)
-    except Exception as err_descriptor:
-        log.error(f"Can't read sch file, due to {err_descriptor}")
-        sys.exit(-1)
 
-    return sch
+    return Schematic().from_file(Path(sch_file))
 
 
 def compare_project_revisions(title_block: TitleBlock, project_revision: str) -> bool:
@@ -164,7 +154,7 @@ def compare_project_revisions(title_block: TitleBlock, project_revision: str) ->
     if title_block is None:
         return True
 
-    revision = title_block.revision
+    revision = title_block.rev
     if revision is not None and project_revision != revision:
         log.warning(f"Project revision mismatch, {project_revision} is not the same as {revision}")
         log.info("Use `--reload` to set only project name and company")
@@ -242,12 +232,9 @@ def create_empty_sch(project: KicadProject, project_title: str) -> bool:
     if not project.all_sch_files:
         log.info("Creating SCH file")
         sch = Schematic.create_new()
-        try:
-            sch.to_file(filepath=project_title + ".kicad_sch")
-            return True
-        except Exception as error_descriptor:
-            log.error(f"Can't create sch file due to {error_descriptor}")
-            return False
+        sch.to_file(filepath=project_title + ".kicad_sch")
+        return True
+
     else:
         return True
 
@@ -261,13 +248,9 @@ def create_empty_pcb(project: KicadProject, project_title: str) -> bool:
     """
     if not project.pcb_file:
         log.info("Creating PCB file")
-        board = Board().create_new()
-        try:
-            board.to_file(filepath=project_title + ".kicad_pcb")
-            return True
-        except Exception as error_descriptor:
-            log.error(f"Can't create board file due to {error_descriptor}")
-            return False
+        board = Board()
+        board.to_file(Path(project_title + ".kicad_pcb"))
+        return False
     else:
         return True
 
@@ -306,10 +289,7 @@ def init_pcb(
     pcb_page_settings = set_paper_size(page=pcb_page_settings, size=paper_size)
     pcb_data.paper = pcb_page_settings
 
-    try:
-        pcb_data.to_file()
-    except Exception as err_descriptor:
-        log.error(f"Can't save sch file due to {err_descriptor}")
+    pcb_data.to_file()
 
 
 def init_sch(
@@ -345,11 +325,7 @@ def init_sch(
 
         sch_page_settings = set_paper_size(page=sch_page_settings, size=paper_size)
         sch_data.paper = sch_page_settings
-
-        try:
-            sch_data.to_file()
-        except Exception as err_descriptor:
-            log.error(f"Can't save sch file due to {err_descriptor}")
+        sch_data.to_file()
 
 
 def get_title_str(title_list: list) -> str:
