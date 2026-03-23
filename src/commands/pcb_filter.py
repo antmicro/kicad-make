@@ -4,46 +4,33 @@ import logging
 import os
 import re
 
-from askiff.kistruct.board import Board, Via, LayerDef, Layer
+from askiff.kistruct.board import Board, Via, Layer
 from askiff.kistruct.footprint import Footprint
 from askiff.kistruct.gritems import (
     GrItem,
     GrText,
-    GrLine,
-    GrLineFp,
-    GrLinePCB,
-    GrArcPCB,
-    GrArcFp,
     GrTextPCB,
-    GrTextPCBBase,
     GrTextFp,
-    GrCirclePCB,
-    GrCircle,
-    GrCircleFp,
-    GrPolyPCB,
-    GrPoly,
-    GrPolyFp,
     GrRectPCB,
-    GrRect,
-    GrRectFp,
     Dimension,
+    DimensionOrthogonal,
+    DimensionAligned,
+    DimensionRadial,
+    DimensionLeader,
+    DimensionCenter,
+    DimensionOrthogonalOrientation,
     DimensionStyle,
     DimensionValueFormat,
+    DimensionTextPosition,
+    DimensionUnit,
+    DimensionUnitStyle,
     LayerSet,
 )
-from askiff.kistruct.common import Position, Effects, Stroke
+from askiff.kistruct.common import Position, Effects, Stroke, JustifyH, Justify
 from askiff.kistruct.common_pcb import BoardSide
 
-# from kiutils.items.brditems import Via, LayerList
-# from kiutils.items.fpitems import FpLine, FpArc
-# from kiutils.items.common import Position, PositionStart, PositionMid, PositionEnd
-
-# from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
-
 from common.kicad_project import KicadProject
-from common.kmake_helper import get_property
 from typing import List, Any, Optional, Set
-from copy import deepcopy
 from pathlib import Path
 
 from math import inf
@@ -256,11 +243,11 @@ def pcb_filter_run(
     board = Board.from_file(Path(infile))
 
     if not side:
-        side = ""
+        _side = ""
     elif side == "top":
-        side = BoardSide.FRONT
+        _side = BoardSide.FRONT
     elif side == "bottom":
-        side == BoardSide.BACK
+        _side = BoardSide.BACK
     else:
         raise AttributeError("Side must be either 'top' or 'bottom'")
 
@@ -271,7 +258,7 @@ def pcb_filter_run(
     filter_main = None if ref_filter is None else RefFilter(ref_filter)
     filter_other = None if ref_filter_other is None else RefFilter(ref_filter_other)
 
-    board.footprints = [fp for fp in board.footprints if reference_match(fp, side, filter_main, filter_other)]
+    board.footprints = [fp for fp in board.footprints if reference_match(fp, _side, filter_main, filter_other)]
 
     if stackup:  # doesn't work in vanilla kmake as well
         try:
@@ -315,7 +302,7 @@ def pcb_filter_run(
     if std_graphics:
         unify_graphics(board, bbox_limits)
 
-    if side == "bottom" and mirror_bottom:
+    if _side == BoardSide.BACK and mirror_bottom:
         board = mirror_texts(board)
 
     if first_pads_only:
@@ -382,14 +369,14 @@ def copy_edge_from_footprint(board: Board) -> None:
 def unify_style_graphics(board: Board, layers: Set[str], width: float) -> None:
     """Set thickness of graphics on specified layer"""
     # set all lines to same width
-    # bgi = []
+    bgi = []
     for g in board.graphic_items:
-        if isinstance(g, GrItem) and g.layer in layers:
+        if isinstance(g, GrItem) and g.layers in layers:
             if g.stroke is None:
                 g.stroke = Stroke()
             g.stroke.width = width
-        # bgi.append(g)
-    # board.graphicItems = bgi
+        bgi.append(g)
+    board.graphicItems = bgi
 
 
 class RefFilter:
@@ -413,7 +400,6 @@ class RefFilter:
 
 
 def check_primary_side(fp: Footprint, side: Optional[BoardSide]) -> bool:
-    # double check: this function seems to work fine even when wrong side parameter is passed?
     if fp.side == side or not side:
         return True
 
@@ -466,26 +452,30 @@ def layer_filter_match(g: Any, layers: set[Layer], full: bool) -> bool:
 
 def mirror_text_justify(effects: Effects) -> Effects:
     """Set text mirrored & flip its justification"""
-    effects.justify.mirror = True
-    if effects.justify.horizontally == "right":
-        effects.justify.horizontally = "left"
-    elif effects.justify.horizontally == "left":
-        effects.justify.horizontally = "right"
+    if not effects.justify:
+        effects.justify = Justify()
+
+    effects.justify.vertical.mirror = True
+    if effects.justify.horizontal == JustifyH.RIGHT:
+        effects.justify.horizontal = JustifyH.LEFT
+    elif effects.justify.horizontal == JustifyH.LEFT:
+        effects.justify.horizontal = JustifyH.RIGHT
     return effects
 
 
 def mirror_footprint_text(fp: Footprint) -> Footprint:
     """Mirror texts inside footprint (property & standalone texts)"""
+
     fpp = []
     for p in fp.properties:
-        if p.effects is None:
+        if not p.effects:
             p.effects = Effects()
         p.effects = mirror_text_justify(p.effects)
         fpp.append(p)
     fp.properties = fpp
 
     fpgi = []
-    for g in fp.graphicItems:
+    for g in fp.graphic_items:
         if isinstance(g, GrTextFp):
             g.effects = mirror_text_justify(g.effects)
         fpgi.append(g)
@@ -496,19 +486,20 @@ def mirror_footprint_text(fp: Footprint) -> Footprint:
 def mirror_texts(board: Board) -> Board:
     """Mirror all text in pcb (footprint, dimension & standalone texts)"""
     board.footprints = [mirror_footprint_text(fp) for fp in board.footprints]
-
     brdgi = []
-    for g in board.graphicItems:
-        if isinstance(g, GrText):
+    for g in board.graphic_items:
+        if isinstance(g, GrTextFp):
             g.effects = mirror_text_justify(g.effects)
         brdgi.append(g)
     board.graphic_items = brdgi
 
     brdd = []
     for d in board.dimensions:
-        if d.grText is None:
-            d.grText = GrText()
-        d.grText.effects = mirror_text_justify(d.grText.effects)
+        if not hasattr(d, "text"):
+            continue
+        if not d.text:
+            d.text = GrTextPCB()
+        d.text.effects = mirror_text_justify(d.text.effects)
         brdd.append(d)
     board.dimensions = brdd
     return board
@@ -581,8 +572,8 @@ def remove_main_dimensions(board: Board) -> List[Dimension]:
     (maxlen_x, maxlen_y) = (0, 0)
     # remove largest dimensions
     for d in board.dimensions:
-        len_x = abs(d.pts[0].X - d.pts[1].X)
-        len_y = abs(d.pts[0].Y - d.pts[1].Y)
+        len_x = abs(d.pts[0].x - d.pts[1].x)
+        len_y = abs(d.pts[0].y - d.pts[1].y)
         if (d.type == "aligned" and len_x * 10 < len_y) or (d.type == "orthogonal" and d.orientation == 1):
             vertical.append(d)
             if maxlen_y < len_y:
@@ -598,30 +589,29 @@ def remove_main_dimensions(board: Board) -> List[Dimension]:
     return vertical + horizontal + rest
 
 
-def add_main_dimensions(side: str, bbox_limits: List[BBoxPoint]) -> List[Dimension]:
+def add_main_dimensions(side: BoardSide | None, bbox_limits: List[BBoxPoint]) -> List[Dimension]:
     """Add new standardized dimensions (one horizontal, one vertical)
     (new dimensions will be on right board side for top and on left for bottom w text mirrored)"""
 
     # Add new vertical dimension based on outline
     [minx, maxx, miny, maxy] = bbox_limits
-    if side == "bottom":
+    if side == BoardSide.BACK:
         dim_pts = [Position(miny.aux_min, miny.main), Position(maxy.aux_min, maxy.main)]
         height = minx.main - miny.aux_min - 8
     else:
         dim_pts = [Position(miny.aux_max, miny.main), Position(maxy.aux_max, maxy.main)]
         height = maxx.main - miny.aux_max + 8
 
-    new_dim_x = Dimension(
-        type="orthogonal",
-        layer="Dwgs.User",
+    new_dim_x = DimensionOrthogonal(
         pts=[Position(minx.main, minx.aux_max), Position(maxx.main, maxx.aux_max)],
         height=maxy.main - minx.aux_max + 8,
-        orientation=0,
+        orientation=DimensionOrthogonalOrientation.HORIZONTAL,
     )
-    new_dim_y = deepcopy(new_dim_x)
-    new_dim_y.orientation = 1
-    new_dim_y.pts = dim_pts
-    new_dim_y.height = height
+    new_dim_y = DimensionOrthogonal(
+        pts=dim_pts,
+        height=height,
+        orientation=DimensionOrthogonalOrientation.VERTICAL,
+    )
     return [new_dim_x, new_dim_y]
 
 
@@ -631,15 +621,8 @@ def generate_frame_f(board: Board, bbox_limits: List[BBoxPoint]) -> None:
     [minx, maxx, miny, maxy] = bbox_limits
     board.graphic_items.append(
         GrRectPCB(
-            Position(minx.main - border, miny.main - border),
-            Position(maxx.main + border, maxy.main + border),
-            layers=LayerSet({Layer.MARGIN}),
-        )
-    )
-    print(
-        GrRectPCB(
-            Position(minx.main - border, miny.main - border),
-            Position(maxx.main + border, maxy.main + border),
+            start=Position(minx.main - border, miny.main - border),
+            end=Position(maxx.main + border, maxy.main + border),
             layers=LayerSet({Layer.MARGIN}),
         )
     )
@@ -649,20 +632,20 @@ def std_grtext(text: GrText, scale: float) -> float:
     if text.effects is None:
         text.effects = Effects()
     old_thick = text.effects.font.thickness if text.effects.font.thickness else 0
-    old_height = old_thick + text.effects.font.height
-    text.effects.font.width = 2 * scale
-    text.effects.font.height = 2 * scale
+    old_height = old_thick + text.effects.font.size.height
+    text.effects.font.size.width = 2 * scale
+    text.effects.font.size.height = 2 * scale
     text.effects.font.thickness = 0.2 * scale
     text.effects.font.bold = False
     text.effects.font.face = None
-    return text.effects.font.thickness + text.effects.font.height - old_height
+    return text.effects.font.thickness + text.effects.font.size.height - old_height
 
 
 def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
     """Set text style on specified layer"""
     # bgi = []
     for g in board.graphic_items:
-        if isinstance(g, GrText) and g.layer in layers:
+        if isinstance(g, GrText) and g.layers in layers:
             std_grtext(g, scale)
         # bgi.append(g)
     # board.graphic_items = bgi
@@ -670,8 +653,8 @@ def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
 
 def get_aligned_dim_center(dim: Dimension) -> tuple[float, float]:
     """Gets point that is the center (middle of main dimension line) of dimension"""
-    x1, y1 = dim.pts[0].X, dim.pts[0].Y
-    x2, y2 = dim.pts[1].X, dim.pts[1].Y
+    x1, y1 = dim.pts[0].x, dim.pts[0].y
+    x2, y2 = dim.pts[1].x, dim.pts[1].y
 
     # Midpoint
     mx, my = (x1 + x2) / 2, (y1 + y2) / 2
@@ -705,10 +688,10 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
     dim_qtr_pos: dict[str, tuple[int, float]] = {}
 
     for d in board.dimensions:
-        if d.type == "aligned":
+        if isinstance(d, DimensionAligned):
             d_center = get_aligned_dim_center(d)
-        elif d.type == "orthogonal":
-            if d.orientation == 0:
+        elif isinstance(d, DimensionOrthogonal):
+            if d.orientation == DimensionOrthogonalOrientation.HORIZONTAL:
                 d_center = (d.pts[0].x + d.pts[1].X) * 0.5, d.pts[0].y + d.height
             else:
                 d_center = d.pts[0].x + d.height, (d.pts[0].y + d.pts[1].y) * 0.5
@@ -744,19 +727,22 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
         qtr_dim[layer][3].sort()
 
     for d in board.dimensions:
+        if isinstance(d, DimensionCenter):
+            continue
         if d.layer in layers:
             d.format = DimensionValueFormat(
                 precision=1,  # one fraction digit
-                units=2,  # millimeters
-                unitsFormat=0,  # bare value, no unit suffix
-                suppressZeroes=False,
-                overrideValue=d.format.overrideValue if d.format else None,
+                units=DimensionUnit.MM,  # millimeters
+                units_format=DimensionUnitStyle.SKIP,  # bare value, no unit suffix
+                suppress_zeroes=False,
+                override_value=d.format.override_value if d.format else None,
             )
 
             arrow_len = 1
             try:
-                if d.type in ["center", "leader", "radial"]:
-                    arrow_len = d.style.arrowLength
+                types = [DimensionLeader, DimensionCenter, DimensionRadial]
+                if any([isinstance(d, type_) for type_ in types]):
+                    arrow_len = d.style.arrow_length
                 else:
                     length = ((d.pts[0].X - d.pts[1].X) ** 2 + (d.pts[0].Y - d.pts[1].Y) ** 2) ** 0.5
                     arrow_len = min(1, round(length / 2, 2))
@@ -764,23 +750,23 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
                 pass
 
             d.style = DimensionStyle(
-                extensionOffset=d.style.extensionOffset,
-                extensionHeight=d.style.extensionHeight,
+                extension_offset=d.style.extension_offset,
+                extension_height=d.style.extension_height,
                 thickness=0.1,
-                arrowLength=arrow_len,
-                textPositionMode=0,
+                arrow_length=arrow_len,
+                text_position_mode=DimensionTextPosition.OUTSIDE,
                 # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
                 # modes are as follows:
                 # - 0: Text is outside the dimension line
                 # - 1: Text is in line with the dimension line
                 # - 2: Text has been manually placed by the user"""
-                arrowDirection=d.style.arrowDirection,  # inward/outward
-                textFrame=d.style.textFrame,
-                keepTextAligned=True,
+                arrow_direction=d.style.arrow_direction,  # inward/outward
+                text_frame=d.style.text_frame,
+                keep_text_aligned=True,
             )
-            if d.grText is None:
-                d.grText = GrText()
-            height_change = std_grtext(d.grText, scale)
+            if not d.text:
+                d.text = GrTextPCB()
+            height_change = std_grtext(d.text, scale)
 
             # Extend dimensions to reduce overlaps due to text scaling
             if d.uuid in dim_qtr_pos:
