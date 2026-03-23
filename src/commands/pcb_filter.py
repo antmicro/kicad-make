@@ -4,24 +4,49 @@ import logging
 import os
 import re
 
-from kiutils.board import Board
-from kiutils.footprint import Footprint
-from kiutils.items.gritems import GrText, GrLine, GrArc
-from kiutils.items.brditems import Via, LayerList
-from kiutils.items.fpitems import FpLine, FpArc
-from kiutils.items.common import Position, PositionStart, PositionMid, PositionEnd
-from kiutils.items.common import Effects, Stroke
-from kiutils.items.fpitems import FpText
-from kiutils.items.gritems import GrCircle, GrPoly, GrRect
-from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
+from askiff.kistruct.board import Board, Via, LayerDef, Layer
+from askiff.kistruct.footprint import Footprint
+from askiff.kistruct.gritems import (
+    GrItem,
+    GrText,
+    GrLine,
+    GrLineFp,
+    GrLinePCB,
+    GrArcPCB,
+    GrArcFp,
+    GrTextPCB,
+    GrTextPCBBase,
+    GrTextFp,
+    GrCirclePCB,
+    GrCircle,
+    GrCircleFp,
+    GrPolyPCB,
+    GrPoly,
+    GrPolyFp,
+    GrRectPCB,
+    GrRect,
+    GrRectFp,
+    Dimension,
+    DimensionStyle,
+    DimensionValueFormat,
+    LayerSet,
+)
+from askiff.kistruct.common import Position, Effects, Stroke
+from askiff.kistruct.common_pcb import BoardSide
+
+# from kiutils.items.brditems import Via, LayerList
+# from kiutils.items.fpitems import FpLine, FpArc
+# from kiutils.items.common import Position, PositionStart, PositionMid, PositionEnd
+
+# from kiutils.items.dimensions import Dimension, DimensionFormat, DimensionStyle
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property
-from .prettify import run as prettify
 from typing import List, Any, Optional, Set
 from copy import deepcopy
+from pathlib import Path
 
-from math import sin, cos, radians, inf
+from math import inf
 
 log = logging.getLogger(__name__)
 
@@ -32,8 +57,8 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "-o",
         "--outfile",
         action="store",
-        default="filtred.kicad_pcb",
-        help="Name of output file (defaults to filtred.kicad_pcb)",
+        default="filtered.kicad_pcb",
+        help="Name of output file (defaults to filtered.kicad_pcb)",
     )
     parser.add_argument(
         "-i",
@@ -211,7 +236,7 @@ def pcb_filter_run(
     ref_filter_other: Optional[str] = None,
     cascade: bool = False,
     infile: Optional[str] = None,
-    outfile: str = "filtred.kicad_pcb",
+    outfile: str = "filtered.kicad_pcb",
     generate_frame: bool = False,
     mirror_bottom: bool = False,
     std_dimension: bool = False,
@@ -228,10 +253,16 @@ def pcb_filter_run(
         log.error("PCB file was not detected or does not exists")
         return
     log.info("Loading PCB")
-    board = Board.from_file(infile)
+    board = Board.from_file(Path(infile))
 
-    if side is None:
+    if not side:
         side = ""
+    elif side == "top":
+        side = BoardSide.FRONT
+    elif side == "bottom":
+        side == BoardSide.BACK
+    else:
+        raise AttributeError("Side must be either 'top' or 'bottom'")
 
     if std_edge:
         # has to be before any footprint removal
@@ -242,20 +273,20 @@ def pcb_filter_run(
 
     board.footprints = [fp for fp in board.footprints if reference_match(fp, side, filter_main, filter_other)]
 
-    if stackup:
+    if stackup:  # doesn't work in vanilla kmake as well
         try:
             stackup_group = [g for g in board.groups if g.name == "group-boardStackUp"][0]
-            board.graphicItems = [item for item in board.graphicItems if item.uuid not in stackup_group.members]
+            board.graphicItems = [item for item in board.graphic_items if item.uuid not in stackup_group.members]
             board.groups = [g for g in board.groups if g.name != "group-boardStackUp"]
         except IndexError:
             pass
 
-    for fp in board.footprints:
-        for prop in fp.properties:
+    if references or values:
+        for fp in board.footprints:
             if references:
-                hide_property_if_named(prop, property_name="Reference")
+                fp.properties.get("Reference").hide = True
             if values:
-                hide_property_if_named(prop, property_name="Value")
+                fp.properties.get("Value").hide = True
 
     layer_filtration(board, allowed_layers, allowed_layers_full)
 
@@ -266,9 +297,10 @@ def pcb_filter_run(
         board.zones = []
 
     if tracks:
-        board.traceItems = [item for item in board.traceItems if isinstance(item, Via)]
+        board.traces = [item for item in board.traces if isinstance(item, Via)]
+
     if vias:
-        board.traceItems = [item for item in board.traceItems if not isinstance(item, Via)]
+        board.traces = [item for item in board.traces if not isinstance(item, Via)]
 
     if generate_frame or std_dimension or std_graphics:
         bbox_limits = get_outline_bbox(board)
@@ -289,36 +321,36 @@ def pcb_filter_run(
     if first_pads_only:
         keep_first_pads_only(board)
 
-    log.info(f"Saving filtred PCB: {outfile}")
-    board.to_file(outfile)
+    log.info(f"Saving filtered PCB: {outfile}")
+    board.to_file(Path(outfile))
     pcb_file_org = ki_pro.pcb_file
     ki_pro.pcb_file = outfile
-    prettify(ki_pro, argparse.Namespace())
     ki_pro.pcb_file = pcb_file_org
 
 
 def layer_filtration(board: Board, allowed_layers: Optional[str], allowed_layers_full: Optional[str]) -> None:
     """Filter board graphics leaving only these on whitelisted layers"""
     full_layers_filter = False
-    if allowed_layers_full is not None:
+
+    if allowed_layers_full:
         full_layers_filter = True
         allowed_layers = allowed_layers_full
 
-    if allowed_layers is not None:
+    if allowed_layers:
         layers = std_layer_names(allowed_layers)
-        board.graphicItems = [
-            item for item in board.graphicItems if layer_filter_match(item, layers, full_layers_filter)
+        board.graphic_items = [
+            item for item in board.graphic_items if layer_filter_match(item, layers, full_layers_filter)
         ]
         layers = std_layer_names(allowed_layers)
         for fp in board.footprints:
-            fp.graphicItems = [item for item in fp.graphicItems if item.layer in layers]
+            fp.graphic_items = [item for item in fp.graphic_items if item.layers in layers]
             for prop in fp.properties:
                 if prop.layer in layers:
                     continue
                 prop.hide = True
 
 
-def std_layer_names(layers_str: str) -> List[str]:
+def std_layer_names(layers_str: str) -> set[Layer]:
     """Normalize layer names & split into list"""
     layers_str = (
         layers_str.replace("User.Comments", "Cmts.User")
@@ -332,61 +364,32 @@ def std_layer_names(layers_str: str) -> List[str]:
         .replace("F.Courtyard", "F.CrtYd")
         .replace("B.Courtyard", "B.CrtYd")
     )
-
-    return [lr.strip() for lr in layers_str.split(",")]
+    layers_list = [lr.strip() for lr in layers_str.split(",")]
+    return {Layer(layer) for layer in layers_list}
 
 
 def copy_edge_from_footprint(board: Board) -> None:
     """Copies all Edge.Cuts graphics found in footprints to board level"""
     for fp in board.footprints:
-        angle = radians(-fp.position.angle if fp.position.angle is not None else 0)
-        sina, cosa = sin(angle), cos(angle)
-        tx, ty = fp.position.X, fp.position.Y
+        for item in fp.graphic_items:
 
-        def glob_pos(pos: Position) -> dict[str, float]:
-            return {"X": tx + pos.X * cosa - pos.Y * sina, "Y": ty + pos.X * sina + pos.Y * cosa}  # noqa: B023
-
-        for item in fp.graphicItems:
-            if item.layer != "Edge.Cuts":
+            if item.layers != {Layer.EDGE}:
                 continue
-            if isinstance(item, FpLine):
-                board.graphicItems.append(
-                    GrLine(
-                        start=PositionStart(**glob_pos(item.start)),
-                        end=PositionEnd(**glob_pos(item.end)),
-                        layers=LayerList(["Edge.Cuts"]),
-                        stroke=item.stroke,
-                    )
-                )
-            if isinstance(item, FpArc):
-                board.graphicItems.append(
-                    GrArc(
-                        start=PositionStart(**glob_pos(item.start)),
-                        mid=PositionMid(**glob_pos(item.mid)),
-                        end=PositionEnd(**glob_pos(item.end)),
-                        layers=LayerList(["Edge.Cuts"]),
-                        stroke=item.stroke,
-                    )
-                )
+
+            board.graphic_items.append(item.to_board_shape(fp.position))  # doesn't work, probably in newest askiff
 
 
 def unify_style_graphics(board: Board, layers: Set[str], width: float) -> None:
     """Set thickness of graphics on specified layer"""
     # set all lines to same width
-    bgi = []
-    for g in board.graphicItems:
-        if (
-            isinstance(g, GrArc)
-            or isinstance(g, GrLine)
-            or isinstance(g, GrCircle)
-            or isinstance(g, GrPoly)
-            or isinstance(g, GrRect)
-        ) and g.layer in layers:
+    # bgi = []
+    for g in board.graphic_items:
+        if isinstance(g, GrItem) and g.layer in layers:
             if g.stroke is None:
-                g.stroke = Stroke
+                g.stroke = Stroke()
             g.stroke.width = width
-        bgi.append(g)
-    board.graphicItems = bgi
+        # bgi.append(g)
+    # board.graphicItems = bgi
 
 
 class RefFilter:
@@ -409,29 +412,31 @@ class RefFilter:
         self.pat_rem = typefilt("-")
 
 
-def check_primary_side(fp: Footprint, side: str) -> bool:
-    if [fp.layer, side] in [["F.Cu", "top"], ["B.Cu", "bottom"]] or side == "":
+def check_primary_side(fp: Footprint, side: Optional[BoardSide]) -> bool:
+    # double check: this function seems to work fine even when wrong side parameter is passed?
+    if fp.side == side or not side:
         return True
 
     front, back = False, False
     for pad in fp.pads:
-        front = front or "F.Cu" in pad.layers
-        back = back or "B.Cu" in pad.layers
+        # todo: check after pulling newest askiff, there's a bug
+        front = front or Layer.CU_F in pad.layers
+        back = back or Layer.CU_B in pad.layers
     return front and back
 
 
-def reference_match(fp: Footprint, side: str, filt: Optional[RefFilter], filt_other: Optional[RefFilter]) -> bool:
+def reference_match(fp: Footprint, side: BoardSide, filt: Optional[RefFilter], filt_other: Optional[RefFilter]) -> bool:
     if check_primary_side(fp, side):
         if filt is None:
             return True
     else:
         filt = filt_other
-        if filt is None:
+        if not filt:
             return False
 
-    # Extract prefix from reference
-    ref = get_property(fp, "Reference").strip()
-    ref_type = ref.rstrip("0123456789?*")
+    # Extract prefix from reference,
+    ref = fp.properties.ref.value
+    ref_type = fp.properties.ref.value.rstrip("0123456789?*")
 
     # Compare prefix with selected pattern
     if filt.mode_additive:
@@ -444,9 +449,9 @@ def hide_property_if_named(prop: Any, property_name: str) -> None:
         prop.hide = True
 
 
-def layer_filter_match(g: Any, layers: List[str], full: bool) -> bool:
+def layer_filter_match(g: Any, layers: set[Layer], full: bool) -> bool:
     # g: GrArc | GrCircle | GrCurve | GrLine | GrPoly | GrRect | GrText | GrTextBox
-    if g.layer not in layers:
+    if g.layers not in layers:
         if full:
             return False
         if not isinstance(g, GrText):
@@ -481,7 +486,7 @@ def mirror_footprint_text(fp: Footprint) -> Footprint:
 
     fpgi = []
     for g in fp.graphicItems:
-        if isinstance(g, FpText):
+        if isinstance(g, GrTextFp):
             g.effects = mirror_text_justify(g.effects)
         fpgi.append(g)
     fp.graphicItems = fpgi
@@ -497,7 +502,7 @@ def mirror_texts(board: Board) -> Board:
         if isinstance(g, GrText):
             g.effects = mirror_text_justify(g.effects)
         brdgi.append(g)
-    board.graphicItems = brdgi
+    board.graphic_items = brdgi
 
     brdd = []
     for d in board.dimensions:
@@ -548,8 +553,8 @@ def get_outline_bbox(board: Board) -> List[BBoxPoint]:
 
     pts = []
     (minx, maxx, miny, maxy) = (BBoxPoint(inf), BBoxPoint(-inf), BBoxPoint(inf), BBoxPoint(-inf))
-    for item in board.graphicItems:
-        if item.layer != "Edge.Cuts":
+    for item in board.graphic_items:
+        if item.layers != {Layer.EDGE}:
             continue
         if hasattr(item, "start"):
             pts.append(item.start)
@@ -561,10 +566,10 @@ def get_outline_bbox(board: Board) -> List[BBoxPoint]:
             pts.extend(item.pts)
 
     for p in pts:
-        minx = minx.update(True, p.X, p.Y)
-        miny = miny.update(True, p.Y, p.X)
-        maxx = maxx.update(False, p.X, p.Y)
-        maxy = maxy.update(False, p.Y, p.X)
+        minx = minx.update(True, p.x, p.y)
+        miny = miny.update(True, p.y, p.x)
+        maxx = maxx.update(False, p.x, p.y)
+        maxy = maxy.update(False, p.y, p.x)
     return [minx, maxx, miny, maxy]
 
 
@@ -588,8 +593,8 @@ def remove_main_dimensions(board: Board) -> List[Dimension]:
                 maxlen_x = len_x
         else:
             rest.append(d)
-    vertical = [d for d in vertical if maxlen_y - abs(d.pts[0].Y - d.pts[1].Y) > 0.01]
-    horizontal = [d for d in horizontal if maxlen_x - abs(d.pts[0].X - d.pts[1].X) > 0.01]
+    vertical = [d for d in vertical if maxlen_y - abs(d.pts[0].y - d.pts[1].y) > 0.01]
+    horizontal = [d for d in horizontal if maxlen_x - abs(d.pts[0].x - d.pts[1].x) > 0.01]
     return vertical + horizontal + rest
 
 
@@ -624,11 +629,18 @@ def generate_frame_f(board: Board, bbox_limits: List[BBoxPoint]) -> None:
     """Add graphical rectangle to pcb, that is expanded outline bbox"""
     border = 60
     [minx, maxx, miny, maxy] = bbox_limits
-    board.graphicItems.append(
-        GrRect(
+    board.graphic_items.append(
+        GrRectPCB(
             Position(minx.main - border, miny.main - border),
             Position(maxx.main + border, maxy.main + border),
-            layers=["Margin"],
+            layers=LayerSet({Layer.MARGIN}),
+        )
+    )
+    print(
+        GrRectPCB(
+            Position(minx.main - border, miny.main - border),
+            Position(maxx.main + border, maxy.main + border),
+            layers=LayerSet({Layer.MARGIN}),
         )
     )
 
@@ -648,12 +660,12 @@ def std_grtext(text: GrText, scale: float) -> float:
 
 def unify_style_text(board: Board, layers: Set[str], scale: float) -> None:
     """Set text style on specified layer"""
-    bgi = []
-    for g in board.graphicItems:
+    # bgi = []
+    for g in board.graphic_items:
         if isinstance(g, GrText) and g.layer in layers:
             std_grtext(g, scale)
-        bgi.append(g)
-    board.graphicItems = bgi
+        # bgi.append(g)
+    # board.graphic_items = bgi
 
 
 def get_aligned_dim_center(dim: Dimension) -> tuple[float, float]:
@@ -697,9 +709,9 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
             d_center = get_aligned_dim_center(d)
         elif d.type == "orthogonal":
             if d.orientation == 0:
-                d_center = (d.pts[0].X + d.pts[1].X) * 0.5, d.pts[0].Y + d.height
+                d_center = (d.pts[0].x + d.pts[1].X) * 0.5, d.pts[0].y + d.height
             else:
-                d_center = d.pts[0].X + d.height, (d.pts[0].Y + d.pts[1].Y) * 0.5
+                d_center = d.pts[0].x + d.height, (d.pts[0].y + d.pts[1].y) * 0.5
 
         else:
             continue
@@ -733,7 +745,7 @@ def unify_style_dimensions(board: Board, layers: Set[str], scale: float, bbox: l
 
     for d in board.dimensions:
         if d.layer in layers:
-            d.format = DimensionFormat(
+            d.format = DimensionValueFormat(
                 precision=1,  # one fraction digit
                 units=2,  # millimeters
                 unitsFormat=0,  # bare value, no unit suffix
