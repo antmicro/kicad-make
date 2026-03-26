@@ -100,6 +100,9 @@ def tag_gerbers(folder: str, tag: str) -> None:
 
 
 def get_property(obj: Union[Footprint, Symbol, SchematicSymbol], prop: str) -> Optional[str]:
+    if isinstance(obj, Footprint):
+        return obj.properties.get(prop)
+
     for item in obj.properties:
         if item.key.lower() == prop.lower():
             return item.value

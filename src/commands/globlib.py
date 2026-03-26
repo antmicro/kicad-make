@@ -5,15 +5,15 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 import re
 
-from kiutils.board import Board
-from kiutils.footprint import Footprint
+from askiff.kistruct.board import Board
+from askiff.kistruct.footprint import Footprint, FootprintStandalone, LibId
+
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic
 from kiutils.symbol import Symbol, SymbolLib
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property, set_property
-from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -115,12 +115,12 @@ def get_global_footprint_list(lib_mapping: Dict[str, str]) -> Dict[str, Tuple[st
             if not file.name.endswith(".kicad_mod"):
                 continue
             name = file.name.removesuffix(".kicad_mod")
-            fp_list[name] = (lib_name, Footprint.from_file(file.path))
+            fp_list[name] = (lib_name, FootprintStandalone.from_file(Path(file.path)))
     return fp_list
 
 
 def normalize_mpn(mpn: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", mpn.lower()).strip("-")
+    return re.sub(r"[^a-z0-9]+", "-", str(mpn).lower()).strip("-")
 
 
 def search_by_mpn(
@@ -130,7 +130,7 @@ def search_by_mpn(
     local_mpn = get_property(local_symbol, "MPN")
     local_name = get_symbol_name(local_symbol)
 
-    if local_mpn is None or local_mpn == "":
+    if not local_mpn or local_mpn == "":
         log.warning("Symbol: %s has no mpn to match.", local_name)
         return None
 
@@ -138,7 +138,7 @@ def search_by_mpn(
 
     for _, (global_lib_name, global_symbol) in global_symbols.items():
         global_mpn = get_property(global_symbol, "MPN")
-        if global_mpn is not None and normalize_mpn(global_mpn) == normalize_mpn(local_mpn):
+        if not global_mpn and normalize_mpn(global_mpn) == normalize_mpn(local_mpn):
             matching_symbols.append((global_lib_name, global_symbol))
 
     if not matching_symbols:
@@ -256,11 +256,11 @@ def globlib_project_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> l
 
 def update_fp_props(source: SchematicSymbol, ref: str, fp: Footprint, update_all: bool) -> Tuple[bool, bool]:
     changed = False
-    if get_property(fp, "Reference") != ref:
+    if fp.properties.get("Reference") != ref:
         return (False, False)
-    ofp = fp.libId
+    ofp = fp.lib_id
     nfp = get_property(source, "Footprint")
-    fp.libId = nfp
+    fp.lib_id.name = nfp
     if nfp != ofp:
         log.debug("Changed %s footprint: %s -> %s", ref, ofp, nfp)
         changed = True
@@ -283,7 +283,7 @@ def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     )
     fp_list = get_global_footprint_list(lib_mapping)
     log.info("Loading PCB ...")
-    pcb = Board().from_file(ki_pro.pcb_file)
+    pcb = Board().from_file(Path(ki_pro.pcb_file))
     log.info("Updating footprint links")
 
     for schematic_path in ki_pro.all_sch_files:
@@ -302,14 +302,15 @@ def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
                     changes += 1
                 if found:
                     break
-    # bellow iteration has 2 purposes: 1. to globlib footprints that are not in schematic; 2. to update 3D model links
+
+    # below iteration has 2 purposes: 1. to globlib footprints that are not in schematic; 2. to update 3D model links
     for fp in pcb.footprints:
         for globname, (globlib, globfp) in fp_list.items():
-            if globname != fp.entryName:
+            if globname != fp.lib_id.name:
                 continue
-            if fp.libraryNickname not in lib_mapping:
+            if fp.lib_id.library not in lib_mapping:
                 changes += 1
-                fp.libId = globlib + ":" + globname
+                fp.lib_id = LibId(globlib, globname)
             fp.models = globfp.models
     pcb.to_file()
     log.info("Footprint links updated: %d", changes)
@@ -320,7 +321,6 @@ def globlib_project(kicad_project: KicadProject, args: argparse.Namespace) -> No
     failures = globlib_project_symbols(kicad_project, args)
     if not args.exclude_pcb:
         globlib_footprints(kicad_project, args)
-    prettify(kicad_project, argparse.Namespace())
 
     if not failures:
         log.info("All links in symbols were updated successfully.")
