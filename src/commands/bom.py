@@ -9,7 +9,7 @@ from typing import TextIO, Dict, List, Tuple
 
 import kicad_netlist_reader
 
-from common.kicad_project import KicadProject
+from askiff.pro import AskiffPro
 from common.kmake_helper import run_kicad_cli
 
 log = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(kicad_project: AskiffPro, args: argparse.Namespace) -> None:
     """Main kamke bom method"""
 
     log.info("Exporting netlist from project")
@@ -357,7 +357,7 @@ def print_mismatched(mismatched: Dict[str, List[str]]) -> None:
 
 
 def create_netlist(
-    kicad_project: KicadProject, output_format: str = "kicadsexpr", debug: bool = False
+    kicad_project: AskiffPro, output_format: str = "kicadsexpr", debug: bool = False
 ) -> kicad_netlist_reader.netlist:
     """Create netlist from KiCad project"""
 
