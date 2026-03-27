@@ -2,7 +2,6 @@ import logging
 import unittest
 from typing import List
 from kmake_test_common import KmakeTestCase
-from kiutils.footprint import Footprint
 from kiutils.schematic import Schematic
 from kiutils.board import Board
 import argparse
@@ -72,37 +71,6 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
                     footprints_checked += 1
         self.assertEqual(footprints_checked, len(components), "Not all components checked internal test error")
 
-    def check_paste_layer(self, footprint: Footprint) -> int:
-        """Return number of pads when solder paste layer exist"""
-        paste_pads = 0
-        for pad in footprint.pads:
-            if ("F.Paste" in pad.layers) or ("B.Paste" in pad.layers):
-                paste_pads += 1
-        return paste_pads
-
-    def check_paste(self, components: List[str], dnp: bool) -> None:
-        """Check if solder paste is placed at footprint pad
-
-        Parameters:
-            components: List of designators to check
-            dnp: Define if component is DNP
-        """
-        pcb = Board().from_file(filepath=self.kpro.pcb_file)
-        footprints = pcb.footprints
-        footprint_count = len(footprints)
-        footprints_checked = 0
-        for footprint_id in range(0, footprint_count):
-            footprint = footprints[footprint_id]
-            designator = get_property(footprint, "Reference")
-            if designator in components:
-                paste_counter = self.check_paste_layer(footprint)
-                if dnp:
-                    self.assertEqual(paste_counter, 0, "Paste wasn't removed from all pads")
-                else:
-                    self.assertEqual(paste_counter, len(footprint.pads))
-                footprints_checked += 1
-        self.assertEqual(len(components), footprints_checked, "Not all components checked internal test error")
-
     def test_list_malformed(self) -> None:
         """Test output for only listing malformed DNP properties"""
         with self.assertLogs(level=logging.WARNING) as log:
@@ -130,26 +98,6 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         self.run_test_command([])
         self.check_footprint(["R1"], True)
         self.check_footprint(["R6"], False)
-
-    def test_remove_restore_paste(self) -> None:
-        "Test if solder paste was removed and restored from DNP components"
-        self.check_paste(["R1"], False)
-        self.check_paste(["C26"], False)
-        self.run_test_command(["--remove-dnp-paste"])
-        self.check_if_pcb_sch_opens()
-        self.check_paste(["R1"], True)
-        self.check_paste(["C26"], False)
-        self.run_test_command(["--restore-dnp-paste"])
-        self.check_paste(["R1"], False)
-        self.check_paste(["C26"], False)
-
-        self.reset_repo()
-        self.check_paste(["R1"], False)
-        self.run_test_command(["-rp"])
-        self.check_if_pcb_sch_opens()
-        self.check_paste(["R1"], True)
-        self.run_test_command(["-sp"])
-        self.check_paste(["R1"], False)
 
     def reset_repo(self) -> None:
         """Reset repository to HEAD"""
