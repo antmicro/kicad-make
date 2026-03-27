@@ -6,7 +6,7 @@ from typing import List
 from pathlib import Path
 from askiff.kistruct.board import Board
 from askiff.kistruct.common_pcb import Layer
-from askiff.kistruct.gritems import GrCircle, GrArcPCB, GrPoly
+from askiff.kistruct.gritems import GrArcPCB, GrCirclePCB, GrPolyPCB
 from askiff.kistruct.common import BaseArc, Position
 
 from common.kicad_project import KicadProject
@@ -126,11 +126,12 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
     x = []
     y = []
     for item in board.graphic_items:
-        if item.layers != {Layer.EDGE}:
+        if item.layers != {Layer.EDGE_CUTS}:
             continue
 
         # Circle case
-        if isinstance(item, GrCircle):
+        print(type(item))
+        if isinstance(item, GrCirclePCB):
             # Coordinates of the square circumscribed by circle
             r = math.hypot(item.center.x - item.end.x, item.center.y - item.end.y)
             x.append(item.center.x + r)
@@ -143,7 +144,7 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
             handle_arc(item, x, y)
             continue
         # Poly case
-        if isinstance(item, GrPoly):
+        if isinstance(item, GrPolyPCB):
             for p in item.pts:
                 if isinstance(p, BaseArc):
                     handle_arc(item, x, y)
@@ -164,7 +165,7 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
             continue
 
         for item in footprint.graphic_items:
-            if item.layers != {Layer.EDGE}:
+            if item.layers != {Layer.EDGE_CUTS}:
                 continue
 
             ref = next((p.value for p in footprint.properties if p.key == "Reference"), None)
