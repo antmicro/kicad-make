@@ -62,7 +62,6 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.info("Cleaning up project files...")
 
     pro = Project(kicad_project.dir).load()
-
     if not any((args.unused_project_instances, args.unused_files)):
         args.unused_files = True
 
