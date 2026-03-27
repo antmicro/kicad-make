@@ -19,6 +19,12 @@ class PnpTest(KmakeTestCase, unittest.TestCase):
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-top-pos.csv"))
         self.assertTrue(os.path.exists(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom-pos.csv"))
 
+    def test_pnp_skips_dnp_footprints_by_default(self) -> None:
+        self.run_test_command([])
+
+        with open(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos") as file:
+            self.assertNotIn("D3", file.read())
+
     def test_pnp_tht(self) -> None:
         self.run_test_command(["-t"])
 
@@ -65,6 +71,15 @@ class PnpTest(KmakeTestCase, unittest.TestCase):
             ):
                 with open(f"{self.kpro.fab_dir}/{self.kpro.name}-top.pos") as file:
                     self.assertIn(footprint.entryName, file.read())
+
+        with open(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos") as file:
+            self.assertNotIn("D3", file.read())
+
+    def test_pnp_dnp(self) -> None:
+        self.run_test_command(["--dnp"])
+
+        with open(f"{self.kpro.fab_dir}/{self.kpro.name}-bottom.pos") as file:
+            self.assertIn("D3", file.read())
 
 
 if __name__ == "__main__":

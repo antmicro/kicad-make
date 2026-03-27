@@ -41,6 +41,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Include components excluded from position files in output.",
     )
+    pnp_parser.add_argument(
+        "--dnp",
+        action="store_true",
+        help="Include components marked as do not populate in output.",
+    )
     pnp_parser.set_defaults(func=run)
 
 
@@ -78,6 +83,7 @@ def export_pnp(
     drill_origin: bool = False,
     smd_only: bool = True,
     exclude_fp_th: bool = False,
+    exclude_dnp: bool = False,
     gerber_board_edge: bool = False,
     verbose: bool = False,
 ) -> None:
@@ -103,6 +109,8 @@ def export_pnp(
         pnp_export_cli_command.extend(["--smd-only"])
     if exclude_fp_th:
         pnp_export_cli_command.extend(["--exclude-fp-th"])
+    if exclude_dnp:
+        pnp_export_cli_command.extend(["--exclude-dnp"])
     if gerber_board_edge:
         pnp_export_cli_command.extend(["--gerber-board-edge"])
 
@@ -153,6 +161,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             output_format=output_format,
             drill_origin=True,
             smd_only=not args.tht,
+            exclude_dnp=not args.dnp,
             bottom_negate_x=True,
             verbose=args.debug,
         )
