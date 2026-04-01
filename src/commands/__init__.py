@@ -24,4 +24,5 @@ from . import (
     step,
     version,
     wireframe,
+    check,
 )
