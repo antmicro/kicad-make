@@ -71,7 +71,11 @@ def dump_sheet_symbols_to_lib(ki_pro: KicadProject, args: argparse.Namespace) ->
 
 
 def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
-    lib_table_path = ki_pro.glob_sym_lib_table_path if os.path.exists(ki_pro.glob_sym_lib_table_path) else ki_pro.system_sym_lib_table
+    lib_table_path = (
+        ki_pro.glob_sym_lib_table_path
+        if os.path.exists(ki_pro.glob_sym_lib_table_path)
+        else ki_pro.system_sym_lib_table
+    )
     libtable = LibTableSym.from_file(lib_table_path)
 
     if os.path.isfile("sym-lib-table"):
@@ -91,7 +95,9 @@ def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
 
 
 def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
-    lib_table_path = ki_pro.glob_fp_lib_table_path if os.path.exists(ki_pro.glob_fp_lib_table_path) else ki_pro.system_fp_lib_table
+    lib_table_path = (
+        ki_pro.glob_fp_lib_table_path if os.path.exists(ki_pro.glob_fp_lib_table_path) else ki_pro.system_fp_lib_table
+    )
     libtable = LibTableFp.from_file(lib_table_path)
 
     if os.path.isfile("fp-lib-table"):
@@ -439,9 +445,9 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
             for idx, _ in enumerate(footprint.models):
                 model_name = os.path.basename(footprint.models[idx].path)
                 if model_name in local_3d_models:
-                    footprint.models[
-                        idx
-                    ].path = f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.relative_3d_model_path}/{model_name}"
+                    footprint.models[idx].path = (
+                        f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.relative_3d_model_path}/{model_name}"
+                    )
 
     board.to_file()
 
@@ -475,9 +481,9 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
         for idx, _ in enumerate(footprint.models):
             model_name = os.path.basename(footprint.models[idx].path)
             if model_name in local_3d_models:
-                footprint.models[
-                    idx
-                ].path = f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.relative_3d_model_path}/{model_name}"
+                footprint.models[idx].path = (
+                    f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.relative_3d_model_path}/{model_name}"
+                )
         footprint.to_file(fp_path)
 
 
