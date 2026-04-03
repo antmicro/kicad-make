@@ -51,7 +51,7 @@ build-kmake:
     - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
     - trap "kill $(cat /var/run/docker.pid)" EXIT
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=89240-bump-kicad-907 -t $IMAGE_NAME .
+    - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
 
 build-deploy-testing-kmake-kicad9:
