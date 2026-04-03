@@ -43,7 +43,6 @@ TEST_LOGO = """(image (at 107.95 270.51)
 
 
 class LogosTest(KmakeTestCase, unittest.TestCase):
-
     def __init__(self, method_name: str = "runTest") -> None:
         KmakeTestCase.__init__(self, "logos")
         unittest.TestCase.__init__(self, method_name)
@@ -54,6 +53,8 @@ class LogosTest(KmakeTestCase, unittest.TestCase):
         # Skip first line, it contains coordinates that will change
         logo = "\n".join([line.strip() for line in reflogo.splitlines()[2:]])
         for file in changed_files:
+            if not file:
+                continue
             with open(file, "r") as f:
                 file_contents = "\n".join([line.strip().strip('"') for line in f.readlines()])
                 self.assertTrue(logo in file_contents)

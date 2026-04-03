@@ -22,12 +22,12 @@ class KmakeTestCase:
 
     def run_kmake_command(self, arguments: List[str]) -> None:
         "Template for running kmake commands"
-        args = kmake.parse_arguments(arguments)
+        args = kmake.parse_arguments(arguments)  # type: ignore
         args.func(self.kpro, args)
 
     def run_test_command(self, arguments: List[str]) -> None:
         "Template for running tested command"
-        args = kmake.parse_arguments([self.test_cmd] + arguments)
+        args = kmake.parse_arguments([self.test_cmd] + arguments)  # type: ignore
         args.func(self.kpro, args)
 
     def setUp(self) -> None:

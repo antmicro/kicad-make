@@ -7,7 +7,6 @@ from commands.prettify import run as prettify
 
 
 class NOPTest(KmakeTestCase, unittest.TestCase):
-
     def __init__(self, method_name: str = "runTest") -> None:
         KmakeTestCase.__init__(self, "nop")
         unittest.TestCase.__init__(self, method_name)
@@ -23,4 +22,4 @@ class NOPTest(KmakeTestCase, unittest.TestCase):
         pcb.to_file()
         prettify(self.kpro, argparse.Namespace())
         for d in self.project_repo.index.diff(None):
-            self.assertEqual(d.diff, "", f"Difference found in {d.a_path}:\n{d.diff}")
+            self.assertEqual(d.diff, "", f"Difference found in {d.a_path}:\n{d.diff}")  # type: ignore

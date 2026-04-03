@@ -26,6 +26,7 @@ license = {file = "LICENSE"}
 dependencies = [
     "coloredlogs",
     "kiutils @ git+https://github.com/antmicro/kiutils.git@f4fb3dc2b5665d64f2894a011fcd9a002caf176f",
+    "askiff @ git+https://github.com/antmicro/askiff.git",
     "Pillow",
     "pyxdg",
     "kicad_netlist_reader",

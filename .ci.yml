@@ -3,6 +3,7 @@ variables:
   DEBIAN_FRONTEND: "noninteractive"
   GIT_DEPTH: 1
   GIT_SUBMODULE_STRATEGY: none
+  ASKIFF_INTERNAL: main
 
 include:
   - antmicro-pcb-release-ci-template@main:.kmake-test-ci.yml
@@ -16,12 +17,16 @@ stages:
   - build_docs
   - deploy
 
+.resolve-askiff: &resolve_askiff |-
+  if [[ -n $ASKIFF_INTERNAL ]]; then sed -i '/\baskiff\b/c\    "askiff @ '"$PIP_GIT_SOURCE/antmicro-askiff@$ASKIFF_INTERNAL"'",' pyproject.toml; fi
+
 build-kmake:
   image: "debian:trixie"
   stage: build
   script:
     - apt update
     - apt install -qqy python3 python3-pip git
+    - *resolve_askiff
     - python3 -m pip wheel -w dist .
   artifacts:
     paths:
@@ -73,6 +78,7 @@ build-deploy-testing-kmake-kicad9:
   script:
     - apt update
     - apt install -y git
+    - *resolve_askiff
     - pip3 install --break-system-packages -e ".[dev]"
     - pytest --cov-report term --cov-report html:htmlcov --cov=src -n auto
   artifacts:
@@ -90,7 +96,10 @@ test-kicad9-docker:
   image: python:3.11
   stage: code-check
   before_script:
-    - pip3 install black==25.12.0 mypy ruff
+    - apt update
+    - apt install -y git
+    - *resolve_askiff
+    - pip3 install --break-system-packages -e ".[dev]"
 
 black:
   extends: .check-code
@@ -117,6 +126,7 @@ build-docs:
     - source .venv/bin/activate
     - pip3 install -r docs/requirements.txt
     # install kmake as it is required to generate usage page
+    - *resolve_askiff
     - pip3 install .
   script:
     - source .venv/bin/activate

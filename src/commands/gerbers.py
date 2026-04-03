@@ -115,7 +115,7 @@ def stamp_gerbers(kicad_project: KicadProject) -> None:
         kicad_project_repo = Repo(f"{kicad_project.dir}")
         modified_files = kicad_project_repo.index.diff(None)
         for file_path in modified_files:
-            if "pcb" in file_path.a_path:
+            if "pcb" in file_path.a_path:  # type: ignore
                 log.warning("%s changed since last commit", file_path.a_path)
 
         sha = kicad_project_repo.head.commit.hexsha
@@ -225,7 +225,6 @@ def export_gerbers(
 def export_drill(
     input_pcb_file: str, output_folder: str = '""', excellon: bool = False, origin: str = "absolute"
 ) -> None:
-
     drill_export_cli_command = [
         "pcb",
         "export",
