@@ -4,10 +4,8 @@ import sys
 import datetime
 import os
 
-from askiff.kistruct.common import TitleBlock, Paper
-from askiff.kistruct.board import Board
-
-from kiutils.schematic import Schematic
+from askiff.common import TitleBlock, Paper
+from askiff import Board, Schematic
 from common.kicad_project import KicadProject
 from typing import Union
 from pathlib import Path
@@ -231,12 +229,11 @@ def create_empty_sch(project: KicadProject, project_title: str) -> bool:
     """
     if not project.all_sch_files:
         log.info("Creating SCH file")
-        sch = Schematic.create_new()
+        sch = Schematic()
         sch.to_file(filepath=project_title + ".kicad_sch")
         return True
 
-    else:
-        return True
+    return True
 
 
 def create_empty_pcb(project: KicadProject, project_title: str) -> bool:
@@ -251,8 +248,7 @@ def create_empty_pcb(project: KicadProject, project_title: str) -> bool:
         board = Board()
         board.to_file(Path(project_title + ".kicad_pcb"))
         return False
-    else:
-        return True
+    return True
 
 
 def init_pcb(
@@ -365,7 +361,6 @@ def main(project: KicadProject, args: argparse.Namespace) -> None:
         force_title=args.force_title,
         paper_size=args.size,
     )
-    prettify(project, argparse.Namespace())
 
 
 def run(project: KicadProject, args: argparse.Namespace) -> None:

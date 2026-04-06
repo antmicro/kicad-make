@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 import re
 
-from askiff.kistruct.board import Board
-from askiff.kistruct.footprint import Footprint, FootprintStandalone, LibId
+from askiff.board import Board
+from askiff.footprint import Footprint, FootprintStandalone, LibId
 
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic

@@ -7,8 +7,8 @@ from pathlib import Path
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
-from askiff.kistruct.board import Board
-from askiff.kistruct.common_pcb import Layer
+from askiff.board import Board
+from askiff.common_pcb import Layer
 
 log = logging.getLogger(__name__)
 

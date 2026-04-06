@@ -4,10 +4,10 @@ import logging
 import math
 from typing import List
 from pathlib import Path
-from askiff.kistruct.board import Board
-from askiff.kistruct.common_pcb import Layer
-from askiff.kistruct.gritems import GrArcPCB, GrCirclePCB, GrPolyPCB
-from askiff.kistruct.common import BaseArc, Position
+from askiff.board import Board
+from askiff.common_pcb import Layer
+from askiff.gritems import GrArcPCB, GrCirclePCB, GrPolyPCB
+from askiff.common import BaseArc, Position
 
 from common.kicad_project import KicadProject
 

@@ -7,10 +7,10 @@ from typing import List, Optional
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
-from askiff.kistruct.board import Board
-from askiff.kistruct.footprint import Footprint
-from askiff.kistruct.fp_pad import PadTHT
-from askiff.kistruct.common_pcb import Layer
+from askiff.board import Board
+from askiff.footprint import Footprint
+from askiff.fp_pad import PadTHT
+from askiff.common_pcb import Layer
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli, tag_gerbers
@@ -86,7 +86,6 @@ def remove_fp_dnp_paste(footprint: Footprint) -> bool:
 # Adds Paste layer on THT pads of SMD/THT footprints
 def add_pcb_tht_paste(board: Board) -> None:
     for fp in board.footprints:
-        # if fp.attributes.through_hole: # TBD: this omits non-THT footprints, but some mixed connectors are defined as SMD
         if add_fp_tht_paste(fp):
             log.debug(f"Added solder paste on THT pads of {fp.properties.ref.value}")
 

@@ -2,8 +2,8 @@
 
 import logging
 import argparse
-from askiff.kistruct.board import Board
-from askiff.kistruct.gritems import GrPoly, GrPolyFp
+from askiff.board import Board
+from askiff.gritems import GrPoly, GrPolyFp
 
 from math import sin, cos, radians
 from pathlib import Path
@@ -33,7 +33,6 @@ def main(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
         footprints_to_remove.append(footprint)
         for fp_item in footprint.graphic_items:
-
             if not isinstance(fp_item, GrPolyFp):
                 continue
 

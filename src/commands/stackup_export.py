@@ -9,7 +9,7 @@ from typing import Any
 from pathlib import Path
 import enum
 
-from askiff.kistruct.board import Board, StackupLayer, LayerDef, StackupLayerDielectricSubLayer
+from askiff.board import Board, StackupLayer, LayerDef, StackupLayerDielectricSubLayer
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def get_layer_dict(layer: StackupLayer | StackupLayerDielectricSubLayer) -> dict
 
     layer_dict = dict.fromkeys(DEF_KEYS, None)
     for key, val in layer.__dict__.items():
-        if not key in DEF_KEYS:
+        if key not in DEF_KEYS:
             continue
         layer_dict[key] = val
 
@@ -77,7 +77,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             for idx, sublayer in enumerate(layer.sublayers):
                 sublayer_dict = {k: v for (k, v) in get_layer_dict(sublayer).items() if v}
                 layer_dict = get_layer_dict(layer) | sublayer_dict  # type: ignore
-                layer_dict["name"] = f"{name} ({idx+1}/{len(layer.sublayers)})" if len(layer.sublayers) > 1 else name
+                layer_dict["name"] = f"{name} ({idx + 1}/{len(layer.sublayers)})" if len(layer.sublayers) > 1 else name
                 layer_dict["user_name"] = layerdef.user_name if layerdef else None
                 layer_dicts.append(layer_dict)
 

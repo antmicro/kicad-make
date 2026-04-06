@@ -4,7 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from askiff.kistruct.board import Board
+from askiff.board import Board
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli

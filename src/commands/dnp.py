@@ -4,8 +4,8 @@ from typing import List
 import sys
 from pathlib import Path
 
-from askiff.kistruct.board import Board
-from askiff.kistruct.footprint import Footprint
+from askiff.board import Board
+from askiff.footprint import Footprint
 from kiutils.items.schitems import SchematicSymbol
 
 from common.kicad_project import KicadProject, SchProject

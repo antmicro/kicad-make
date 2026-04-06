@@ -3,7 +3,7 @@ import logging
 import os
 import json
 
-from askiff.kistruct.board import Board, Layer, LayerSet
+from askiff.board import Board, Layer, LayerSet
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -255,7 +255,6 @@ def generate_wireframe(
 
     for side in sides:
         with NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as fp:
-
             oname_side = f"{oname}_{side}" if side != "" else oname
 
             filter_args["outfile"] = fp.name

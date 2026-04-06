@@ -4,9 +4,9 @@ import logging
 import os
 import re
 
-from askiff.kistruct.board import Board, Via, Layer
-from askiff.kistruct.footprint import Footprint
-from askiff.kistruct.gritems import (
+from askiff.board import Board, Via, Layer
+from askiff.footprint import Footprint
+from askiff.gritems import (
     GrItem,
     GrText,
     GrTextPCB,
@@ -26,8 +26,8 @@ from askiff.kistruct.gritems import (
     DimensionUnitStyle,
     LayerSet,
 )
-from askiff.kistruct.common import Position, Effects, Stroke, JustifyH, Justify
-from askiff.kistruct.common_pcb import BoardSide
+from askiff.common import Position, Effects, Stroke, JustifyH, Justify
+from askiff.common_pcb import BoardSide
 
 from common.kicad_project import KicadProject
 from typing import List, Any, Optional, Set
@@ -359,7 +359,6 @@ def copy_edge_from_footprint(board: Board) -> None:
     """Copies all Edge.Cuts graphics found in footprints to board level"""
     for fp in board.footprints:
         for item in fp.graphic_items:
-
             if item.layers != {Layer.EDGE}:
                 continue
 

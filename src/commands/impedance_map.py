@@ -7,9 +7,8 @@ import re
 from typing import Dict, List
 from pathlib import Path
 
-from askiff.kistruct.board import Board, Via
-from askiff.kistruct.common_pcb import Layer, LayerCopper, Net
-from kiutils.items.brditems import LayerToken
+from askiff.board import Board, Via
+from askiff.common_pcb import Net
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -37,10 +36,8 @@ def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
     board = Board.from_file(Path(kicad_project.pcb_file))
     net_classes: list[NetClass] = NetClass.load_net_classes(j)
 
-    layers: Dict[str, int] = {}
-
     log.info("Processing board items")
-    last_cu_id = max([layer.layer.order_id() for layer in board.layer_map if ".Cu" in layer.layer.value])
+    max([layer.layer.order_id() for layer in board.layer_map if ".Cu" in layer.layer.value])
 
     # Mark non-impedance controlled traces for removal
     # for item in board.traces:
