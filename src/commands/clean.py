@@ -1,6 +1,7 @@
-from askiff.pro import AskiffPro
 import argparse
 import logging
+
+from askiff.pro import AskiffPro
 
 from common.kicad_project import KicadProject
 
@@ -58,7 +59,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
-    log.info("Cleaning up redundant files in the project directory")
+    log.info("Cleaning up project files...")
 
     pro = AskiffPro(kicad_project.dir).load()
 
