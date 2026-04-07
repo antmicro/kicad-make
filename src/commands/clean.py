@@ -104,9 +104,10 @@ def clean_unused_project_instances(pro: AskiffPro) -> None:
     """Remove references to other projects from sheet & symbol instances"""
 
     for sch in pro.sch:
+        pro_whitelist = (pro.project_name, "")
         for sym in sch.symbols:
-            sym.instances = [pi for pi in sym.instances if pi.project_name == pro.project_name]
+            sym.instances = [pi for pi in sym.instances if pi.project_name in pro_whitelist]
         for sheet in sch.sheets:
-            sheet.instances = [pi for pi in sheet.instances if pi.project_name == pro.project_name]
+            sheet.instances = [pi for pi in sheet.instances if pi.project_name in pro_whitelist]
     pro.save()
     log.info("Unused Project Instances: Cleanup complete")
