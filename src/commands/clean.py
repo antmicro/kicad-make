@@ -1,7 +1,7 @@
+from askiff.pro import AskiffPro
 import argparse
 import logging
 
-from pathlib import Path
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
@@ -42,15 +42,42 @@ endswith_to_remove = [
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
-    parser = subparsers.add_parser("clean", help="Clean redundant project files from project's directory.")
+    parser = subparsers.add_parser("clean", help="Clean-up project files from project's directory.")
+    parser.add_argument(
+        "--unused-files",
+        action="store_true",
+        help="Clean redundant project files from project's directory. [active if no other flag specified]",
+    )
+    parser.add_argument(
+        "--unused-project-instances",
+        action="store_true",
+        help="Clean schematics from instance references to other projects.",
+    )
+
     parser.set_defaults(func=run)
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.info("Cleaning up redundant files in the project directory")
 
-    for file_path in Path(kicad_project.dir).rglob("*"):
-        if file_path.relative_to(Path(kicad_project.dir)).parts[0] in folders_to_skip:
+    pro = AskiffPro(kicad_project.dir).load()
+
+    if not any((args.unused_project_instances, args.unused_files)):
+        args.unused_files = True
+
+    if args.unused_files:
+        clean_unused_files(pro)
+
+    if args.unused_project_instances:
+        clean_unused_project_instances(pro)
+
+    log.info("Cleanup complete")
+
+
+def clean_unused_files(pro: AskiffPro) -> None:
+    """Remove unnecessary files from project directory"""
+    for file_path in pro.path.rglob("*"):
+        if file_path.relative_to(pro.path).parts[0] in folders_to_skip:
             continue
 
         # remove only files
@@ -69,5 +96,15 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         elif file_path.name.endswith(tuple(endswith_to_remove)):
             log.warning(f"Deleting {file_path}")
             file_path.unlink()
+    log.info("Unused Files: Cleanup complete")
 
-    log.info("Cleanup complete")
+
+def clean_unused_project_instances(pro: AskiffPro) -> None:
+    """Remove references to other projects from sheet & symbol instances"""
+
+    for sch in pro.sch:
+        for sym in sch.symbols:
+            sym.instances = [pi for pi in sym.instances if pi.project_name == pro.project_name]
+        for sheet in sch.sheets:
+            sheet.instances = [pi for pi in sheet.instances if pi.project_name == pro.project_name]
+    log.info("Unused Project Instances: Cleanup complete")
