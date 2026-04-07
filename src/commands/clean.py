@@ -107,4 +107,5 @@ def clean_unused_project_instances(pro: AskiffPro) -> None:
             sym.instances = [pi for pi in sym.instances if pi.project_name == pro.project_name]
         for sheet in sch.sheets:
             sheet.instances = [pi for pi in sheet.instances if pi.project_name == pro.project_name]
+    pro.save()
     log.info("Unused Project Instances: Cleanup complete")
