@@ -1,3 +1,4 @@
+from askiff.pro import Project
 import logging
 import argparse
 import copy
@@ -16,9 +17,9 @@ def _get_output_paths(kicad_project: KicadProject, check_type: str, output_forma
     extension = "json" if output_format == "json" else "report"
     output_paths = []
 
-    if check_type in ["both", "erc"]:
+    if check_type in ["all", "erc"]:
         output_paths.append(os.path.join(kicad_project.doc_dir, f"{kicad_project.name}_erc.{extension}"))
-    if check_type in ["both", "drc"]:
+    if check_type in ["all", "drc"]:
         output_paths.append(os.path.join(kicad_project.doc_dir, f"{kicad_project.name}_drc.{extension}"))
 
     return output_paths
@@ -26,9 +27,11 @@ def _get_output_paths(kicad_project: KicadProject, check_type: str, output_forma
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     # Register parser and its arguments as subparser
-    check_parser = subparsers.add_parser("check", help="Generate Electrical/Design Rule Check report")
+    check_parser = subparsers.add_parser("check", help="Run checks over project including ERC, DRC and spelling check")
 
-    check_parser.add_argument("check_type", choices=["both", "erc", "drc"], help="Select type check", default="both")
+    check_parser.add_argument(
+        "check_type", choices=["all", "erc", "drc", "spell"], help="Select type check", default="all"
+    )
     check_parser.add_argument("--all", action="store_true", help="Include errors, warnings and exclusions")
     check_parser.add_argument("--errors", help="Include errors", action="store_true", default=False)
     check_parser.add_argument("--warnings", help="Include warnings", action="store_true", default=False)
@@ -38,10 +41,16 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     check_parser.set_defaults(func=run)
 
 
+def check_spelling(kpro: Project) -> None:
+    pass
+
+
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     """
     Main command function
     """
+    kpro = Project(kicad_project.dir)
+
     cli_args = []
 
     if args.all:
@@ -98,16 +107,19 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     failed = False
     try:
-        if args.check_type in ["both", "erc"]:
+        if args.check_type in ["all", "erc"]:
             run_kicad_cli(cli_args_sch, False)
     except CalledProcessError:
         failed = True
 
     try:
-        if args.check_type in ["both", "drc"]:
+        if args.check_type in ["all", "drc"]:
             run_kicad_cli(cli_args_pcb, False)
     except CalledProcessError:
         failed = True
+
+    if args.check_type in ["all", "spell"]:
+        check_spelling(kpro)
 
     if failed:
         log.info("At least one error exists in design")
