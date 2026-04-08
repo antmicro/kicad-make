@@ -12,8 +12,8 @@ from typing import List
 
 from askiff import Board, FootprintFile, Schematic, SymbolFile
 from askiff.common import LibEntry, Property
-from askiff.footprint import FootprintBoard, LibTableFp
-from askiff.symbol import LibSymbol, LibTableSym
+from askiff.footprint import FootprintBoard, FootprintLibraryTable
+from askiff.symbol import SymbolDefinition, SymbolLibraryTable
 
 from common.kicad_project import KicadProject
 from .prettify import run as prettify
@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 @dataclass(order=True)
 class LocalSymbol:
     name: str
-    symbol: LibSymbol
+    symbol: SymbolDefinition
 
 
 @dataclass(order=True)
@@ -76,10 +76,10 @@ def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
         if os.path.exists(ki_pro.glob_sym_lib_table_path)
         else ki_pro.system_sym_lib_table
     )
-    libtable = LibTableSym.from_file(lib_table_path)
+    libtable = SymbolLibraryTable.from_file(lib_table_path)
 
     if os.path.isfile("sym-lib-table"):
-        local_libtable = LibTableSym.from_file("sym-lib-table")
+        local_libtable = SymbolLibraryTable.from_file("sym-lib-table")
         libtable.lib.extend(local_libtable.lib)
 
     # Filter non existing libs
@@ -98,10 +98,10 @@ def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
     lib_table_path = (
         ki_pro.glob_fp_lib_table_path if os.path.exists(ki_pro.glob_fp_lib_table_path) else ki_pro.system_fp_lib_table
     )
-    libtable = LibTableFp.from_file(lib_table_path)
+    libtable = FootprintLibraryTable.from_file(lib_table_path)
 
     if os.path.isfile("fp-lib-table"):
-        local_libtable = LibTableFp.from_file("fp-lib-table")
+        local_libtable = FootprintLibraryTable.from_file("fp-lib-table")
         libtable.lib.extend(local_libtable.lib)
 
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.lib}
@@ -119,12 +119,12 @@ def set_property(symbol: typing.Any, name: str, value: str) -> None:
     symbol.properties.append(Property(name, value))
 
 
-def get_symbol_name(__symbol: LibSymbol | typing.Any) -> str:
+def get_symbol_name(__symbol: SymbolDefinition | typing.Any) -> str:
     """Returns Symbol name"""
     return __symbol.lib_id.name
 
 
-def get_assigned_footprint(__symbol: LibSymbol) -> str | None:
+def get_assigned_footprint(__symbol: SymbolDefinition) -> str | None:
     """Returns Footprint field content string from Symbol"""
     footprint_id = get_property(__symbol, "Footprint")
     if footprint_id is None:
@@ -134,7 +134,7 @@ def get_assigned_footprint(__symbol: LibSymbol) -> str | None:
     return footprint_id
 
 
-def get_symbol_from_library(__symbol_name: str, __library_path: str) -> LibSymbol | None:
+def get_symbol_from_library(__symbol_name: str, __library_path: str) -> SymbolDefinition | None:
     """Get symbol from library if exists"""
     remote_lib = SymbolFile.from_file(
         __library_path
@@ -145,7 +145,7 @@ def get_symbol_from_library(__symbol_name: str, __library_path: str) -> LibSymbo
     )
 
 
-def append_symbol_to_library(symbol: LibSymbol, library: SymbolFile) -> None:
+def append_symbol_to_library(symbol: SymbolDefinition, library: SymbolFile) -> None:
     """Add symbol to the library"""
     if symbol not in library.symbols:
         library.symbols.append(symbol)
@@ -153,7 +153,7 @@ def append_symbol_to_library(symbol: LibSymbol, library: SymbolFile) -> None:
         log.debug("Skipping %s, already in lib", symbol.lib_id.name)
 
 
-def append_template_symbol_to_library(symbol: LibSymbol, library: SymbolFile) -> None:
+def append_template_symbol_to_library(symbol: SymbolDefinition, library: SymbolFile) -> None:
     """Add template symbol to the top of the library"""
     if symbol not in library.symbols:
         library.symbols.insert(0, symbol)
@@ -491,10 +491,10 @@ def add_lib_to_sym_lib_table(lib_name: str, symb_lib_path: str, sym_lib_table_pa
     """Add Symbol lib to sym-lib-table"""
     if os.path.isfile(sym_lib_table_path):
         log.info("Updating %s", sym_lib_table_path)
-        sym_lib_table = LibTableSym.from_file(sym_lib_table_path)
+        sym_lib_table = SymbolLibraryTable.from_file(sym_lib_table_path)
     else:
         log.info("Generating %s", sym_lib_table_path)
-        sym_lib_table = LibTableSym()
+        sym_lib_table = SymbolLibraryTable()
 
     local_lib_entry = LibEntry(name=lib_name, uri=symb_lib_path)
     if local_lib_entry not in sym_lib_table.lib:
@@ -507,10 +507,10 @@ def add_lib_to_fp_lib_table(lib_name: str, fp_lib_path: str, fp_lib_table_path: 
     """Add Foorprint lib directory to fp-lib-table"""
     if os.path.isfile(fp_lib_table_path):
         log.info("Updating %s", fp_lib_table_path)
-        fp_lib_table = LibTableFp.from_file(fp_lib_table_path)
+        fp_lib_table = FootprintLibraryTable.from_file(fp_lib_table_path)
     else:
         log.info("Generating %s", fp_lib_table_path)
-        fp_lib_table = LibTableFp()
+        fp_lib_table = FootprintLibraryTable()
 
     local_lib_entry = LibEntry(name=lib_name, uri=fp_lib_path)
     if local_lib_entry not in fp_lib_table.lib:
