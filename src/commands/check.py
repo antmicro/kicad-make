@@ -1,11 +1,18 @@
-from askiff.pro import Project
-import logging
 import argparse
 import copy
+import logging
 import os
-
+import re
+from collections.abc import Sequence
+from dataclasses import dataclass
+from itertools import chain
+from pathlib import Path
 from subprocess import CalledProcessError
 
+from askiff.gritems import GrTable, GrText, GrTextBox
+from askiff.pro import Project
+from platformdirs import PlatformDirs
+from spellchecker import SpellChecker as PySpellChecker
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -41,8 +48,118 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     check_parser.set_defaults(func=run)
 
 
-def check_spelling(kpro: Project) -> None:
-    pass
+@dataclass
+class SpellCheckIssue:
+    context: Sequence
+    incorrect_part: str
+    text: str
+    comment: str
+
+
+class SpellCheck:
+    pyspellchecker: PySpellChecker
+    issues: list[SpellCheckIssue]
+    allowed_case_sensitive: dict[str, str]
+    forbidden: dict[str, str]
+    str_normalize_regex: re.Pattern[str] = re.compile(r"[_\-\s]")
+
+    def __init__(self) -> None:
+        self.issues = []
+
+        dirs = PlatformDirs("kmake", "Antmicro")
+        template_dir = Path(dirs.user_config_dir) / "templates" / "check_spell"
+        path_allowed = template_dir / "allowed.txt"
+        path_allowed_cs = template_dir / "allowed-case-sensitive.txt"
+        path_forbidden = template_dir / "forbidden.txt"
+
+        self.pyspellchecker = PySpellChecker()
+        for path in (path_allowed, path_allowed_cs):
+            if path.exists():
+                self.pyspellchecker.word_frequency.load_text_file()
+
+        allowed_cs = path_allowed_cs.read_text().splitlines() if path_allowed_cs.exists() else []
+        self.allowed_case_sensitive = {self.norm_str(item): item for item in allowed_cs}
+        forbidden = path_forbidden.read_text().splitlines() if path_forbidden.exists() else []
+        self.forbidden = {phrase: comment for phrase, _, comment in (item.partition("#") for item in forbidden)}
+
+    def norm_str(self, text: str) -> str:
+        return self.str_normalize_regex.sub(" ", text)
+
+    def check_str_std_dictionary_check(self, text: str, context: Sequence[str]) -> None:
+        """Checks if all words in `text` are present in dictionary (case insensitive)"""
+        for word in text.split():
+            if self.pyspellchecker.unknown(word):
+                candidates = self.pyspellchecker.candidates(word)
+                self.issues.append(SpellCheckIssue(context, word, text, f"Did You mean: {candidates}"))
+            if not any((word.islower(), word.isupper(), word.istitle())):
+                if word in self.allowed_case_sensitive.values():
+                    continue
+                self.issues.append(SpellCheckIssue(context, word, text, "Nonstandard capitalization"))
+
+    def check_str_std_capitalization_check(self, text: str, context: Sequence[str]) -> None:
+        """Checks for unusual capitalization of words (eg. uSb) (except when word is in allowed-case-sensitive)"""
+        for word in text.split():
+            if self.pyspellchecker.unknown(word):
+                candidates = self.pyspellchecker.candidates(word)
+                self.issues.append(SpellCheckIssue(context, word, text, f"Did You mean: {candidates}"))
+            if not any((word.islower(), word.isupper(), word.istitle())):
+                if word in self.allowed_case_sensitive.values():
+                    continue
+                self.issues.append(SpellCheckIssue(context, word, text, "Nonstandard capitalization"))
+
+    def check_str_incorrect_pattern_usage(self, text: str, context: Sequence[str]) -> None:
+        """Reports incorrect usage of phrases in text
+
+        Catches things like (assuming phrase is in allowed-case-sensitive):
+        * `csi` instead of `CSI`
+        * `USB Type C` instead of `USB Type-C`
+        """
+
+        normalized = self.norm_str(text)
+
+        for phrase_norm, phrase in self.allowed_case_sensitive.items():
+            for match in re.finditer(phrase_norm, normalized):
+                org_text_match = text[match.start() : match.end()]
+                if org_text_match != phrase:
+                    self.issues.append(SpellCheckIssue(context, phrase_norm, text, f"Did You mean: `{phrase}`"))
+
+    def check_str_forbidden_pattern_usage(self, text: str, context: Sequence[str]) -> None:
+        """Reports forbidden phrase usage in text"""
+        for phrase, comment in self.allowed_case_sensitive.items():
+            comment = f": {comment}" if comment else ""
+            if phrase in text:
+                self.issues.append(SpellCheckIssue(context, phrase, text, "Forbidden phrase" + comment))
+
+    def check_str(self, text: str, context: Sequence[str]) -> None:
+        """Perform complete string correctness check"""
+        self.check_str_std_dictionary_check(text, context)
+        self.check_str_std_capitalization_check(text, context)
+        self.check_str_incorrect_pattern_usage(text, context)
+        self.check_str_forbidden_pattern_usage(text, context)
+
+    def check_project(self, kpro: Project) -> None:
+        """Check text elements in project files"""
+        context: Sequence[str]
+
+        for kfile in chain(kpro.sch, kpro.pcb):
+            for gritem in kfile.graphic_items:
+                layer = getattr(gritem, "layer", "")
+                if isinstance(gritem, GrText):
+                    context = (kfile.path.name, "Text", layer, f"at {gritem.position}")
+                    self.check_str(gritem.text, context)
+                elif isinstance(gritem, GrTextBox):
+                    context = (kfile.path.name, "TextBox", layer, f"at {gritem.box.position}")
+                    self.check_str(gritem.text, context)
+                elif isinstance(gritem, GrTable):
+                    for idx, cell in enumerate(gritem.cells):
+                        col = idx % gritem.column_count
+                        row = idx // gritem.column_count
+                        context = (kfile.path.name, "Table", layer, f"{col}:{row}(col:row)", f"at {cell.box.position}")
+                        self.check_str(cell.text, context)
+
+    def prepare_report(self, path: Path) -> None:
+        fmt = path.suffix[1:]
+        pass
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
@@ -119,7 +236,12 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         failed = True
 
     if args.check_type in ["all", "spell"]:
-        check_spelling(kpro)
+        spell = SpellCheck()
+        spell.check_project(kpro)
+        if spell.issues:
+            failed = True
+            report_path = Path(kicad_project.doc_dir) / f"{kicad_project.name}_spell_check.{args.format}"
+            spell.prepare_report(report_path)
 
     if failed:
         log.info("At least one error exists in design")

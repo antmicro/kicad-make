@@ -31,7 +31,9 @@ dependencies = [
     "pyxdg",
     "kicad_netlist_reader",
     "gitpython",
-    "typing_extensions"
+    "typing_extensions",
+    "platformdirs==4.9.6",
+    "pyspellchecker==0.9.0",
 ]
 
 [tool.setuptools_scm]
