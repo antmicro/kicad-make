@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-from askiff.pro import AskiffPro
+from askiff import Project
 
 from common.kicad_project import KicadProject
 
@@ -61,7 +61,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.info("Cleaning up project files...")
 
-    pro = AskiffPro(kicad_project.dir).load()
+    pro = Project(kicad_project.dir).load()
 
     if not any((args.unused_project_instances, args.unused_files)):
         args.unused_files = True
@@ -75,7 +75,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     log.info("Cleanup complete")
 
 
-def clean_unused_files(pro: AskiffPro) -> None:
+def clean_unused_files(pro: Project) -> None:
     """Remove unnecessary files from project directory"""
     for file_path in pro.path.rglob("*"):
         if file_path.relative_to(pro.path).parts[0] in folders_to_skip:
@@ -100,7 +100,7 @@ def clean_unused_files(pro: AskiffPro) -> None:
     log.info("Unused Files: Cleanup complete")
 
 
-def clean_unused_project_instances(pro: AskiffPro) -> None:
+def clean_unused_project_instances(pro: Project) -> None:
     """Remove references to other projects from sheet & symbol instances"""
 
     for sch in pro.sch:
