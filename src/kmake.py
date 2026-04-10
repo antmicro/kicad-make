@@ -6,7 +6,7 @@ import os
 import sys
 from typing import Callable, List
 
-import coloredlogs
+from rich.logging import RichHandler
 
 import commands
 from common.kicad_project import KicadProject
@@ -98,20 +98,22 @@ def main() -> None:
 
     ######## LOGGING SETUP ########
 
-    if args.debug:
-        coloredlogs.install(
-            fmt="[%(asctime)s][%(name)15s:%(lineno)03d][%(levelname).4s] %(message)s",
-            datefmt="%H:%M:%S",
-            stream=sys.stdout,
-            level=logging.DEBUG,
-        )
-    else:
-        coloredlogs.install(
-            fmt="[%(asctime)s][%(levelname).4s] %(message)s",
-            datefmt="%H:%M:%S",
-            stream=sys.stdout,
-            level=logging.INFO,
-        )
+    log_level = logging.DEBUG if args.debug else logging.INFO
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[
+            RichHandler(
+                level=log_level,
+                show_time=True,
+                show_level=True,
+                show_path=args.debug,  # show file:line only in debug
+                rich_tracebacks=True,
+            )
+        ],
+    )
 
     log = logging.getLogger("kmake")
     log.debug("Running in debug mode")

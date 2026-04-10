@@ -24,7 +24,7 @@ dynamic = ["version"]
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 dependencies = [
-    "coloredlogs",
+    "rich==14.3.3",
     "kiutils @ git+https://github.com/antmicro/kiutils.git@f4fb3dc2b5665d64f2894a011fcd9a002caf176f",
     "askiff @ git+https://github.com/antmicro/askiff.git",
     "Pillow",
