@@ -1,12 +1,11 @@
-from rich.table import Table
-from rich.console import Console
 import argparse
 import copy
 import logging
 import os
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
+from enum import Enum
 from itertools import chain
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -15,6 +14,8 @@ from askiff.gritems import GrTable, GrText, GrTextBox
 from askiff import Project
 from askiff.common import Position
 from platformdirs import PlatformDirs
+from rich.console import Console
+from rich.table import Table
 from spellchecker import SpellChecker as PySpellChecker
 
 from common.kicad_project import KicadProject
@@ -68,8 +69,16 @@ class SpellCheckIssueContext:
         )
 
 
+class SpellCheckIssueType(Enum):
+    CAPITALIZATION = 0
+    DICTIONARY = 1
+    INCORRECT_CASE_OF_ALLOWED = 2
+    FORBIDDEN = 3
+
+
 @dataclass
 class SpellCheckIssue:
+    type: SpellCheckIssueType
     context: SpellCheckIssueContext
     incorrect_part: str
     text: str
@@ -95,7 +104,7 @@ class SpellCheck:
         self.pyspellchecker = PySpellChecker()
         for path in (path_allowed, path_allowed_cs):
             if path.exists():
-                self.pyspellchecker.word_frequency.load_text_file()
+                self.pyspellchecker.word_frequency.load_text_file(path)
 
         allowed_cs = path_allowed_cs.read_text().splitlines() if path_allowed_cs.exists() else []
         self.allowed_case_sensitive = {self.norm_str(item): item for item in allowed_cs}
@@ -105,20 +114,29 @@ class SpellCheck:
     def norm_str(self, text: str) -> str:
         return self.str_normalize_regex.sub(" ", text)
 
+    def split_str(self, text: str) -> Iterable[str]:
+        split = (t.strip("+-#~$:,.\"'(){}[]0123456789") for t in text.split())
+        return (word for word in split if word and word.isalpha())
+
     def check_str_std_dictionary_check(self, text: str, context: SpellCheckIssueContext) -> None:
         """Checks if all words in `text` are present in dictionary (case insensitive)"""
-        for word in text.split():
-            if self.pyspellchecker.unknown(word):
-                candidates = self.pyspellchecker.candidates(word)
-                self.issues.append(SpellCheckIssue(context, word, text, f"Did You mean: {candidates}"))
+        for word in self.split_str(text):
+            if self.pyspellchecker.unknown((word,)):
+                correction = self.pyspellchecker.correction(word)
+                comment = f"Did You mean: {correction}" if correction else ""
+                self.issues.append(SpellCheckIssue(SpellCheckIssueType.DICTIONARY, context, word, text, comment))
 
     def check_str_std_capitalization_check(self, text: str, context: SpellCheckIssueContext) -> None:
         """Checks for unusual capitalization of words (eg. uSb) (except when word is in allowed-case-sensitive)"""
-        for word in text.split():
-            if not any((word.islower(), word.isupper(), word.istitle())) and word.isalpha():
+        for word in self.split_str(text):
+            if not any((word.islower(), word.isupper(), word.istitle())):
                 if word in self.allowed_case_sensitive.values():
                     continue
-                self.issues.append(SpellCheckIssue(context, word, text, "Nonstandard capitalization"))
+                self.issues.append(
+                    SpellCheckIssue(
+                        SpellCheckIssueType.CAPITALIZATION, context, word, text, "Nonstandard capitalization"
+                    )
+                )
 
     def check_str_incorrect_pattern_usage(self, text: str, context: SpellCheckIssueContext) -> None:
         """Reports incorrect usage of phrases in text
@@ -134,17 +152,28 @@ class SpellCheck:
             for match in re.finditer(phrase_norm, normalized):
                 org_text_match = text[match.start() : match.end()]
                 if org_text_match != phrase:
-                    self.issues.append(SpellCheckIssue(context, phrase_norm, text, f"Did You mean: `{phrase}`"))
+                    self.issues.append(
+                        SpellCheckIssue(
+                            SpellCheckIssueType.INCORRECT_CASE_OF_ALLOWED,
+                            context,
+                            phrase_norm,
+                            text,
+                            f"Did You mean: `{phrase}`",
+                        )
+                    )
 
     def check_str_forbidden_pattern_usage(self, text: str, context: SpellCheckIssueContext) -> None:
         """Reports forbidden phrase usage in text"""
-        for phrase, comment in self.allowed_case_sensitive.items():
+        for phrase, comment in self.forbidden.items():
             comment = f": {comment}" if comment else ""
             if phrase in text:
-                self.issues.append(SpellCheckIssue(context, phrase, text, "Forbidden phrase" + comment))
+                self.issues.append(
+                    SpellCheckIssue(SpellCheckIssueType.FORBIDDEN, context, phrase, text, "Forbidden phrase" + comment)
+                )
 
     def check_str(self, text: str, context: SpellCheckIssueContext) -> None:
         """Perform complete string correctness check"""
+        text = text.encode().decode("unicode_escape")
         self.check_str_incorrect_pattern_usage(text, context)
         self.check_str_forbidden_pattern_usage(text, context)
         self.check_str_std_dictionary_check(text, context)
@@ -153,7 +182,6 @@ class SpellCheck:
     def check_project(self, kpro: Project) -> None:
         """Check text elements in project files"""
         context: SpellCheckIssueContext
-
         for kfile in chain(kpro.sch, kpro.pcb):
             for gritem in kfile.graphic_items:
                 layer = str(getattr(gritem, "layer", ""))
@@ -174,9 +202,10 @@ class SpellCheck:
 
     def prepare_report(self, path: Path) -> None:
         _fmt = path.suffix[1:]
+        unrecognized = set()
         console = Console()
 
-        table = Table()
+        table = Table(show_lines=True)
         table.add_column("Incorrect")
         table.add_column("Comment")
         table.add_column("File")
@@ -188,6 +217,8 @@ class SpellCheck:
             table.add_column("Context text")
 
         for issue in self.issues:
+            if issue.type in (SpellCheckIssueType.DICTIONARY, SpellCheckIssueType.CAPITALIZATION):
+                unrecognized.add(issue.incorrect_part)
             table.add_row(
                 "`" + issue.incorrect_part + "`",
                 issue.comment,
@@ -196,6 +227,9 @@ class SpellCheck:
             )
 
         console.print(table)
+        path_unrecognized = path.with_suffix(".spell_unrecognized.txt")
+        path_unrecognized.parent.mkdir(parents=True, exist_ok=True)
+        path_unrecognized.write_text("\n".join(unrecognized))
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
