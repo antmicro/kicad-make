@@ -57,7 +57,7 @@ class SpellCheckIssueContext:
     file: str
     object_type: str
     layer: str
-    position: Position
+    position: Position | None
     cell: str = ""
 
     def row_part(self) -> tuple[str, str, str]:
@@ -65,7 +65,7 @@ class SpellCheckIssueContext:
         return (
             self.file,
             self.object_type,
-            f"(X,Y): ({self.position.x:8.3f}, {self.position.y:8.3f}){layer}{self.cell}",
+            f"(X,Y): ({self.position.x:8.3f}, {self.position.y:8.3f}){layer}{self.cell}" if self.position else "",
         )
 
 
@@ -199,6 +199,14 @@ class SpellCheck:
                             kfile._fs_path.name, "Table", layer, cell.box.position, f"{col}:{row}(col:row)"
                         )
                         self.check_str(cell.text, context)
+
+            for meta_name in ("title", "date", "rev", "company"):
+                meta = getattr(kfile.title_block, meta_name)
+                context = SpellCheckIssueContext(kfile._fs_path.name, f"TitleBlock: {meta_name}", "", None)
+                self.check_str(meta, context)
+            for comment in kfile.title_block.comment:
+                context = SpellCheckIssueContext(kfile._fs_path.name, f"TitleBlock: comment {comment.number}", "", None)
+                self.check_str(comment.content, context)
 
     def prepare_report(self, path: Path) -> None:
         _fmt = path.suffix[1:]
