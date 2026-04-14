@@ -51,7 +51,6 @@ build-kmake:
     - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates > /dev/null
     - cgroupfs-mount
     - mkdir -p "$DOCKER_DATA_ROOT"
-    - if [[ -d "$CI_PROJECT_DIR/kmake-templates" ]]; then cp -r "$CI_PROJECT_DIR/kmake-templates" . ; fi
     - dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
     - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
     - trap "kill $(cat /var/run/docker.pid)" EXIT
