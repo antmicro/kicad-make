@@ -283,7 +283,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     fmt = getattr(args, "format", "")
     output_paths = _get_output_paths(kicad_project, args.check_subcommand, fmt)
 
-    if args.check_subcommand in ["all", "both", "drc"]:
+    if args.check_subcommand in ["all", "both", "drc", "erc"]:
         cli_args = []
 
         if args.all:
