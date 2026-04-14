@@ -28,9 +28,9 @@ def _get_output_paths(kicad_project: KicadProject, check_type: str, output_forma
     extension = "json" if output_format == "json" else "report"
     output_paths = []
 
-    if check_type in ["all", "erc"]:
+    if check_type in ["all", "both", "erc"]:
         output_paths.append(os.path.join(kicad_project.doc_dir, f"{kicad_project.name}_erc.{extension}"))
-    if check_type in ["all", "drc"]:
+    if check_type in ["all", "both", "drc"]:
         output_paths.append(os.path.join(kicad_project.doc_dir, f"{kicad_project.name}_drc.{extension}"))
 
     return output_paths
