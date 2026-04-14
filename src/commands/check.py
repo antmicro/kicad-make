@@ -231,7 +231,15 @@ class SpellCheck:
                 context = SpellCheckIssueContext(kfile._fs_path.name, f"TitleBlock: comment {comment.number}", "", None)
                 self.check_str(comment.content, context)
 
-    def prepare_report(self, path: Path) -> None:
+    def check_file(self, path: Path) -> None:
+        """Check text in file"""
+        context: SpellCheckIssueContext
+        file_lines = path.read_text().splitlines()
+        for idx, line in enumerate(file_lines):
+            context = SpellCheckIssueContext(path.name, f"line:{idx}", "", None)
+            self.check_str(line, context)
+
+    def prepare_report(self, path: Path, print_context: bool = False) -> None:
         _fmt = path.suffix[1:]
         unrecognized = set()
         console = Console()
@@ -243,7 +251,7 @@ class SpellCheck:
         table.add_column("Object")
         table.add_column("Location")
         debug = False
-        if log.isEnabledFor(logging.DEBUG):
+        if log.isEnabledFor(logging.DEBUG) or print_context:
             debug = True
             table.add_column("Context text")
 
@@ -254,7 +262,7 @@ class SpellCheck:
                 "`" + issue.incorrect_part + "`",
                 issue.comment,
                 *issue.context.row_part(),
-                *((issue.text,) if debug else ()),
+                *((issue.text.strip(),) if debug else ()),
             )
 
         console.print(table)
@@ -339,11 +347,15 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     if args.check_subcommand in ["all", "spell"]:
         spell = SpellCheck()
-        spell.check_project(kpro)
+        if args.file:
+            spell.check_file(Path(args.file))
+        else:
+            spell.check_project(kpro)
+
         if spell.issues:
             failed = True
             report_path = Path(kicad_project.doc_dir) / f"{kicad_project.name}_spell_check.{fmt}"
-            spell.prepare_report(report_path)
+            spell.prepare_report(report_path, bool(args.file))
 
     if failed:
         log.info("At least one error exists in design")
