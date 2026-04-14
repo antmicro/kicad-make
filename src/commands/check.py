@@ -36,20 +36,43 @@ def _get_output_paths(kicad_project: KicadProject, check_type: str, output_forma
     return output_paths
 
 
+def _add_erc_drc_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--all", action="store_true", help="Include errors, warnings and exclusions")
+    p.add_argument("--errors", help="Include errors", action="store_true", default=False)
+    p.add_argument("--warnings", help="Include warnings", action="store_true", default=False)
+    p.add_argument("--exclusions", action="store_true", help="Include exclusions", default=False)
+    p.add_argument("--format", help="Select output format", choices=["report", "json"], default="report")
+    p.add_argument("--units", help="Select report units", choices=["mm", "in", "mils"], default="mm")
+
+
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     # Register parser and its arguments as subparser
     check_parser = subparsers.add_parser("check", help="Run checks over project including ERC, DRC and spelling check")
-
-    check_parser.add_argument(
-        "check_type", choices=["all", "erc", "drc", "spell"], help="Select type check", default="all"
+    check_parser = check_parser.add_subparsers(
+        title="Check Subcommands",
+        dest="check_subcommand",
+        help='To display help for specific subcommand use "kmake check SUBCOMMAND -h"',
     )
-    check_parser.add_argument("--all", action="store_true", help="Include errors, warnings and exclusions")
-    check_parser.add_argument("--errors", help="Include errors", action="store_true", default=False)
-    check_parser.add_argument("--warnings", help="Include warnings", action="store_true", default=False)
-    check_parser.add_argument("--exclusions", action="store_true", help="Include exclusions", default=False)
-    check_parser.add_argument("--format", help="Select output format", choices=["report", "json"], default="report")
-    check_parser.add_argument("--units", help="Select report units", choices=["mm", "in", "mils"], default="mm")
-    check_parser.set_defaults(func=run)
+
+    check_parser_erc = check_parser.add_parser("erc", help="Run ERC over project")
+    _add_erc_drc_args(check_parser_erc)
+    check_parser_erc.set_defaults(func=run)
+
+    check_parser_drc = check_parser.add_parser("drc", help="Run DRC over project")
+    _add_erc_drc_args(check_parser_drc)
+    check_parser_drc.set_defaults(func=run)
+
+    check_parser_both = check_parser.add_parser("both", help="Run both DRC & ERC over project")
+    _add_erc_drc_args(check_parser_both)
+    check_parser_both.set_defaults(func=run)
+
+    check_parser_all = check_parser.add_parser("all", help="Run ERC, DRC & spell check over project")
+    _add_erc_drc_args(check_parser_all)
+    check_parser_all.set_defaults(func=run)
+
+    check_parser_spell = check_parser.add_parser("spell", help="Run spell check over project")
+    check_parser_spell.add_argument("--file", help="Check this file instead KiCad files", action="store")
+    check_parser_spell.set_defaults(func=run)
 
 
 @dataclass
@@ -246,79 +269,80 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     """
     kpro = Project(kicad_project.dir).load()
 
-    cli_args = []
-
-    if args.all:
-        log.info("Severity level set to warning, error, exclusions")
-        if args.warnings or args.errors or args.exclusions:
-            log.error("--all can't be combinded with other severities")
-            exit(1)
-        args.warnings = True
-        args.errors = True
-        args.exclusions = True
-
-    if (not args.warnings) and (not args.errors) and (not args.exclusions):
-        log.info("Severity not specified, using defaults")
-
-    if args.warnings:
-        log.info("Enabling warning")
-        cli_args.append("--severity-warning")
-    if args.errors:
-        log.info("Enabling level set to error")
-        cli_args.append("--severity-error")
-    if args.exclusions:
-        log.info("Enabling exclusions")
-        cli_args.append("--severity-exclusions")
-
-    cli_args.append("--units")
-    cli_args.append(args.units)
-
-    cli_args.append("--exit-code-violations")
-
     kicad_project.get_project_dir()
     kicad_project.get_pro_file_name_from_dir(kicad_project.dir)
-
-    cli_args.append("--output")
-    cli_args_sch = ["sch", "erc"] + copy.deepcopy(cli_args)
-    cli_args_pcb = ["pcb", "drc"] + copy.deepcopy(cli_args)
-
-    if args.format == "json":
-        cli_args_sch.append(f"doc/{kicad_project.name}_erc.json")
-        cli_args_sch.append("--format")
-        cli_args_sch.append("json")
-
-        cli_args_pcb.append(f"doc/{kicad_project.name}_drc.json")
-        cli_args_pcb.append("--format")
-        cli_args_pcb.append("json")
-    else:
-        cli_args_sch.append(f"doc/{kicad_project.name}_erc.report")
-        cli_args_pcb.append(f"doc/{kicad_project.name}_drc.report")
-
-    cli_args_sch.append(f"{kicad_project.name}.kicad_sch")
-    cli_args_pcb.append(f"{kicad_project.name}.kicad_pcb")
-
     kicad_project.create_doc_dir()
-    output_paths = _get_output_paths(kicad_project, args.check_type, args.format)
+    fmt = getattr(args, "format", "")
+    output_paths = _get_output_paths(kicad_project, args.check_subcommand, fmt)
+
+    if args.check_subcommand in ["all", "both", "drc"]:
+        cli_args = []
+
+        if args.all:
+            log.info("Severity level set to warning, error, exclusions")
+            if args.warnings or args.errors or args.exclusions:
+                log.error("--all can't be combinded with other severities")
+                exit(1)
+            args.warnings = True
+            args.errors = True
+            args.exclusions = True
+
+        if (not args.warnings) and (not args.errors) and (not args.exclusions):
+            log.info("Severity not specified, using defaults")
+
+        if args.warnings:
+            log.info("Enabling warning")
+            cli_args.append("--severity-warning")
+        if args.errors:
+            log.info("Enabling level set to error")
+            cli_args.append("--severity-error")
+        if args.exclusions:
+            log.info("Enabling exclusions")
+            cli_args.append("--severity-exclusions")
+
+        cli_args.append("--units")
+        cli_args.append(args.units)
+
+        cli_args.append("--exit-code-violations")
+
+        cli_args.append("--output")
+        cli_args_sch = ["sch", "erc"] + copy.deepcopy(cli_args)
+        cli_args_pcb = ["pcb", "drc"] + copy.deepcopy(cli_args)
+
+        if args.format == "json":
+            cli_args_sch.append(f"doc/{kicad_project.name}_erc.json")
+            cli_args_sch.append("--format")
+            cli_args_sch.append("json")
+
+            cli_args_pcb.append(f"doc/{kicad_project.name}_drc.json")
+            cli_args_pcb.append("--format")
+            cli_args_pcb.append("json")
+        else:
+            cli_args_sch.append(f"doc/{kicad_project.name}_erc.report")
+            cli_args_pcb.append(f"doc/{kicad_project.name}_drc.report")
+
+        cli_args_sch.append(f"{kicad_project.name}.kicad_sch")
+        cli_args_pcb.append(f"{kicad_project.name}.kicad_pcb")
 
     failed = False
-    try:
-        if args.check_type in ["all", "erc"]:
+    if args.check_subcommand in ["all", "both", "erc"]:
+        try:
             run_kicad_cli(cli_args_sch, False)
-    except CalledProcessError:
-        failed = True
+        except CalledProcessError:
+            failed = True
 
-    try:
-        if args.check_type in ["all", "drc"]:
+    if args.check_subcommand in ["all", "both", "drc"]:
+        try:
             run_kicad_cli(cli_args_pcb, False)
-    except CalledProcessError:
-        failed = True
+        except CalledProcessError:
+            failed = True
 
-    if args.check_type in ["all", "spell"]:
+    if args.check_subcommand in ["all", "spell"]:
         spell = SpellCheck()
         spell.check_project(kpro)
         if spell.issues:
             failed = True
-            report_path = Path(kicad_project.doc_dir) / f"{kicad_project.name}_spell_check.{args.format}"
+            report_path = Path(kicad_project.doc_dir) / f"{kicad_project.name}_spell_check.{fmt}"
             spell.prepare_report(report_path)
 
     if failed:
