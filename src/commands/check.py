@@ -72,6 +72,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
     check_parser_spell = check_parser.add_parser("spell", help="Run spell check over project")
     check_parser_spell.add_argument("--file", help="Check this file instead KiCad files", action="store")
+    check_parser_spell.add_argument("--list-unknown", help="Print list of unknown words to stdout", action="store_true")
     check_parser_spell.set_defaults(func=run)
 
 
@@ -239,8 +240,7 @@ class SpellCheck:
             context = SpellCheckIssueContext(path.name, f"line:{idx}", "", None)
             self.check_str(line, context)
 
-    def prepare_report(self, path: Path, print_context: bool = False) -> None:
-        _fmt = path.suffix[1:]
+    def prepare_report(self, print_context: bool = False, list_unknown: bool = False) -> None:
         unrecognized = set()
         console = Console()
 
@@ -265,10 +265,10 @@ class SpellCheck:
                 *((issue.text.strip(),) if debug else ()),
             )
 
-        console.print(table)
-        path_unrecognized = path.with_suffix(".spell_unrecognized.txt")
-        path_unrecognized.parent.mkdir(parents=True, exist_ok=True)
-        path_unrecognized.write_text("\n".join(unrecognized))
+        if list_unknown:
+            console.print("\n".join(unrecognized))
+        else:
+            console.print(table)
 
 
 def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
@@ -347,15 +347,20 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     if args.check_subcommand in ["all", "spell"]:
         spell = SpellCheck()
-        if args.file:
-            spell.check_file(Path(args.file))
+        args_file = getattr(args, "file", None)
+        list_unknown = getattr(args, "list_unknown", False)
+
+        if args_file:
+            spell.check_file(Path(args_file))
         else:
             spell.check_project(kpro)
 
         if spell.issues:
             failed = True
-            report_path = Path(kicad_project.doc_dir) / f"{kicad_project.name}_spell_check.{fmt}"
-            spell.prepare_report(report_path, bool(args.file))
+            spell.prepare_report(bool(args_file), list_unknown)
+
+        if list_unknown:
+            exit(0)
 
     if failed:
         log.info("At least one error exists in design")
