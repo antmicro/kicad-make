@@ -46,10 +46,11 @@ build-kmake:
   variables:
     DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
     IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}-testing
-  script:
+  before_get_sources:
     - apt -qqy update > /dev/null
-    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates > /dev/null
+    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates git > /dev/null
     - cgroupfs-mount
+  script:
     - mkdir -p "$DOCKER_DATA_ROOT"
     - dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
     - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
