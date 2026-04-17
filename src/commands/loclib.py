@@ -16,7 +16,6 @@ from askiff.footprint import FootprintBoard, FootprintLibraryTable
 from askiff.symbol import SymbolDefinition, SymbolLibraryTable
 
 from common.kicad_project import KicadProject
-from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 
@@ -65,11 +64,6 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     loclib_project(ki_pro, args)
 
 
-# TODO: implement this function as symbols without lib are not handled properly
-def dump_sheet_symbols_to_lib(ki_pro: KicadProject, args: argparse.Namespace) -> None:
-    pass
-
-
 def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
     lib_table_path = (
         ki_pro.glob_sym_lib_table_path
@@ -107,10 +101,6 @@ def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.lib}
 
 
-def get_property(obj: typing.Any, prop: str) -> str | None:
-    return obj.properties.get_value(prop)
-
-
 def set_property(symbol: typing.Any, name: str, value: str) -> None:
     prop = symbol.properties.get(name)
     if prop is not None:
@@ -119,14 +109,9 @@ def set_property(symbol: typing.Any, name: str, value: str) -> None:
     symbol.properties.append(Property(name, value))
 
 
-def get_symbol_name(__symbol: SymbolDefinition | typing.Any) -> str:
-    """Returns Symbol name"""
-    return __symbol.lib_id.name
-
-
-def get_assigned_footprint(__symbol: SymbolDefinition) -> str | None:
+def get_assigned_footprint(_symbol: SymbolDefinition) -> str | None:
     """Returns Footprint field content string from Symbol"""
-    footprint_id = get_property(__symbol, "Footprint")
+    footprint_id = _symbol.properties.get_value("Footprint")
     if footprint_id is None:
         return None
     if ":" in footprint_id:
@@ -180,19 +165,15 @@ def cleanup_schematic_lib_symbols(ki_pro: KicadProject) -> None:
             library = sch_symbol.lib_id.library
             if library is None:
                 continue
-            symbol_name = get_symbol_name(sch_symbol)
+            symbol_name = sch_symbol.lib_id.name
             if symbol_name in sch_symbol_instances:
                 continue
             sch_symbol_instances.append(symbol_name)
 
         schematic.lib_symbols = [
-            symbol for symbol in schematic.lib_symbols if get_symbol_name(symbol) in sch_symbol_instances
+            symbol for symbol in schematic.lib_symbols if symbol.lib_id.name in sch_symbol_instances
         ]
         schematic.to_file()
-
-
-def generate_lib_symbol_list() -> None:
-    pass
 
 
 def group_symbols_by_library_name(ki_pro: KicadProject) -> SymbolsLibs:
@@ -212,7 +193,7 @@ def group_symbols_by_library_name(ki_pro: KicadProject) -> SymbolsLibs:
                 # Special case for altered symbols
                 library = schematic_cache_lib
                 continue
-            symbol_name = get_symbol_name(schematic_symbol)
+            symbol_name = schematic_symbol.lib_id.name
             log.debug("Processing  %s. LibID: %s:%s", symbol_name, library, symbol_name)
             lib_entry = next((item for item in lib_list.libs if item.name == library), None)
 
@@ -222,10 +203,10 @@ def group_symbols_by_library_name(ki_pro: KicadProject) -> SymbolsLibs:
                 if symbol_library_path == schematic_cache_lib:
                     log.warning("LibID: %s:%s not found. Using %s from cache", library, symbol_name, symbol_name)
                     cache_lib = next((item for item in lib_list.libs if item.name == schematic_cache_lib))
-                    # Cached symbol can have properies not set
+                    # Cached symbol can have properties not set
                     # Copy properties from one of the symbols used in schematic
                     for used_symbol in schematic.symbols:
-                        if get_symbol_name(used_symbol) == symbol_name:
+                        if used_symbol.lib_id.name == symbol_name:
                             schematic_symbol.properties = deepcopy(used_symbol.properties)
                             break
                     cache_lib.symbol_list.append(LocalSymbol(symbol_name, schematic_symbol))
@@ -251,7 +232,7 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolFile
     local_lib_path = f"{ki_pro.lib_dir}/{ki_pro.name}.{ki_pro.sym_lib_ext}"
     if args.force:
         log.info("Localize symbols in force mode")
-        local_lib = SymbolFile(version=20231120, generator="kmake_loclib")
+        local_lib = SymbolFile(generator="kmake_loclib")
     else:
         log.info("Localize symbols in append mode")
         try:
@@ -259,7 +240,7 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolFile
             local_lib = SymbolFile.from_file(local_lib_path)
         except Exception:
             log.warning("Local library not found")
-            local_lib = SymbolFile(version=20231120, generator="kmake_loclib")
+            local_lib = SymbolFile(generator="kmake_loclib")
             local_lib.to_file(local_lib_path)
             log.info("Created empty local library")
 
@@ -410,20 +391,17 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
         log.info("Patching paths in: %s", os.path.basename(schematic_path))
         schematic = Schematic.from_file(schematic_path)
         for symbol in schematic.lib_symbols + schematic.symbols:
-            if get_symbol_name(symbol) in local_symbols:
+            if symbol.lib_id.name in local_symbols:
                 if not symbol.lib_id.library:
                     continue
                 symbol.lib_id.library = ki_pro.name
             # skip power symbols footprint check
             # TODO replace with if symbol.isPower once it's documented
-            if "#PWR" in (get_property(symbol, "Reference") or ""):
+            if "#PWR" in symbol.properties.ref.value:
                 continue
-            footprint_id = get_property(symbol, "Footprint")
+            footprint_id = symbol.properties.get_value("Footprint")
             if footprint_id is None or footprint_id == "":
-                log.warning(
-                    "%s has no footprint assigned",
-                    get_symbol_name(symbol),
-                )
+                log.warning("%s has no footprint assigned", symbol.lib_id.name)
                 continue
             if ":" in footprint_id:
                 fp_library_nickname, fp_entry_name = footprint_id.split(":", 1)
@@ -454,7 +432,7 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
     # Patch paths in local symbol library
     log.info("Patching paths in: %s", os.path.basename(local_lib_path))
     for symbol in local_lib.symbols:
-        footprint_id = get_property(symbol, "Footprint")
+        footprint_id = symbol.properties.get_value("Footprint")
         if footprint_id is None or footprint_id == "":
             log.warning(
                 "%s has no footprint assigned",
@@ -542,4 +520,3 @@ def loclib_project(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     # Generate/extend fp-lib-table
     kiprjmod_fp_lib_path = f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.name}-footprints/"
     add_lib_to_fp_lib_table(lib_name=f"{ki_pro.name}-footprints", fp_lib_path=kiprjmod_fp_lib_path)
-    prettify(ki_pro, argparse.Namespace())
