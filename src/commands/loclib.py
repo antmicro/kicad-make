@@ -273,7 +273,6 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolFile
 
             append_symbol_to_library(symbol, local_lib)
 
-    ki_pro.local_sym_lib = local_lib
     local_lib.to_file(local_lib_path)
     log.debug("Saved to: %s", local_lib_path)
     return local_lib

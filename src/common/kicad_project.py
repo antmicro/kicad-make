@@ -4,7 +4,6 @@ import os
 
 import sys
 import logging
-import typing
 import subprocess
 import json
 from pathlib import Path
@@ -13,8 +12,6 @@ from dataclasses import dataclass
 import itertools
 import re
 
-from kiutils.symbol import SymbolLib
-from kiutils.footprint import Footprint
 from kiutils.libraries import LibTable
 from kiutils.schematic import Schematic
 
@@ -74,8 +71,6 @@ class KicadProject:
     relative_lib_path: str = "lib"
     relative_fp_lib_path: str = "footprints"
     relative_3d_model_path: str = "3d-models"
-    local_sym_lib: SymbolLib
-    local_fp_lib: typing.List[Footprint]
     local_share_path: Path = Path(os.path.expandvars("$HOME/.local/share"))
 
     system_fp_lib_table = "/usr/share/kicad/template/fp-lib-table"
