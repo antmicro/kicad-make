@@ -107,9 +107,9 @@ def rename_gbr_files(gbr_dir: str, temp_name: str, prj_name: str) -> None:
 
 
 # Stamp gerber files with short commit SHA
-def stamp_gerbers(kicad_project: KicadProject) -> None:
+def stamp_gerbers(pro: KicadProject) -> None:
     try:
-        kicad_project_repo = Repo(f"{kicad_project.dir}")
+        kicad_project_repo = Repo(f"{pro.dir}")
         modified_files = kicad_project_repo.index.diff(None)
 
         for file_path in modified_files:
@@ -120,16 +120,16 @@ def stamp_gerbers(kicad_project: KicadProject) -> None:
 
         sha = kicad_project_repo.head.commit.hexsha
         short_sha = kicad_project_repo.git.rev_parse(sha, short=7)
-        tag_gerbers(f"{kicad_project.dir}/fab", short_sha)
+        tag_gerbers(f"{pro.dir}/fab", short_sha)
 
     except InvalidGitRepositoryError:
         log.warning("Project is not in repository. Githash not added.")
         return
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
-    kicad_project.create_fab_dir()
-    board = Board.from_file(Path(kicad_project.pcb_file))
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
+    pro.create_fab_dir()
+    board = Board.from_file(Path(pro.pcb_file))
 
     common_layers = []  # comma separated list of layers names
     if not args.noedge:
@@ -146,19 +146,19 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
         export_gerbers(
             temporary_board_file.name,
-            output_folder=f"{kicad_project.dir}/fab/",
+            output_folder=f"{pro.dir}/fab/",
             common_layers=common_layers,
             verbose=args.debug,
         )
         export_drill(
             temporary_board_file.name,
-            f"{kicad_project.dir}/fab/",
+            f"{pro.dir}/fab/",
             excellon=args.excellon,
             origin=args.drill_origin,
         )
-        rename_gbr_files(f"{kicad_project.dir}/fab/", Path(temporary_board_file.name).stem, kicad_project.name)
+        rename_gbr_files(f"{pro.dir}/fab/", Path(temporary_board_file.name).stem, pro.project_name)
 
-        stamp_gerbers(kicad_project)
+        stamp_gerbers(pro)
 
 
 def export_gerbers(

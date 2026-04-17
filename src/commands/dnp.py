@@ -52,13 +52,13 @@ def cleanup_pcb(pcb: Board) -> None:
             fp.properties.pop(prop)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     # Read in all schematic files
     if args.list_broken and args.fix_legacy:
         raise RuntimeError("Only one of [`--list-broken`, `--fix-legacy`] can be specified")
 
     broken_logs: list[str] = []
-    schpro = kicad_project.sch_project()
+    schpro = pro.sch_project()
 
     # Get all components that are marked DNP
     dnp_components = get_dnp_components(schpro)
@@ -111,7 +111,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
                         sym_dnp.append(path.reference)
     log.debug(f"DNP references from schematic: {' '.join(sorted(sym_dnp))}")
 
-    pcb = Board().from_file(Path(kicad_project.pcb_file))
+    pcb = Board().from_file(Path(pro.pcb_file))
     fp_dnp = find_dnp_footprints_on_pcb(pcb)
 
     if args.list_broken:

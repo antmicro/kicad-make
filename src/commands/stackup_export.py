@@ -62,10 +62,10 @@ def get_name(layer: StackupLayer) -> str:
     return layer.layer
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """Run stackup-export command"""
 
-    board = Board().from_file(Path(kicad_project.pcb_file))
+    board = Board().from_file(Path(pro.pcb_file))
     if not board.setup.stackup:
         raise RuntimeError("Stackup is not set for the project, open the PCB design and save it to update it.")
 
@@ -87,25 +87,17 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             layer_dict["user_name"] = layerdef.user_name if layerdef else None
             layer_dicts.append(layer_dict)
 
-    kicad_project.create_fab_dir()
+    pro.create_fab_dir()
 
     if args.legacy_csv:
         save_csv(
             layer_dicts,
-            (
-                args.output_filename
-                if args.output_filename
-                else os.path.join(kicad_project.relative_fab_path, FILENAME + ".csv")
-            ),
+            (args.output_filename if args.output_filename else os.path.join(pro.relative_fab_path, FILENAME + ".csv")),
         )
     else:
         save_json(
             {"layers": layer_dicts},
-            (
-                args.output_filename
-                if args.output_filename
-                else os.path.join(kicad_project.relative_fab_path, FILENAME + ".json")
-            ),
+            (args.output_filename if args.output_filename else os.path.join(pro.relative_fab_path, FILENAME + ".json")),
         )
 
 

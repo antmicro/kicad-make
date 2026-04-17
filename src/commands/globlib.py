@@ -59,17 +59,17 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     globlib_parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     if args.sch is not None:
         args.exclude_pcb = True
-    globlib_project(kicad_project, args)
+    globlib_project(pro, args)
 
 
 def get_lib_mapping(
-    ki_pro: KicadProject, include_kicad_lib: bool, lib_table_file: str, system_table_file: str, lib_dir: str
+    pro: KicadProject, include_kicad_lib: bool, lib_table_file: str, system_table_file: str, lib_dir: str
 ) -> Dict[str, str]:
     """Returns dict mapping symbol library names to paths based on user's kicad config."""
-    libtable = ki_pro.read_lib_table_file(lib_table_file, system_table_file)
+    libtable = pro.read_lib_table_file(lib_table_file, system_table_file)
 
     if not include_kicad_lib:  # if not using original KiCad libraries, remove them from list
         libtable.lib = [lib for lib in libtable.libs if lib_dir not in lib.uri]
@@ -77,7 +77,7 @@ def get_lib_mapping(
     # Sort so that kicad libaries are last
     libtable.libs = sorted(libtable.libs, key=lambda x: lib_dir not in x.uri, reverse=True)
 
-    ki_pro.load_kicad_environ_vars()
+    pro.load_kicad_environ_vars()
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.libs}
 
 
@@ -173,8 +173,8 @@ def update_props(
                 local_property.value = global_property.value
 
 
-def get_sch_paths_based_on_args(args: argparse.Namespace, ki_pro: KicadProject) -> List[Path]:
-    schematic_paths = [Path(file).resolve() for file in ki_pro.all_sch_files]
+def get_sch_paths_based_on_args(args: argparse.Namespace, pro: KicadProject) -> List[Path]:
+    schematic_paths = [Path(file).resolve() for file in pro.all_sch_files]
     if args.sch is not None:
         whitelist = [file.resolve() for file in args.sch]
         schematic_paths = [path for path in schematic_paths if path in whitelist]
@@ -213,13 +213,13 @@ def should_symbol_be_globlibed(symbol: UniSymbol, global_libraries: Iterable[str
     return True
 
 
-def globlib_project_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> list[UniSymbol]:
+def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list[UniSymbol]:
     library_mapping = get_lib_mapping(
-        ki_pro,
+        pro,
         args.include_kicad_lib,
-        ki_pro.glob_sym_lib_table_path,
-        ki_pro.system_sym_lib_table,
-        ki_pro.env_var_name_sym_lib,
+        pro.glob_sym_lib_table_path,
+        pro.system_sym_lib_table,
+        pro.env_var_name_sym_lib,
     )
     log.debug("Libary name to path mapping: %s", library_mapping)
 
@@ -228,7 +228,7 @@ def globlib_project_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> l
 
     failures: list[UniSymbol] = []
 
-    for schematic_path in get_sch_paths_based_on_args(args, ki_pro):
+    for schematic_path in get_sch_paths_based_on_args(args, pro):
         log.info("Processing schematic: %s", schematic_path)
         schematic = Schematic().from_file(str(schematic_path))
 
@@ -271,24 +271,24 @@ def update_fp_props(source: SchematicSymbol, ref: str, fp: Footprint, update_all
     return (True, changed)
 
 
-def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
+def globlib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
     changes = 0
     log.info("Loading Footprints ...")
     lib_mapping = get_lib_mapping(
-        ki_pro,
+        pro,
         args.include_kicad_lib,
-        ki_pro.glob_fp_lib_table_path,
-        ki_pro.system_fp_lib_table,
-        ki_pro.env_var_name_fp_lib,
+        pro.glob_fp_lib_table_path,
+        pro.system_fp_lib_table,
+        pro.env_var_name_fp_lib,
     )
     fp_list = get_global_footprint_list(lib_mapping)
     log.info("Loading PCB ...")
-    pcb = Board().from_file(Path(ki_pro.pcb_file))
+    pcb = Board().from_file(Path(pro.pcb_file))
     log.info("Updating footprint links")
 
-    for schematic_path in ki_pro.all_sch_files:
+    for schematic_path in pro.all_sch_files:
         if args.sch is not None:
-            schematic_name = schematic_path.replace(ki_pro.dir + "/", "")
+            schematic_name = schematic_path.replace(pro.path + "/", "")
             if schematic_name not in args.sch:
                 continue
         log.info("Processing schematic: %s", schematic_path)
@@ -316,11 +316,11 @@ def globlib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     log.info("Footprint links updated: %d", changes)
 
 
-def globlib_project(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def globlib_project(pro: KicadProject, args: argparse.Namespace) -> None:
     log.info("Start restoring links to global libraries.")
-    failures = globlib_project_symbols(kicad_project, args)
+    failures = globlib_project_symbols(pro, args)
     if not args.exclude_pcb:
-        globlib_footprints(kicad_project, args)
+        globlib_footprints(pro, args)
 
     if not failures:
         log.info("All links in symbols were updated successfully.")

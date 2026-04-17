@@ -24,14 +24,14 @@ from common.kmake_helper import run_kicad_cli
 log = logging.getLogger(__name__)
 
 
-def _get_output_paths(kicad_project: KicadProject, check_type: str, output_format: str) -> list[str]:
+def _get_output_paths(pro: KicadProject, check_type: str, output_format: str) -> list[str]:
     extension = "json" if output_format == "json" else "report"
     output_paths = []
 
     if check_type in ["all", "both", "erc"]:
-        output_paths.append(os.path.join(kicad_project.doc_dir, f"{kicad_project.name}_erc.{extension}"))
+        output_paths.append(pro.doc_dir / f"{pro.project_name}_erc.{extension}")
     if check_type in ["all", "both", "drc"]:
-        output_paths.append(os.path.join(kicad_project.doc_dir, f"{kicad_project.name}_drc.{extension}"))
+        output_paths.append(pro.doc_dir / f"{pro.project_name}_drc.{extension}")
 
     return output_paths
 
@@ -79,7 +79,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 @dataclass
 class SpellCheckIssueContext:
-    file: str
+    file: Path
     object_type: str
     layer: str
     position: Position | None
@@ -88,7 +88,7 @@ class SpellCheckIssueContext:
     def row_part(self) -> tuple[str, str, str]:
         layer = "" if not self.layer else f" {self.layer:>10}"
         return (
-            self.file,
+            self.file.name,
             self.object_type,
             f"(X,Y): ({self.position.x:8.3f}, {self.position.y:8.3f}){layer}{self.cell}" if self.position else "",
         )
@@ -212,10 +212,10 @@ class SpellCheck:
             for gritem in kfile.graphic_items:
                 layer = str(getattr(gritem, "layer", ""))
                 if isinstance(gritem, GrText):
-                    context = SpellCheckIssueContext(kfile._fs_path.name, "Text", layer, gritem.position)
+                    context = SpellCheckIssueContext(kfile.path, "Text", layer, gritem.position)
                     self.check_str(gritem.text, context)
                 elif isinstance(gritem, GrTextBox):
-                    context = SpellCheckIssueContext(kfile._fs_path.name, "TextBox", layer, gritem.box.position)
+                    context = SpellCheckIssueContext(kfile.path, "TextBox", layer, gritem.box.position)
                     self.check_str(gritem.text, context)
             for table in kfile.tables:
                 layer = str(getattr(table, "layer", ""))
@@ -223,16 +223,16 @@ class SpellCheck:
                     col = idx % table.column_count
                     row = idx // table.column_count
                     context = SpellCheckIssueContext(
-                        kfile._fs_path.name, "Table", layer, cell.box.position, f" (col:{col}, row:{row})"
+                        kfile.fs_path.name, "Table", layer, cell.box.position, f" (col:{col}, row:{row})"
                     )
                     self.check_str(cell.text, context)
 
             for meta_name in ("title", "date", "rev", "company"):
                 meta = getattr(kfile.title_block, meta_name)
-                context = SpellCheckIssueContext(kfile._fs_path.name, f"TitleBlock: {meta_name}", "", None)
+                context = SpellCheckIssueContext(kfile.path, f"TitleBlock: {meta_name}", "", None)
                 self.check_str(meta, context)
             for comment in kfile.title_block.comment:
-                context = SpellCheckIssueContext(kfile._fs_path.name, f"TitleBlock: comment {comment.number}", "", None)
+                context = SpellCheckIssueContext(kfile.path, f"TitleBlock: comment {comment.number}", "", None)
                 self.check_str(comment.content, context)
 
     def check_file(self, path: Path) -> None:
@@ -240,7 +240,7 @@ class SpellCheck:
         context: SpellCheckIssueContext
         file_lines = path.read_text().splitlines()
         for idx, line in enumerate(file_lines):
-            context = SpellCheckIssueContext(path.name, f"line:{idx}", "", None)
+            context = SpellCheckIssueContext(path, f"line:{idx}", "", None)
             self.check_str(line, context)
 
     def prepare_report(self, print_context: bool = False, list_unknown: bool = False) -> None:
@@ -274,17 +274,14 @@ class SpellCheck:
             console.print(table)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """
     Main command function
     """
-    kpro = Project(kicad_project.dir).load()
 
-    kicad_project.get_project_dir()
-    kicad_project.get_pro_file_name_from_dir(kicad_project.dir)
-    kicad_project.create_doc_dir()
+    pro.create_doc_dir()
     fmt = getattr(args, "format", "")
-    output_paths = _get_output_paths(kicad_project, args.check_subcommand, fmt)
+    output_paths = _get_output_paths(pro, args.check_subcommand, fmt)
 
     if args.check_subcommand in ["all", "both", "drc", "erc"]:
         cli_args = []
@@ -321,19 +318,19 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         cli_args_pcb = ["pcb", "drc"] + copy.deepcopy(cli_args)
 
         if args.format == "json":
-            cli_args_sch.append(f"doc/{kicad_project.name}_erc.json")
+            cli_args_sch.append(f"doc/{pro.project_name}_erc.json")
             cli_args_sch.append("--format")
             cli_args_sch.append("json")
 
-            cli_args_pcb.append(f"doc/{kicad_project.name}_drc.json")
+            cli_args_pcb.append(f"doc/{pro.project_name}_drc.json")
             cli_args_pcb.append("--format")
             cli_args_pcb.append("json")
         else:
-            cli_args_sch.append(f"doc/{kicad_project.name}_erc.report")
-            cli_args_pcb.append(f"doc/{kicad_project.name}_drc.report")
+            cli_args_sch.append(f"doc/{pro.project_name}_erc.report")
+            cli_args_pcb.append(f"doc/{pro.project_name}_drc.report")
 
-        cli_args_sch.append(f"{kicad_project.name}.kicad_sch")
-        cli_args_pcb.append(f"{kicad_project.name}.kicad_pcb")
+        cli_args_sch.append(f"{pro.project_name}.kicad_sch")
+        cli_args_pcb.append(f"{pro.project_name}.kicad_pcb")
 
     failed = False
     if args.check_subcommand in ["all", "both", "erc"]:
@@ -356,7 +353,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         if args_file:
             spell.check_file(Path(args_file))
         else:
-            spell.check_project(kpro)
+            spell.check_project(pro)
 
         if spell.issues:
             failed = True

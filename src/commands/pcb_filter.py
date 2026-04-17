@@ -167,7 +167,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     argsf = vars(args)
     argsf = {
         k: v
@@ -207,7 +207,7 @@ def keep_first_pads_only(source_pcb: Board) -> None:
 
 
 def pcb_filter_run(
-    ki_pro: KicadProject,
+    pro: KicadProject,
     allowed_layers_full: Optional[str] = None,
     allowed_layers: Optional[str] = None,
     values: bool = False,
@@ -235,7 +235,7 @@ def pcb_filter_run(
     if cascade and os.path.isfile(outfile):
         infile = outfile
     if infile is None:
-        infile = ki_pro.pcb_file
+        infile = pro.pcb_file
     if not len(infile):
         log.error("PCB file was not detected or does not exists")
         return
@@ -310,9 +310,9 @@ def pcb_filter_run(
 
     log.info(f"Saving filtered PCB: {outfile}")
     board.to_file(Path(outfile))
-    pcb_file_org = ki_pro.pcb_file
-    ki_pro.pcb_file = outfile
-    ki_pro.pcb_file = pcb_file_org
+    pcb_file_org = pro.pcb_file
+    pro.pcb_file = outfile
+    pro.pcb_file = pcb_file_org
 
 
 def layer_filtration(board: Board, allowed_layers: Optional[str], allowed_layers_full: Optional[str]) -> None:

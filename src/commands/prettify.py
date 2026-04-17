@@ -13,10 +13,10 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     log.info("Prettifying KiCad files")
-    prettify_file(Path(kicad_project.pcb_file))
-    for sch_file in kicad_project.all_sch_files:
+    prettify_file(Path(pro.pcb_file))
+    for sch_file in pro.all_sch_files:
         prettify_file(Path(sch_file))
 
 

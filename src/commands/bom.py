@@ -191,11 +191,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """Main kmake bom method"""
 
     log.info("Exporting netlist from project")
-    net = create_netlist(kicad_project, "kicadxml", args.debug)
+    net = create_netlist(pro, "kicadxml", args.debug)
 
     log.info("Parsing netlist")
     groups, ok = parse_netlist(net)
@@ -212,13 +212,13 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
             kind = "DNP"
 
     if args.output:
-        filename = f"{kicad_project.dir}/{args.output}"
+        filename = f"{pro.dir}/{args.output}"
     else:
         if args.group_references:
-            filename = f"{kicad_project.doc_dir}/{kicad_project.name}-BOM-{kind}.csv"
+            filename = f"{pro.doc_dir}/{pro.project_name}-BOM-{kind}.csv"
         else:
             log.info("Using grouped references")
-            filename = f"{kicad_project.doc_dir}/{kicad_project.name}-BOM-{kind}-ReferenceNotGrouped.csv"
+            filename = f"{pro.doc_dir}/{pro.project_name}-BOM-{kind}-ReferenceNotGrouped.csv"
 
     log.info(f"BoM file {filename}")
 
@@ -357,21 +357,21 @@ def print_mismatched(mismatched: Dict[str, List[str]]) -> None:
 
 
 def create_netlist(
-    kicad_project: KicadProject, output_format: str = "kicadsexpr", debug: bool = False
+    pro: KicadProject, output_format: str = "kicadsexpr", debug: bool = False
 ) -> kicad_netlist_reader.netlist:
     """Create netlist from KiCad project"""
 
     assert output_format in ["kicadsexpr", "kicadxml", "cadstar", "cadstar", "orcadpcb2", "spice", "spicemodel"]
 
-    kicad_project.create_doc_dir()
-    filename = f"{kicad_project.doc_dir}/netlist"
+    pro.create_doc_dir()
+    filename = f"{pro.doc_dir}/netlist"
     command = [
         "sch",
         "export",
         "netlist",
         "--format",
         output_format,
-        kicad_project.sch_root.path,
+        pro.sch_root.path,
         "-o",
         filename,
     ]

@@ -42,7 +42,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     logos_parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     if args.list is True:
         custom_path = [f.parts[-1] for f in Path(args.path).glob("*")]
         built_in = [f.parts[-1] for f in BUILTIN_LOGO_PATH.glob("*")]
@@ -78,7 +78,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     # Load schematics
     schematics = []
-    for path in kicad_project.all_sch_files:
+    for path in pro.all_sch_files:
         schematics.append(Schematic.from_file(path))
 
     # Check page size
@@ -93,7 +93,6 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         log.info(f"Saved {schematic.filePath}")
         for logo in args.logo:
             log.info(f"Added {logo} to {schematic.filePath}")
-    prettify(kicad_project, argparse.Namespace())
 
 
 # Check page size (acceptable sizes are A3/A4)

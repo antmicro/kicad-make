@@ -173,9 +173,9 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     if args.input is None:
-        args.input = ki_pro.pcb_file
+        args.input = pro.pcb_file
     if not len(args.input):
         log.error("PCB file was not detected or does not exists")
         return
@@ -238,7 +238,7 @@ def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         if args.ref_filter_other:
             preset[1].update({"ref_filter_other": args.ref_filter_other})
 
-    generate_wireframe(preset[0], preset[1], preset[2], preset[3], ki_pro, args)
+    generate_wireframe(preset[0], preset[1], preset[2], preset[3], pro, args)
 
 
 def generate_wireframe(
@@ -246,11 +246,11 @@ def generate_wireframe(
     filter_args: Dict[str, Any],
     sides: List[str],
     export_layers: List[str],
-    kpro: KicadProject,
+    pro: KicadProject,
     args: argparse.Namespace,
 ) -> None:
     """Preprocess board and export it to SVG & GBR"""
-    output_folder = os.path.join(kpro.fab_dir, "wireframe/")
+    output_folder = os.path.join(pro.fab_dir, "wireframe/")
     os.makedirs(output_folder, exist_ok=True)
 
     for side in sides:
@@ -262,7 +262,7 @@ def generate_wireframe(
             filter_args["side"] = side
 
             log.info("Run PCB filter")
-            pcb_filter_run(kpro, **filter_args)
+            pcb_filter_run(pro, **filter_args)
 
             if args.set_ref:
                 reset_footprint_val_props(fp.name)

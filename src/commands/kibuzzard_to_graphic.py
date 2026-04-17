@@ -18,10 +18,10 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def main(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def main(pro: KicadProject, args: argparse.Namespace) -> None:
     """Main module function"""
 
-    pcb_path = kicad_project.pcb_file
+    pcb_path = pro.pcb_file
     board = Board().from_file(Path(pcb_path))
 
     footprints_to_remove = []

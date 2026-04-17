@@ -73,11 +73,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """Create gitignore from template"""
-    gitignore_path = Path(kicad_project.dir) / ".gitignore"
+    gitignore_path = Path(pro.dir) / ".gitignore"
     if gitignore_path.exists():
-        log.warning(f".gitignore already exists in {kicad_project.dir}. Delete it to initialize new one.")
+        log.warning(f".gitignore already exists in {pro.dir}. Delete it to initialize new one.")
         return
 
     with open(gitignore_path, "w") as file:

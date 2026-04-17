@@ -203,15 +203,15 @@ def set_aux_origin_on_size(board: Board, side: str) -> None:
     set_aux_axis_origin(board, aux_x, aux_y)
 
 
-def set_aux_origin(ki_pro: KicadProject, args: argparse.Namespace) -> None:
+def set_aux_origin(pro: KicadProject, args: argparse.Namespace) -> None:
     """Sets aux Axis Origin in .kicad_pcb file according to args"""
 
-    if not len(ki_pro.pcb_file):
+    if not len(pro.pcb_file):
         log.error("PCB file was not detected or does not exists")
         sys.exit(1)
 
     log.info("Loading PCB")
-    board = Board.from_file(Path(ki_pro.pcb_file))
+    board = Board.from_file(Path(pro.pcb_file))
     if args.reset:
         set_aux_axis_origin(board, 0, 0)
     elif args.position:

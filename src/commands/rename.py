@@ -14,12 +14,12 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     log.info("Renaming project")
-    rename(kicad_project, args.new_name)
+    rename(pro, args.new_name)
 
 
-def rename(kicad_project: KicadProject, new_name: str) -> None:
+def rename(pro: KicadProject, new_name: str) -> None:
 
     whitelist = [
         ".kicad_pro",
@@ -42,8 +42,8 @@ def rename(kicad_project: KicadProject, new_name: str) -> None:
         "fp-cache-table",
     ]
 
-    for file_path in Path(kicad_project.dir).rglob("*"):
-        file_path = file_path.relative_to(kicad_project.dir)
+    for file_path in Path(pro.dir).rglob("*"):
+        file_path = file_path.relative_to(pro.dir)
         # Skip hidden files/folders
         if str(file_path).startswith("."):
             continue
@@ -52,12 +52,12 @@ def rename(kicad_project: KicadProject, new_name: str) -> None:
         if file_path.suffix in whitelist and file_path.is_file():
             with fileinput.input(files=file_path, inplace=True, encoding="latin-1") as file:
                 for _, line in enumerate(file):
-                    new_line = line.replace(kicad_project.name, new_name)
+                    new_line = line.replace(pro.project_name, new_name)
                     print(new_line, end="")
 
-        if kicad_project.name in str(file_path):
-            rename = str(file_path).replace(kicad_project.name, new_name)
+        if pro.project_name in str(file_path):
+            rename = str(file_path).replace(pro.project_name, new_name)
             log.info(f"Renaming: {file_path} -> {rename}")
-            file_path.rename(Path(kicad_project.dir) / rename)
+            file_path.rename(Path(pro.dir) / rename)
 
     print("Succesfully renamed the project. Remember to change project name in schematics page settings and on PCB.")

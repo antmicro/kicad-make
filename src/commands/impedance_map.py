@@ -21,19 +21,19 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     impedance_parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
+def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     log.info("Loading net classes from project file")
 
-    with open(kicad_project.pro_file) as f:
+    with open(pro.pro_file) as f:
         j = json.load(f)
 
-    if not kicad_project.pcb_file:
+    if not pro.pcb_file:
         log.error("PCB file was not detected or does not exists")
         return
 
     log.info("Loading PCB")
 
-    board = Board.from_file(Path(kicad_project.pcb_file))
+    board = Board.from_file(Path(pro.pcb_file))
     net_classes: list[NetClass] = NetClass.load_net_classes(j)
 
     log.info("Processing board items")
@@ -69,12 +69,12 @@ def run(kicad_project: KicadProject, args: argparse._SubParsersAction) -> None:
     board.zones = []
 
     log.info("Saving the generated impedance map")
-    kicad_project.create_fab_dir()
-    pcb_file = os.path.join(kicad_project.fab_dir, "impedance_map.kicad_pcb")
+    pro.create_fab_dir()
+    pcb_file = os.path.join(pro.fab_dir, "impedance_map.kicad_pcb")
     board.to_file(Path(pcb_file))
 
     log.info("Plotting gerbers")
-    output_folder = Path(kicad_project.fab_dir) / "impedance_maps"
+    output_folder = Path(pro.fab_dir) / "impedance_maps"
 
     export_impedance_gerbers(pcb_file, output_folder)
     log.info(f"Impedance maps have been generated, gerbers are located at {output_folder}")

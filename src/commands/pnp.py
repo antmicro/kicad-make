@@ -132,10 +132,10 @@ def export_pnp(
     log.info("Saved to %s", output_file_name.replace(os.getcwd(), ""))
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """Run pnp command"""
-    board_path = kicad_project.pcb_file
-    kicad_project.create_fab_dir()
+    board_path = pro.pcb_file
+    pro.create_fab_dir()
     temporary_board_file = None
 
     if args.tht:
@@ -143,7 +143,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
     if args.virtual or args.excluded or args.other:
         log.info("Loading PCB")
-        board = Board.from_file(Path(kicad_project.pcb_file))
+        board = Board.from_file(Path(pro.pcb_file))
 
         log.info("Creating tmp PCB for manipulation and using it for output generation")
         temporary_board_file = tempfile.NamedTemporaryFile(suffix=".kicad_pcb")
@@ -158,7 +158,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
         board.to_file(Path(temporary_board_file.name))
         board_path = temporary_board_file.name
 
-    pnp_path_base = f"{kicad_project.fab_dir}/{kicad_project.name}"
+    pnp_path_base = f"{pro.fab_dir}/{pro.project_name}"
 
     combinations = [
         ("front", "ascii", "-top.pos"),

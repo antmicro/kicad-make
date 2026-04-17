@@ -60,15 +60,13 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     loclib_parser.set_defaults(func=run)
 
 
-def run(ki_pro: KicadProject, args: argparse.Namespace) -> None:
-    loclib_project(ki_pro, args)
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
+    loclib_project(pro, args)
 
 
-def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
+def get_sym_lib_mapping(pro: KicadProject) -> typing.Dict[str, str]:
     lib_table_path = (
-        ki_pro.glob_sym_lib_table_path
-        if os.path.exists(ki_pro.glob_sym_lib_table_path)
-        else ki_pro.system_sym_lib_table
+        pro.glob_sym_lib_table_path if os.path.exists(pro.glob_sym_lib_table_path) else pro.system_sym_lib_table
     )
     libtable = SymbolLibraryTable.from_file(lib_table_path)
 
@@ -88,9 +86,9 @@ def get_sym_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
     return {lib.name: os.path.expandvars(lib.uri) for lib in existing_libs}
 
 
-def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
+def get_fp_lib_mapping(pro: KicadProject) -> typing.Dict[str, str]:
     lib_table_path = (
-        ki_pro.glob_fp_lib_table_path if os.path.exists(ki_pro.glob_fp_lib_table_path) else ki_pro.system_fp_lib_table
+        pro.glob_fp_lib_table_path if os.path.exists(pro.glob_fp_lib_table_path) else pro.system_fp_lib_table
     )
     libtable = FootprintLibraryTable.from_file(lib_table_path)
 
@@ -136,10 +134,10 @@ def append_template_symbol_to_library(symbol: SymbolDefinition, library: SymbolF
         log.debug("Skipping %s, already in lib", symbol.lib_id.name)
 
 
-def cleanup_schematic_lib_symbols(ki_pro: KicadProject) -> None:
+def cleanup_schematic_lib_symbols(pro: KicadProject) -> None:
     """Remove unreferrenced schematic symbols from schematis cache"""
     log.info("Removing unrefferenced schematic symbols")
-    for schematic_path in ki_pro.all_sch_files:
+    for schematic_path in pro.all_sch_files:
         log.info("Processing: %s", os.path.basename(schematic_path))
         schematic = Schematic.from_file(schematic_path)
         sch_symbol_instances: list[str] = []
@@ -166,15 +164,15 @@ def cleanup_schematic_lib_symbols(ki_pro: KicadProject) -> None:
         schematic.to_file()
 
 
-def group_symbols_by_library_name(ki_pro: KicadProject) -> SymbolsLibs:
+def group_symbols_by_library_name(pro: KicadProject) -> SymbolsLibs:
     schematic_cache_lib = "__schematic"
-    library_mapping = get_sym_lib_mapping(ki_pro)
+    library_mapping = get_sym_lib_mapping(pro)
     log.debug("Mapping: %s", library_mapping)
     # Add library for symbols without lib/lib not exists
     lib_list = SymbolsLibs([UsedLib(schematic_cache_lib, "", [])])
 
     # get list of all used libraries and symbols
-    for schematic_path in ki_pro.all_sch_files:
+    for schematic_path in pro.all_sch_files:
         schematic = Schematic.from_file(schematic_path)
         log.info("Loading symbols from %s", os.path.basename(schematic_path))
         for schematic_symbol in schematic.lib_symbols:
@@ -217,9 +215,9 @@ def group_symbols_by_library_name(ki_pro: KicadProject) -> SymbolsLibs:
     return lib_list
 
 
-def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolFile:
-    ki_pro.create_fp_lib_dir()
-    local_lib_path = f"{ki_pro.lib_dir}/{ki_pro.name}.{ki_pro.sym_lib_ext}"
+def loclib_symbols(pro: KicadProject, args: argparse.Namespace) -> SymbolFile:
+    pro.create_fp_lib_dir()
+    local_lib_path = f"{pro.lib_dir}/{pro.project_name}.{pro.sym_lib_ext}"
     if args.force:
         log.info("Localize symbols in force mode")
         local_lib = SymbolFile(generator="kmake_loclib")
@@ -234,7 +232,7 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolFile
             local_lib.to_file(local_lib_path)
             log.info("Created empty local library")
 
-    lib_list = group_symbols_by_library_name(ki_pro)
+    lib_list = group_symbols_by_library_name(pro)
 
     for used_lib in lib_list.libs:
         # Special case for symbols that were changed on schematic
@@ -278,17 +276,17 @@ def loclib_symbols(ki_pro: KicadProject, args: argparse.Namespace) -> SymbolFile
     return local_lib
 
 
-def loclib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
-    ki_pro.create_fp_lib_dir()
+def loclib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
+    pro.create_fp_lib_dir()
 
-    library_mapping = get_fp_lib_mapping(ki_pro)
+    library_mapping = get_fp_lib_mapping(pro)
 
     if args.force:
         log.info("Localize footprints in force mode")
     else:
         log.info("Localize footprints in append mode")
-    log.info("Processing : %s", os.path.basename(ki_pro.pcb_file))
-    board = Board.from_file(ki_pro.pcb_file)
+    log.info("Processing : %s", os.path.basename(pro.pcb_file))
+    board = Board.from_file(pro.pcb_file)
     footprints_list: List[FootprintBoard] = []
     for footprint in board.footprints:
         if any(fp.lib_id.name == footprint.lib_id.name for fp in footprints_list):
@@ -307,8 +305,8 @@ def loclib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
             log.error("Library %s not found. Skipping %s", footprint.lib_id.library, footprint.lib_id.name)
             continue
 
-        lib_fp_path = f"{remote_lib_path}/{footprint.lib_id.name}.{ki_pro.fp_lib_ext}"
-        local_fp_path = f"{ki_pro.fp_lib_dir}/{footprint.lib_id.name}.{ki_pro.fp_lib_ext}"
+        lib_fp_path = f"{remote_lib_path}/{footprint.lib_id.name}.{pro.fp_lib_ext}"
+        local_fp_path = f"{pro.fp_lib_dir}/{footprint.lib_id.name}.{pro.fp_lib_ext}"
         log.debug("Processing: %s from %s", footprint.lib_id.name, footprint.lib_id.library)
         if not os.path.exists(lib_fp_path):
             log.error("%s does not exists. Skipping", lib_fp_path)
@@ -330,22 +328,22 @@ def loclib_footprints(ki_pro: KicadProject, args: argparse.Namespace) -> None:
     # process only symbols from local library
 
 
-def loclib_3d_models(ki_pro: KicadProject, args: argparse.Namespace) -> None:
-    ki_pro.create_3d_model_lib_dir()
+def loclib_3d_models(pro: KicadProject, args: argparse.Namespace) -> None:
+    pro.create_3d_model_lib_dir()
 
-    local_footprints = os.listdir(ki_pro.fp_lib_dir)
+    local_footprints = os.listdir(pro.fp_lib_dir)
 
     model_paths: list[str] = []
 
     for fp_name in local_footprints:
-        fp_path = f"{ki_pro.fp_lib_dir}/{fp_name}"
+        fp_path = f"{pro.fp_lib_dir}/{fp_name}"
         footprint = FootprintFile.from_file(fp_path)
         for model in footprint.models:
             model_paths.append(os.path.expandvars(model.path))
 
     for model_path in model_paths:
         model_name = os.path.basename(model_path)
-        local_model_path = f"{ki_pro.model_3d_lib_dir}/{model_name}"
+        local_model_path = f"{pro.model_3d_lib_dir}/{model_name}"
         if not os.path.exists(model_path):
             log.error("Skipping  :  %s does not exists", model_path)
             continue
@@ -364,26 +362,26 @@ def loclib_3d_models(ki_pro: KicadProject, args: argparse.Namespace) -> None:
         log.debug("Copied    : %s to %s", model_name, local_model_path)
 
 
-def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Namespace) -> None:
+def update_links(pro: KicadProject, local_lib: SymbolFile, args: argparse.Namespace) -> None:
     local_symbols: list[str] = []
 
     for symbol in local_lib.symbols:
         local_symbols.append(symbol.lib_id.name)
 
-    local_footprints = os.listdir(ki_pro.fp_lib_dir)
-    local_3d_models = os.listdir(ki_pro.model_3d_lib_dir)
+    local_footprints = os.listdir(pro.fp_lib_dir)
+    local_3d_models = os.listdir(pro.model_3d_lib_dir)
     local_footprint_names = [os.path.splitext(fp_name)[0] for fp_name in local_footprints]
-    local_lib_path = f"{ki_pro.lib_dir}/{ki_pro.name}.{ki_pro.sym_lib_ext}"
+    local_lib_path = f"{pro.lib_dir}/{pro.project_name}.{pro.sym_lib_ext}"
 
     # Patch paths in schematic symbols
-    for schematic_path in ki_pro.all_sch_files:
+    for schematic_path in pro.all_sch_files:
         log.info("Patching paths in: %s", os.path.basename(schematic_path))
         schematic = Schematic.from_file(schematic_path)
         for symbol in schematic.lib_symbols + schematic.symbols:
             if symbol.lib_id.name in local_symbols:
                 if not symbol.lib_id.library:
                     continue
-                symbol.lib_id.library = ki_pro.name
+                symbol.lib_id.library = pro.project_name
             # skip power symbols footprint check
             # TODO replace with if symbol.isPower once it's documented
             if "#PWR" in symbol.properties.ref.value:
@@ -394,23 +392,23 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
                 continue
             fp_entry_name = LibId.deserialize(footprint_id).name
             if fp_entry_name in local_footprint_names:
-                fp_library_nickname = f"{ki_pro.name}-{ki_pro.relative_fp_lib_path}"
+                fp_library_nickname = f"{pro.project_name}-{pro.relative_fp_lib_path}"
                 footprint_id = f"{fp_library_nickname}:{fp_entry_name}"
                 symbol.properties.set("Footprint", footprint_id)
         schematic.to_file()
 
     # Patch paths in PCB footprints
-    log.info("Patching paths in: %s", os.path.basename(ki_pro.pcb_file))
-    board = Board.from_file(ki_pro.pcb_file)
+    log.info("Patching paths in: %s", os.path.basename(pro.pcb_file))
+    board = Board.from_file(pro.pcb_file)
     for footprint in board.footprints:
         if footprint.lib_id.name in local_footprint_names:
-            footprint.lib_id.library = f"{ki_pro.name}-{ki_pro.relative_fp_lib_path}"
+            footprint.lib_id.library = f"{pro.project_name}-{pro.relative_fp_lib_path}"
 
             for idx, _ in enumerate(footprint.models):
                 model_name = os.path.basename(footprint.models[idx].path)
                 if model_name in local_3d_models:
                     footprint.models[idx].path = (
-                        f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.relative_3d_model_path}/{model_name}"
+                        f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.relative_3d_model_path}/{model_name}"
                     )
 
     board.to_file()
@@ -427,7 +425,7 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
             continue
         fp_entry_name = LibId.deserialize(footprint_id).name
         if fp_entry_name in local_footprint_names:
-            fp_library_nickname = f"{ki_pro.name}-{ki_pro.relative_fp_lib_path}"
+            fp_library_nickname = f"{pro.project_name}-{pro.relative_fp_lib_path}"
             footprint_id = f"{fp_library_nickname}:{fp_entry_name}"
             symbol.properties.set("Footprint", footprint_id)
     local_lib.to_file(local_lib_path)
@@ -436,14 +434,14 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
     log.info("Patching 3d model path local footprints")
     for fp_name in local_footprints:
         log.debug("Patching 3d model path in: %s", fp_name)
-        fp_path = f"{ki_pro.fp_lib_dir}/{fp_name}"
+        fp_path = f"{pro.fp_lib_dir}/{fp_name}"
         log.info(f"Loading: {fp_path}")
         footprint = FootprintFile.from_file(fp_path)
         for idx, _ in enumerate(footprint.models):
             model_name = os.path.basename(footprint.models[idx].path)
             if model_name in local_3d_models:
                 footprint.models[idx].path = (
-                    f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.relative_3d_model_path}/{model_name}"
+                    f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.relative_3d_model_path}/{model_name}"
                 )
         footprint.to_file(fp_path)
 
@@ -480,26 +478,26 @@ def add_lib_to_fp_lib_table(lib_name: str, fp_lib_path: str, fp_lib_table_path: 
     fp_lib_table.to_file(fp_lib_table_path)
 
 
-def loclib_project(ki_pro: KicadProject, args: argparse.Namespace) -> None:
+def loclib_project(pro: KicadProject, args: argparse.Namespace) -> None:
     """Create local library from components used in schematic/pcb"""
     if args.cleanup:
-        cleanup_schematic_lib_symbols(ki_pro)
+        cleanup_schematic_lib_symbols(pro)
         return
 
-    ki_pro.load_kicad_environ_vars()
-    kiprjmod_lib = loclib_symbols(ki_pro, args)
+    pro.load_kicad_environ_vars()
+    kiprjmod_lib = loclib_symbols(pro, args)
 
     # Dump symbols and footprints to library in project folder
-    loclib_footprints(ki_pro, args)
-    loclib_3d_models(ki_pro, args)
+    loclib_footprints(pro, args)
+    loclib_3d_models(pro, args)
 
     # Update symbol/footprint library links
-    update_links(ki_pro, kiprjmod_lib, args)
+    update_links(pro, kiprjmod_lib, args)
 
     # Generate/extend sym-lib-table
-    kiprjmod_sym_lib_path = f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.name}.{ki_pro.sym_lib_ext}"
-    add_lib_to_sym_lib_table(lib_name=ki_pro.name, symb_lib_path=kiprjmod_sym_lib_path)
+    kiprjmod_sym_lib_path = f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.project_name}.{pro.sym_lib_ext}"
+    add_lib_to_sym_lib_table(lib_name=pro.project_name, symb_lib_path=kiprjmod_sym_lib_path)
 
     # Generate/extend fp-lib-table
-    kiprjmod_fp_lib_path = f"${{KIPRJMOD}}/{ki_pro.relative_lib_path}/{ki_pro.name}-footprints/"
-    add_lib_to_fp_lib_table(lib_name=f"{ki_pro.name}-footprints", fp_lib_path=kiprjmod_fp_lib_path)
+    kiprjmod_fp_lib_path = f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.project_name}-footprints/"
+    add_lib_to_fp_lib_table(lib_name=f"{pro.project_name}-footprints", fp_lib_path=kiprjmod_fp_lib_path)
