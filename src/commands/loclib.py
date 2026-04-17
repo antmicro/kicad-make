@@ -11,7 +11,7 @@ from copy import deepcopy
 from typing import List
 
 from askiff import Board, FootprintFile, Schematic, SymbolFile
-from askiff.common import LibEntry, Property
+from askiff.common import LibEntry, LibId
 from askiff.footprint import FootprintBoard, FootprintLibraryTable
 from askiff.symbol import SymbolDefinition, SymbolLibraryTable
 
@@ -54,7 +54,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--cleanup",
         "--cleanup-lib-symbols",
         action="store_true",
-        help="Remove unrefferenced lib_symbols, footprints and 3D models.",
+        help="Remove unreferenced lib_symbols, footprints and 3D models.",
     )
 
     loclib_parser.set_defaults(func=run)
@@ -101,22 +101,12 @@ def get_fp_lib_mapping(ki_pro: KicadProject) -> typing.Dict[str, str]:
     return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.lib}
 
 
-def set_property(symbol: typing.Any, name: str, value: str) -> None:
-    prop = symbol.properties.get(name)
-    if prop is not None:
-        prop.value = value
-        return
-    symbol.properties.append(Property(name, value))
-
-
 def get_assigned_footprint(_symbol: SymbolDefinition) -> str | None:
     """Returns Footprint field content string from Symbol"""
     footprint_id = _symbol.properties.get_value("Footprint")
     if footprint_id is None:
         return None
-    if ":" in footprint_id:
-        return footprint_id.split(":", 1)[1]
-    return footprint_id
+    return LibId.deserialize(footprint_id).name
 
 
 def get_symbol_from_library(__symbol_name: str, __library_path: str) -> SymbolDefinition | None:
@@ -403,14 +393,11 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
             if footprint_id is None or footprint_id == "":
                 log.warning("%s has no footprint assigned", symbol.lib_id.name)
                 continue
-            if ":" in footprint_id:
-                fp_library_nickname, fp_entry_name = footprint_id.split(":", 1)
-            else:
-                fp_entry_name = footprint_id
+            fp_entry_name = LibId.deserialize(footprint_id).name
             if fp_entry_name in local_footprint_names:
                 fp_library_nickname = f"{ki_pro.name}-{ki_pro.relative_fp_lib_path}"
                 footprint_id = f"{fp_library_nickname}:{fp_entry_name}"
-                set_property(symbol, "Footprint", footprint_id)
+                symbol.properties.set("Footprint", footprint_id)
         schematic.to_file()
 
     # Patch paths in PCB footprints
@@ -439,14 +426,11 @@ def update_links(ki_pro: KicadProject, local_lib: SymbolFile, args: argparse.Nam
                 symbol.lib_id.name,
             )
             continue
-        if ":" in footprint_id:
-            fp_library_nickname, fp_entry_name = footprint_id.split(":", 1)
-        else:
-            fp_entry_name = footprint_id
+        fp_entry_name = LibId.deserialize(footprint_id).name
         if fp_entry_name in local_footprint_names:
             fp_library_nickname = f"{ki_pro.name}-{ki_pro.relative_fp_lib_path}"
             footprint_id = f"{fp_library_nickname}:{fp_entry_name}"
-            set_property(symbol, "Footprint", footprint_id)
+            symbol.properties.set("Footprint", footprint_id)
     local_lib.to_file(local_lib_path)
 
     # Patch 3D model paths in local footprints library
@@ -482,7 +466,7 @@ def add_lib_to_sym_lib_table(lib_name: str, symb_lib_path: str, sym_lib_table_pa
 
 
 def add_lib_to_fp_lib_table(lib_name: str, fp_lib_path: str, fp_lib_table_path: str = "fp-lib-table") -> None:
-    """Add Foorprint lib directory to fp-lib-table"""
+    """Add Footprint lib directory to fp-lib-table"""
     if os.path.isfile(fp_lib_table_path):
         log.info("Updating %s", fp_lib_table_path)
         fp_lib_table = FootprintLibraryTable.from_file(fp_lib_table_path)
