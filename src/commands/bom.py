@@ -9,8 +9,8 @@ from typing import TextIO, Dict, List, Tuple
 
 import kicad_netlist_reader
 
-from askiff import Project
-from common.kmake_helper import run_kicad_cli
+from src.common.kicad_project import KicadProject
+from src.common.kmake_helper import run_kicad_cli
 
 log = logging.getLogger(__name__)
 
@@ -191,8 +191,8 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: Project, args: argparse.Namespace) -> None:
-    """Main kamke bom method"""
+def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+    """Main kmake bom method"""
 
     log.info("Exporting netlist from project")
     net = create_netlist(kicad_project, "kicadxml", args.debug)
@@ -357,7 +357,7 @@ def print_mismatched(mismatched: Dict[str, List[str]]) -> None:
 
 
 def create_netlist(
-    kicad_project: Project, output_format: str = "kicadsexpr", debug: bool = False
+    kicad_project: KicadProject, output_format: str = "kicadsexpr", debug: bool = False
 ) -> kicad_netlist_reader.netlist:
     """Create netlist from KiCad project"""
 

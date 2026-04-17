@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Callable, List
 
 from rich.logging import RichHandler
@@ -129,12 +130,12 @@ def main() -> None:
     log = logging.getLogger("kmake")
     log.debug("Running in debug mode")
 
+    pro_path = Path.cwd()
     no_log_subcommands = ["init-project"]
-    if args.subcommand in no_log_subcommands:
-        kpro = KicadProject(disable_logging=True, local_share_path=args.share_path)
-    else:
-        kpro = KicadProject(local_share_path=args.share_path)
-    assert float(kpro.kicad_version) >= 8.0, "Kmake requires KiCad 8.0+ project file"
+    disable_logging = args.subcommand in no_log_subcommands
+
+    kpro = KicadProject(path=pro_path, disable_logging=disable_logging, local_share_path=args.share_path).load()
+
     # Run selected tool
     args.func(kpro, args)
 

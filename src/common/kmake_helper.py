@@ -3,7 +3,6 @@
 import logging
 import os
 import subprocess
-import sys
 from kiutils.footprint import Footprint
 from kiutils.symbol import Symbol
 from kiutils.items.schitems import SchematicSymbol
@@ -12,10 +11,6 @@ from kiutils.items.common import Property
 from typing import List, Any, Optional, Union
 
 log = logging.getLogger(__name__)
-
-
-def is_venv() -> bool:
-    return hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
 
 
 def is_in_path(name: str) -> bool:

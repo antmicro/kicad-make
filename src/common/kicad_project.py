@@ -12,7 +12,8 @@ from dataclasses import dataclass
 import itertools
 import re
 
-from kiutils.libraries import LibTable
+from askiff import Project
+from askiff.common import LibraryTable
 from kiutils.schematic import Schematic
 
 from .kmake_helper import find_files_by_ext, get_kicad_cli_command
@@ -55,19 +56,16 @@ class SchProject:
             schematic.to_file()
 
 
-class KicadProject:
+class KicadProject(Project):
     sch_ext: str = "kicad_sch"
     pro_ext: str = "kicad_pro"
     pcb_ext: str = "kicad_pcb"
     dru_ext: str = "kicad_dru"
     sym_lib_ext: str = "kicad_sym"
     fp_lib_ext: str = "kicad_mod"
-    vrml_ext: str = "vrml"
     relative_fab_path: str = "fab"
     relative_doc_path: str = "doc"
     relative_step_model3d_path: str = "3d-model"
-    relative_vrml_model3d_path: str = "3d-model"
-    relative_vrml_shapes3d_path: str = "shapes3d"
     relative_lib_path: str = "lib"
     relative_fp_lib_path: str = "footprints"
     relative_3d_model_path: str = "3d-models"
@@ -82,6 +80,7 @@ class KicadProject:
         Parameters:
                 disable_logging (bool): do not log when no KiCad file exists
         """
+        Project.__init__(self)
         self.disable_logging = disable_logging
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)
@@ -113,8 +112,6 @@ class KicadProject:
         self.sort_sch_files()
         self.fab_dir = f"{self.dir}/{self.relative_fab_path}"
         self.doc_dir = f"{self.dir}/{self.relative_doc_path}"
-        self.vrml_model3d_dir = f"{self.dir}/{self.relative_vrml_model3d_path}"
-        self.vrml_shapes3d_dir = f"{self.dir}/{self.relative_vrml_shapes3d_path}"
         self.step_model3d_dir = f"{self.dir}/{self.relative_step_model3d_path}"
         self.lib_dir = f"{self.dir}/{self.relative_lib_path}"
         self.fp_lib_dir = f"{self.dir}/{self.relative_lib_path}/{self.name}-{self.relative_fp_lib_path}"
@@ -207,17 +204,9 @@ class KicadProject:
         assert self.fab_dir != "", "fab dir cannot be empty"
         os.makedirs(self.fab_dir, exist_ok=True)
 
-    def create_vrml_model3d_dir(self) -> None:
-        assert self.vrml_model3d_dir != "", "vrml_model3d dir cannot be empty"
-        os.makedirs(self.vrml_model3d_dir, exist_ok=True)
-
     def create_step_model3d_dir(self) -> None:
         assert self.step_model3d_dir != "", "step_model3d dir cannot be empty"
         os.makedirs(self.step_model3d_dir, exist_ok=True)
-
-    def create_vrml_shapes3d_dir(self) -> None:
-        assert self.vrml_shapes3d_dir != "", "vrml_shapes3d dir cannot be empty"
-        os.makedirs(self.vrml_shapes3d_dir, exist_ok=True)
 
     def create_lib_dir(self) -> None:
         assert self.lib_dir != "", "lib dir cannot be empty"
@@ -231,21 +220,15 @@ class KicadProject:
         assert self.model_3d_lib_dir != "", "3d model lib dir cannot be empty"
         os.makedirs(self.model_3d_lib_dir, exist_ok=True)
 
-    def read_lib_table_file(self, name: str, global_lib: str) -> LibTable:
+    def read_lib_table_file(self, name: str, global_lib: str) -> LibraryTable:
         if os.path.exists(name):
             log.debug(f"Using config from {name}")
-            return LibTable.from_file(name)
+            return LibraryTable.from_file(name)
         if os.path.exists(global_lib):
             log.warning(f"Provided lib table ({name}) doesn't exist. Using global lib table")
-            return LibTable.from_file(global_lib)
+            return LibraryTable.from_file(global_lib)
         log.error("Provided lib table doesn't exist and couldn't find global lib table")
         exit(1)
-
-    def read_fp_lib_table_file(self, name: str) -> LibTable:
-        return self.read_lib_table_file(name, self.system_fp_lib_table)
-
-    def read_sym_lib_table_file(self, name: str) -> LibTable:
-        return self.read_lib_table_file(name, self.system_sym_lib_table)
 
     def load_kicad_environ_vars(self) -> None:
 

@@ -6,7 +6,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 import re
 
 from askiff.board import Board
-from askiff.footprint import Footprint, FootprintStandalone, LibId
+from askiff.footprint import Footprint, FootprintFile, LibId
 
 from kiutils.items.schitems import SchematicSymbol
 from kiutils.schematic import Schematic
@@ -72,7 +72,7 @@ def get_lib_mapping(
     libtable = ki_pro.read_lib_table_file(lib_table_file, system_table_file)
 
     if not include_kicad_lib:  # if not using original KiCad libraries, remove them from list
-        libtable.libs = [lib for lib in libtable.libs if lib_dir not in lib.uri]
+        libtable.lib = [lib for lib in libtable.libs if lib_dir not in lib.uri]
 
     # Sort so that kicad libaries are last
     libtable.libs = sorted(libtable.libs, key=lambda x: lib_dir not in x.uri, reverse=True)
@@ -115,7 +115,7 @@ def get_global_footprint_list(lib_mapping: Dict[str, str]) -> Dict[str, Tuple[st
             if not file.name.endswith(".kicad_mod"):
                 continue
             name = file.name.removesuffix(".kicad_mod")
-            fp_list[name] = (lib_name, FootprintStandalone.from_file(Path(file.path)))
+            fp_list[name] = (lib_name, FootprintFile.from_file(Path(file.path)))
     return fp_list
 
 

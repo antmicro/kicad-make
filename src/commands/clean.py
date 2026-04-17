@@ -3,8 +3,6 @@ import logging
 
 from askiff import Project
 
-from common.kicad_project import KicadProject
-
 log = logging.getLogger(__name__)
 
 folders_to_skip = [
@@ -58,10 +56,9 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: Project, args: argparse.Namespace) -> None:
     log.info("Cleaning up project files...")
 
-    pro = Project(kicad_project.dir).load()
     if not any((args.unused_project_instances, args.unused_files)):
         args.unused_files = True
 
