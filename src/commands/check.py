@@ -52,6 +52,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         title="Check Subcommands",
         dest="check_subcommand",
         help='To display help for specific subcommand use "kmake check SUBCOMMAND -h"',
+        required=True,
     )
 
     check_parser_erc = check_parser.add_parser("erc", help="Run ERC over project")
