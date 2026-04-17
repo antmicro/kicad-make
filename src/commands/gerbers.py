@@ -109,7 +109,7 @@ def rename_gbr_files(gbr_dir: str, temp_name: str, prj_name: str) -> None:
 # Stamp gerber files with short commit SHA
 def stamp_gerbers(pro: KicadProject) -> None:
     try:
-        kicad_project_repo = Repo(f"{pro.dir}")
+        kicad_project_repo = Repo(pro.path)
         modified_files = kicad_project_repo.index.diff(None)
 
         for file_path in modified_files:
@@ -120,7 +120,7 @@ def stamp_gerbers(pro: KicadProject) -> None:
 
         sha = kicad_project_repo.head.commit.hexsha
         short_sha = kicad_project_repo.git.rev_parse(sha, short=7)
-        tag_gerbers(f"{pro.dir}/fab", short_sha)
+        tag_gerbers(f"{pro.path}/fab", short_sha)
 
     except InvalidGitRepositoryError:
         log.warning("Project is not in repository. Githash not added.")
@@ -146,17 +146,17 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
 
         export_gerbers(
             temporary_board_file.name,
-            output_folder=f"{pro.dir}/fab/",
+            output_folder=f"{pro.path}/fab/",
             common_layers=common_layers,
             verbose=args.debug,
         )
         export_drill(
             temporary_board_file.name,
-            f"{pro.dir}/fab/",
+            f"{pro.path}/fab/",
             excellon=args.excellon,
             origin=args.drill_origin,
         )
-        rename_gbr_files(f"{pro.dir}/fab/", Path(temporary_board_file.name).stem, pro.project_name)
+        rename_gbr_files(f"{pro.path}/fab/", Path(temporary_board_file.name).stem, pro.project_name)
 
         stamp_gerbers(pro)
 

@@ -24,7 +24,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     log.info("Loading net classes from project file")
 
-    with open(pro.pro_file) as f:
+    with open(pro.kicad_pro_path) as f:
         j = json.load(f)
 
     if not pro.pcb_file:

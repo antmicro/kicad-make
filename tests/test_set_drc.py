@@ -37,7 +37,7 @@ class SetDrcTest(KmakeTestCase, unittest.TestCase):
 
     def test_set_drc_correct_template_argument(self) -> None:
         # first make sure project rules and template rules are different
-        with open(self.kpro.pro_file, "r") as f:
+        with open(self.kpro.kicad_pro_path, "r") as f:
             project_file_content = json.load(f)
         with open(self.TEST_DIR / "share-dir" / "pcb-drc-templates" / "7E.kicad_pro", "r") as f:
             template_file_content = json.load(f)
@@ -50,7 +50,7 @@ class SetDrcTest(KmakeTestCase, unittest.TestCase):
         self.assertIn("Rules updated successfully", log.output[0])
 
         # now make sure project rules and template rules are the same
-        with open(self.kpro.pro_file, "r") as f:
+        with open(self.kpro.kicad_pro_path, "r") as f:
             project_file_content = json.load(f)
         with open(self.TEST_DIR / "share-dir" / "pcb-drc-templates" / "7E.kicad_pro", "r") as f:
             template_file_content = json.load(f)

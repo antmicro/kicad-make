@@ -2,7 +2,6 @@ import argparse
 import logging
 import fileinput
 
-from pathlib import Path
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
@@ -42,8 +41,8 @@ def rename(pro: KicadProject, new_name: str) -> None:
         "fp-cache-table",
     ]
 
-    for file_path in Path(pro.dir).rglob("*"):
-        file_path = file_path.relative_to(pro.dir)
+    for file_path in pro.path.rglob("*"):
+        file_path = file_path.relative_to(pro.path)
         # Skip hidden files/folders
         if str(file_path).startswith("."):
             continue
@@ -58,6 +57,6 @@ def rename(pro: KicadProject, new_name: str) -> None:
         if pro.project_name in str(file_path):
             rename = str(file_path).replace(pro.project_name, new_name)
             log.info(f"Renaming: {file_path} -> {rename}")
-            file_path.rename(Path(pro.dir) / rename)
+            file_path.rename(pro.path / rename)
 
     print("Succesfully renamed the project. Remember to change project name in schematics page settings and on PCB.")

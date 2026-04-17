@@ -12,7 +12,6 @@ from PIL import Image as PIL_Image
 from xdg import BaseDirectory
 
 from common.kicad_project import KicadProject
-from .prettify import run as prettify
 
 log = logging.getLogger(__name__)
 

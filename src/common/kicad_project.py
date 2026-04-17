@@ -85,7 +85,6 @@ class KicadProject(Project):
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)
 
-        self.pro_file: str = ""
         self.pcb_file: str = ""
         self.all_sch_files: List[str] = []
         self.sch_files: List[str] = []
@@ -104,8 +103,6 @@ class KicadProject(Project):
         self.env_var_name_sym_lib = f"KICAD{self.kicad_version[0]}_SYMBOL_DIR"
         self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
 
-        self.get_project_dir()
-        self.get_pro_file_name_from_dir(self.dir)
         self.get_pcb_file_name_from_dir(self.dir)
         self.get_dru_file_name_from_dir(self.dir)
         self.sort_sch_files()
@@ -122,29 +119,6 @@ class KicadProject(Project):
             key=lambda x: x.rpartition("/")[2].startswith(self.name + "."),
             reverse=True,
         )
-
-    def get_pro_file_name_from_dir(self, _dir: str = "") -> None:
-        """Get .kicad_pro file name from directory `dir`"""
-
-        assert _dir != ""
-        found_pro_files = []
-
-        found_pro_files = find_files_by_ext(_dir, self.pro_ext, disable_logging=True)
-
-        if len(found_pro_files) == 0:
-            if not self.disable_logging:
-                log.warning("No .kicad_pro file detected.")
-            self.pro_file = ""
-            self.name = ""
-            return
-
-        if len(found_pro_files) > 1:
-            log.warning(f"More than 1 .kicad_pro file detected. Using {found_pro_files[0]}.")
-
-        self.pro_file = found_pro_files[0]
-        log.debug("Project file path: %s", self.pro_file)
-        self.name = Path(self.pro_file).stem
-        log.debug("Project name: %s", self.name)
 
     def get_pcb_file_name_from_dir(self, _dir: str = "") -> None:
         """Get .kicad_pcb file name from directory `dir`"""
@@ -181,10 +155,6 @@ class KicadProject(Project):
             sys.exit(1)
         elif len(found_dru_files) == 1:
             self.dru_file = found_dru_files[0]
-
-    def get_project_dir(self) -> None:
-        """Get `dir` from current working directory"""
-        self.dir = os.getcwd()
 
     def create_doc_dir(self) -> None:
         assert self.doc_dir != "", "doc dir cannot be empty"

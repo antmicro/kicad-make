@@ -144,7 +144,7 @@ def create_project_dru_if_not_exists(project: KicadProject) -> None:
     if project.dru_file is None:
         log.info("No DRU file in project directory")
         log.info("Converting .kicad_pro file to .kicad_dru file.")
-        project.dru_file = project.pro_file.replace(project.pro_ext, project.dru_ext)
+        project.dru_file = project.kicad_pro_path.replace(project.pro_ext, project.dru_ext)
         if not create_dru_file(project.dru_file):
             log.error(f"Can't create DRU file in {project.dru_file}")
             sys.exit(1)
@@ -201,12 +201,12 @@ def run_drc(project: KicadProject, args: argparse.Namespace) -> None:
         log.error(f"Selected {args.drc} DRC template doesn't exist")
         sys.exit(1)
 
-    if not project.pro_file:
+    if not project.kicad_pro_path:
         log.error("No .kicad_pro file in project directory")
         sys.exit(1)
 
     set_drc_template(
-        project.local_share_path, Path(args.drc).with_suffix(f".{project.pro_ext}"), Path(project.pro_file)
+        project.local_share_path, Path(args.drc).with_suffix(f".{project.pro_ext}"), Path(project.kicad_pro_path)
     )
 
 

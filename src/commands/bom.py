@@ -212,13 +212,13 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
             kind = "DNP"
 
     if args.output:
-        filename = f"{pro.dir}/{args.output}"
+        filename = pro.path / args.output
     else:
         if args.group_references:
-            filename = f"{pro.doc_dir}/{pro.project_name}-BOM-{kind}.csv"
+            filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}.csv"
         else:
             log.info("Using grouped references")
-            filename = f"{pro.doc_dir}/{pro.project_name}-BOM-{kind}-ReferenceNotGrouped.csv"
+            filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}-ReferenceNotGrouped.csv"
 
     log.info(f"BoM file {filename}")
 

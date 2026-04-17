@@ -213,7 +213,7 @@ def create_empty_pro(project: KicadProject, project_title: str) -> bool:
     :param project: Kicad project object to work into
     :returns: True if file created successfully or file exist, False if not
     """
-    if not project.pro_file:
+    if not project.kicad_pro_path:
         log.info("Creating project file")
         with open(file=project_title + ".kicad_pro", mode="w") as file:
             file.write("{}")

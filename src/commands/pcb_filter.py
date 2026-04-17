@@ -197,7 +197,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
             "std_graphics",
         ]
     }
-    pcb_filter_run(ki_pro, **argsf)
+    pcb_filter_run(pro, **argsf)
 
 
 def keep_first_pads_only(source_pcb: Board) -> None:
