@@ -63,4 +63,4 @@ class KmakeTestCase:
         "Run kicad-cli to check if KiCad files are not corrupted"
         os.chdir(self.target_dir)
         run_kicad_cli(["pcb", "export", "gerbers", self.kpro.pcb_file], False)
-        run_kicad_cli(["sch", "export", "pdf", self.kpro.sch_root], False)
+        run_kicad_cli(["sch", "export", "pdf", self.kpro.sch_root.path], False)

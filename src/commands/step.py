@@ -3,12 +3,11 @@
 import argparse
 import logging
 import re
-from pathlib import Path
+
+from askiff.board import StackupLayerMaskTop
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
-from askiff.board import Board
-from askiff.common_pcb import Layer
 
 log = logging.getLogger(__name__)
 
@@ -18,16 +17,15 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     step_parser.set_defaults(func=run)
 
 
-def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
-    kicad_project.create_step_model3d_dir()
+def run(pro: KicadProject, args: argparse.Namespace) -> None:
+    pro.create_step_model3d_dir()
 
-    step_file_name = f"{kicad_project.name}.step"
-    output_file_path = f"{kicad_project.step_model3d_dir}/{step_file_name}"
+    step_file_name = f"{pro.project_name}.step"
+    output_file_path = f"{pro.step_model3d_dir}/{step_file_name}"
 
     log.info("Exporting 3D STEP as %s", output_file_path)
 
-    board = Board.from_file(Path(kicad_project.pcb_file))
-    silkscreen = [layer for layer in board.setup.stackup.layers if layer.layer == Layer.SILKS_F][0]
+    silkscreen = [layer for layer in pro.pcb_root.setup.stackup.layers if isinstance(layer, StackupLayerMaskTop)][0]
 
     preset_colors = {
         "Green": [20, 51, 36],
@@ -48,7 +46,7 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
     colorf = [c / 256 for c in color]
 
     export_step(
-        kicad_project.pcb_file,
+        pro.pcb_root.path,
         output_file_path,
         verbose=args.debug,
     )

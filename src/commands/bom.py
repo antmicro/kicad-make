@@ -9,8 +9,8 @@ from typing import TextIO, Dict, List, Tuple
 
 import kicad_netlist_reader
 
-from src.common.kicad_project import KicadProject
-from src.common.kmake_helper import run_kicad_cli
+from common.kicad_project import KicadProject
+from common.kmake_helper import run_kicad_cli
 
 log = logging.getLogger(__name__)
 
@@ -371,7 +371,7 @@ def create_netlist(
         "netlist",
         "--format",
         output_format,
-        kicad_project.sch_root,
+        kicad_project.sch_root.path,
         "-o",
         filename,
     ]

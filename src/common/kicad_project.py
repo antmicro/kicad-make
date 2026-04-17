@@ -107,7 +107,6 @@ class KicadProject(Project):
         self.get_project_dir()
         self.get_pro_file_name_from_dir(self.dir)
         self.get_pcb_file_name_from_dir(self.dir)
-        self.get_sch_file_names_from_dir(self.dir)
         self.get_dru_file_name_from_dir(self.dir)
         self.sort_sch_files()
         self.fab_dir = f"{self.dir}/{self.relative_fab_path}"
@@ -182,15 +181,6 @@ class KicadProject(Project):
             sys.exit(1)
         elif len(found_dru_files) == 1:
             self.dru_file = found_dru_files[0]
-
-    def get_sch_file_names_from_dir(self, _dir: str = "") -> None:
-        """Get .kicad_sch file names from directory `dir`
-
-        Also get `sch_root`."""
-
-        assert _dir != ""
-        self.all_sch_files = find_files_by_ext(self.dir, self.sch_ext, disable_logging=True)
-        self.sch_root = f"{self.name}.{self.sch_ext}"
 
     def get_project_dir(self) -> None:
         """Get `dir` from current working directory"""

@@ -302,7 +302,6 @@ def init_sch(
 
     :param project: Kicad project object to work into
     """
-    project.get_sch_file_names_from_dir(_dir=os.getcwd())
 
     for sch in project.all_sch_files:
         sch_data = read_sch(sch_file=sch)
