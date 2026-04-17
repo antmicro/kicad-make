@@ -1,17 +1,38 @@
+from askiff.symbol import SymbolSchematic
 import argparse
 import logging
-from typing import List
 import sys
-from pathlib import Path
+from dataclasses import dataclass
+import itertools
+import re
 
-from askiff.board import Board
+from askiff import Board, Project, Schematic
 from askiff.footprint import Footprint
-from kiutils.items.schitems import SchematicSymbol
-
-from common.kicad_project import KicadProject, SchProject
-from common.kmake_helper import get_property, remove_property
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class PropSet:
+    dnp: bool
+    in_bom: bool
+    variant: list[str]
+
+
+def get_sch_prop(schematics: list[Schematic]) -> dict[str, PropSet]:
+    sheet_prop = {}
+    for sch in schematics:
+        for sheet in sch.sheets:
+            sheet_prop[sheet.uuid] = PropSet(
+                sheet.dnp or False,
+                sheet.in_bom or False,
+                list(
+                    itertools.chain.from_iterable(
+                        [re.split(r"[,;\s]", p.value) for p in sheet.properties if p.name == "Variant"]
+                    )
+                ),
+            )
+    return sheet_prop
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -24,7 +45,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--list-broken",
         dest="list_broken",
         action="store_true",
-        help="List malformed DNP schematic components. List discrepancies between PCB and SCH. Do not modify.",
+        help="list malformed DNP schematic components. list discrepancies between PCB and SCH. Do not modify.",
     )
     parser.add_argument(
         "-f",
@@ -36,12 +57,11 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
-def cleanup_sch(schpro: SchProject, malformed_components: List[SchematicSymbol]) -> None:
+def cleanup_sch(malformed_components: list[SymbolSchematic]) -> None:
     # Cleanup components
     log.info(f"Fixing legacy schematic component{'s' if len(malformed_components) != 1 else ''}")
     for component in malformed_components:
         clean_up_component(component)
-    schpro.save()
 
 
 # Remove from PCB footprints additional properties doubling checkboxes functionality
@@ -52,27 +72,26 @@ def cleanup_pcb(pcb: Board) -> None:
             fp.properties.pop(prop)
 
 
-def run(pro: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: Project, args: argparse.Namespace) -> None:
     # Read in all schematic files
     if args.list_broken and args.fix_legacy:
         raise RuntimeError("Only one of [`--list-broken`, `--fix-legacy`] can be specified")
 
     broken_logs: list[str] = []
-    schpro = pro.sch_project()
 
     # Get all components that are marked DNP
-    dnp_components = get_dnp_components(schpro)
+    dnp_components = get_dnp_components(pro)
     log.debug(f"Found {len(dnp_components)} schematic component{'s' if len(dnp_components) != 1 else ''} marked DNP")
 
     # Count components that need cleanup
-    cleanup_list = get_cleanup_components(schpro)
+    cleanup_list = get_cleanup_components(pro)
     cleanup_count = len(cleanup_list)
 
     if cleanup_count:
         log_text = (
             f"Malformed DNP propert{'ies' if cleanup_count != 1 else 'y'} found in "
             f"{cleanup_count} schematic component{'s' if cleanup_count != 1 else ''}: "
-            f"{' '.join([get_property(comp, 'Reference') for comp in cleanup_list])}."
+            f"{' '.join([comp.properties.ref.value for comp in cleanup_list])}."
         )
 
         if args.list_broken:
@@ -81,7 +100,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
             log.warning(log_text)
 
         if args.fix_legacy:
-            cleanup_sch(schpro, cleanup_list)
+            cleanup_sch(cleanup_list)
         else:
             if args.list_broken:
                 broken_logs.append("Use `kmake dnp --fix-legacy` to fix schematics.")
@@ -92,26 +111,32 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     sym_dnp = []
     log.debug("Collecting all symbol references in schematics.")
     for sym in dnp_components:
-        sym_dnp.append(get_property(sym, "Reference"))
+        sym_dnp.append(sym.properties.ref.value)
         for instance in sym.instances:
-            for path in instance.paths:
-                if path.reference not in sym_dnp:
-                    sym_dnp.append(path.reference)
+            for project_instances in sym.instances:
+                if project_instances.project_name != pro.project_name:
+                    continue
+                for instance in project_instances.instances:
+                    if instance.reference not in sym_dnp:
+                        sym_dnp.append(instance.reference)
 
+    sheet_prop = get_sch_prop(pro.sch)  # ty:ignore[invalid-argument-type]
     # resolve sheet level dnp
-    for schematic in schpro.schematics:
-        for symbol in schematic.schematicSymbols:
-            for instance in symbol.instances:
-                for path in instance.paths:
-                    if path.reference.startswith("#"):
+    for schematic in pro.sch:
+        for symbol in schematic.symbols:
+            for project_instances in symbol.instances:
+                if project_instances.project_name != pro.project_name:
+                    continue
+                for instance in project_instances.instances:
+                    if instance.reference.startswith("#"):
                         continue
-                    if path.reference not in sym_dnp and any(
-                        [uid in path.sheetInstancePath and prop.dnp for uid, prop in schpro.sheet_prop.items()]
+                    if instance.reference not in sym_dnp and any(
+                        [uid in instance.path and prop.dnp for uid, prop in sheet_prop.items()]
                     ):
-                        sym_dnp.append(path.reference)
+                        sym_dnp.append(instance.reference)
     log.debug(f"DNP references from schematic: {' '.join(sorted(sym_dnp))}")
 
-    pcb = Board().from_file(Path(pro.pcb_file))
+    pcb = pro.pcb_root
     fp_dnp = find_dnp_footprints_on_pcb(pcb)
 
     if args.list_broken:
@@ -146,39 +171,38 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     if args.fix_legacy:
         cleanup_pcb(pcb)
     update_dnp_on_pcb(sym_dnp, pcb)
-    pcb.to_file()
+    pro.save()
 
 
-def get_dnp_components(schpro: SchProject) -> List[SchematicSymbol]:
+def get_dnp_components(pro: Project) -> list[SymbolSchematic]:
     components = []
-    for schematic in schpro.schematics:
+    for schematic in pro.sch:
         components.extend([symbol for symbol in schematic.schematicSymbols if is_dnp(symbol)])
     return components
 
 
-def get_cleanup_components(schpro: SchProject) -> List[SchematicSymbol]:
+def get_cleanup_components(pro: Project) -> list[SymbolSchematic]:
     components = []
-    for schematic in schpro.schematics:
+    for schematic in pro.sch:
         for comp in schematic.schematicSymbols:
-            if get_property(comp, "DNP") is not None:
+            if comp.properties.get("DNP") is not None:
                 components.append(comp)
     return components
 
 
 # Checks whether component is DNP based on DNP property and attribute
-def is_dnp(component: SchematicSymbol) -> bool:
-    if component.dnp or get_property(component, "DNP") not in [None, "", "~"]:
+def is_dnp(component: SymbolSchematic) -> bool:
+    if component.dnp or component.properties.get_value("DNP") not in [None, "", "~"]:
         return True
     return False
 
 
 # Cleans up component - sets DNP attribute and removes legacy DNP property
-def clean_up_component(component: SchematicSymbol) -> None:
-    dnp_field = get_property(component, "DNP")
+def clean_up_component(component: SymbolSchematic) -> None:
+    dnp_field = component.properties.pop("DNP")
     if dnp_field is None:
         return
-    component.properties = remove_property(component, "DNP")
-    if dnp_field not in [None, "", "~"]:
+    if dnp_field.value not in [None, "", "~"]:
         component.dnp = True
 
 
@@ -193,7 +217,7 @@ def find_dnp_footprints_on_pcb(board: Board) -> list[str]:
 
 # Updates DNP property on PCB footprints
 def update_dnp_on_pcb(
-    references: List[str],
+    references: list[str],
     board: Board,
 ) -> None:
     for footprint in board.footprints:

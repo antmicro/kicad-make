@@ -7,54 +7,14 @@ import logging
 import subprocess
 import json
 from pathlib import Path
-from typing import List, Dict, Optional
-from dataclasses import dataclass
-import itertools
-import re
+from typing import List, Optional
 
 from askiff import Project
 from askiff.common import LibraryTable
-from kiutils.schematic import Schematic
 
 from .kmake_helper import find_files_by_ext, get_kicad_cli_command
 
 log = logging.getLogger(__name__)
-
-
-@dataclass
-class PropSet:
-    dnp: bool
-    in_bom: bool
-    variant: List[str]
-
-
-class SchProject:
-    schematics: List[Schematic]
-    sheet_prop: Dict[str, PropSet]
-
-    def __init__(self, files: List[str]) -> None:
-        self.schematics = []
-        self.sheet_prop = {}
-        for sch_file in files:
-            sch = Schematic.from_file(sch_file)
-            for sheet in sch.sheets:
-                self.sheet_prop[sheet.uuid] = PropSet(
-                    sheet.dnp,
-                    sheet.in_bom,
-                    list(
-                        itertools.chain.from_iterable(
-                            [re.split(r"[,;\s]", p.value) for p in sheet.properties if p.key == "Variant"]
-                        )
-                    ),
-                )
-            self.schematics.append(sch)
-
-    def save(self) -> None:
-        # Save all changes to schematic files
-        log.debug("Saving all schematic changes to file")
-        for schematic in self.schematics:
-            schematic.to_file()
-
 
 class KicadProject(Project):
     sch_ext: str = "kicad_sch"
@@ -204,6 +164,3 @@ class KicadProject(Project):
         os.environ.setdefault(self.env_var_name_sym_lib, "/usr/share/kicad/symbols")
         os.environ.setdefault(self.env_var_name_fp_lib, "/usr/share/kicad/footprints")
         os.environ["KIPRJMOD"] = os.path.abspath(".")
-
-    def sch_project(self) -> SchProject:
-        return SchProject(self.all_sch_files)
