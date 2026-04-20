@@ -1,5 +1,4 @@
 from importlib.metadata import version
-from pip._internal.operations import freeze
 import argparse
 import logging
 from common.kicad_project import KicadProject
@@ -15,10 +14,9 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def main(project: KicadProject, args: argparse.Namespace) -> None:
     """Main module function."""
-    kiutils_ver = [pkg for pkg in freeze.freeze() if "kiutils" in pkg][0]
     print(f"kmake   : {version('kmake')}")
     print(f"kicad   : {project.kicad_version_full}")
-    print(f"kiutils : {version('kiutils')} ({kiutils_ver})")
+    print(f"askiff  : {version('askiff')}")
 
 
 def run(project: KicadProject, args: argparse.Namespace) -> None:

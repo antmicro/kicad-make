@@ -1,14 +1,10 @@
 import argparse
+import datetime
 import logging
 import sys
-import datetime
-import os
 
-from askiff.common import TitleBlock, Paper
-from askiff import Board, Schematic
-from common.kicad_project import KicadProject
-from typing import Union
-from pathlib import Path
+from askiff import Board, Project, Schematic
+from askiff.common import Paper, PaperSize, TitleBlock
 
 log = logging.getLogger(__name__)
 
@@ -35,12 +31,12 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def set_title_block(
     title_block: TitleBlock,
-    company: str,
-    date: str = "",
-    revision: str = "1.0.0",
-    title: Union[str, bool] = False,
+    company: str | None = None,
+    date: str | None = None,
+    revision: str | None = None,
+    title: str | None = None,
     reload: bool = False,
-) -> TitleBlock:
+) -> None:
     """Set: revision, date, company and project title into title block.
 
     Parameters
@@ -49,33 +45,23 @@ def set_title_block(
         company (str): company name
         date (str): current date
         revision (str): revision
-        title (str | bool): project title, set to any boolean value to prevent from setting the title into title block
-        verbose (bool): enable logging for set_* functions
+        title (str): project title
         reload (bool): set only company, and project title
-    Returns:
-        title_block (TitleBlock): updated title block
     """
-    if date == "":
-        date = datetime.date.today().strftime("%d.%m.%Y")
 
-    if title_block is None:  # title block is none type, when
-        # no parameters are sets into title block
-        title_block = TitleBlock()
-
-    if company is not None:
+    if company:
         title_block.company = company
 
-    if isinstance(title, str):
+    if title:
         title_block.title = title
 
     if reload is False:
-        title_block.date = date
-        title_block.rev = revision
+        title_block.date = date or datetime.date.today().strftime("%d.%m.%Y")
+        if revision:
+            title_block.rev = revision
 
-    return title_block
 
-
-def set_paper_size(page: Paper, size: str = "A3", verbose: bool = False) -> Paper:
+def set_paper_size(page: Paper, size: str = "A3", verbose: bool = False) -> None:
     """Set paper size to selected size.
 
     Parameters
@@ -83,11 +69,6 @@ def set_paper_size(page: Paper, size: str = "A3", verbose: bool = False) -> Pape
         page (PageSettings): pcb or schematic page object
         size (str): new page size
         verbose (bool): enable logging at info level for this function
-
-    Returns
-    -------
-        page (PageSettings): page settings with updated paper size
-
     """
     if size not in ["A0", "A1", "A2", "A3", "A4", "A5", "A", "B", "C", "D", "E"]:
         log.error("Selected page is not range")
@@ -95,44 +76,7 @@ def set_paper_size(page: Paper, size: str = "A3", verbose: bool = False) -> Pape
     else:
         if verbose:
             log.info(f'Set page size to "{size}"')
-
-        page.paperSize = size
-        return page
-
-
-def read_pcb(board_file: str) -> Board:
-    """Read PCB file.
-
-    Parameters
-    ----------
-       board_file (str): path to board file (*.kicad_pcb)
-
-    Returns
-    -------
-        board (Board): content of board file
-
-    """
-    try:
-        board = Board().from_file(Path(board_file))
-    except Exception:
-        board = Board()
-
-    return board
-
-
-def read_sch(sch_file: str) -> Schematic:
-    """Read schematic file.
-
-    Parameters
-    ----------
-       sch_file (str): path to schematic file
-
-    Returns
-    -------
-        schematic (Schematic): content of schematic file
-    """
-
-    return Schematic().from_file(Path(sch_file))
+        page.size = PaperSize(size)
 
 
 def compare_project_revisions(title_block: TitleBlock, project_revision: str) -> bool:
@@ -149,9 +93,6 @@ def compare_project_revisions(title_block: TitleBlock, project_revision: str) ->
                if revision is not set in any of KiCad files,
                otherwise false
     """
-    if title_block is None:
-        return True
-
     revision = title_block.rev
     if revision is not None and project_revision != revision:
         log.warning(f"Project revision mismatch, {project_revision} is not the same as {revision}")
@@ -175,8 +116,6 @@ def compare_project_title(title_block: TitleBlock, project_title: str) -> bool:
                if project title is not set in any of KiCad files,
                otherwise false
     """
-    if title_block is None:
-        return True
 
     title = title_block.title
     if title is not None and project_title != title:
@@ -187,72 +126,50 @@ def compare_project_title(title_block: TitleBlock, project_title: str) -> bool:
     return True
 
 
-def get_title_block(target: Union[Board, Schematic]) -> TitleBlock:
-    """Read title block from Board or Schematic.
-
-    Parameters
-    ----------
-        board (str): content of kicad_pcb or kicad_sch file
-
-    Returns
-    -------
-        title_block (TitleBlock): title block for sch or pcb
-    """
-    title_block = target.titleBlock
-
-    if title_block is None:
-        return TitleBlock()
-
-    return title_block
-
-
-def create_empty_pro(project: KicadProject, project_title: str) -> bool:
+def create_empty_pro(pro: Project, project_title: str) -> None:
     """
     Create  empty `.kicad_pro` file
 
-    :param project: Kicad project object to work into
-    :returns: True if file created successfully or file exist, False if not
+    :param pro: Kicad project object to work into
     """
-    if not project.kicad_pro_path:
+    if not pro.kicad_pro_path:
         log.info("Creating project file")
-        with open(file=project_title + ".kicad_pro", mode="w") as file:
+        with open(pro.path / (project_title + ".kicad_pro"), mode="w") as file:
             file.write("{}")
-    return True
 
 
-def create_empty_sch(project: KicadProject, project_title: str) -> bool:
+def create_empty_sch(pro: Project) -> None:
     """
     Create  empty `.kicad_sch` file
 
-    :param project: Kicad project object to work into
-    :returns: True if file created successfully or file exist, False if not
+    :param pro: Kicad project object to work into
     """
-    if not project.all_sch_files:
+    if not pro.sch_root:
         log.info("Creating SCH file")
         sch = Schematic()
-        sch.to_file(filepath=project_title + ".kicad_sch")
-        return True
+        sch.path = pro.kicad_pro_path.with_suffix(".kicad_sch")
+        pro.sch_root = sch
+        pro.sch = [sch]
+        sch.to_file()
 
-    return True
 
-
-def create_empty_pcb(project: KicadProject, project_title: str) -> bool:
+def create_empty_pcb(pro: Project) -> None:
     """
     Create  empty `.kicad_pcb` file
 
-    :param project: Kicad project object to work into
-    :returns: True if file created successfully or file exist, False if not
+    :param pro: Kicad project object to work into
     """
-    if not project.pcb_file:
+    if not pro.pcb_root:
         log.info("Creating PCB file")
         board = Board()
-        board.to_file(Path(project_title + ".kicad_pcb"))
-        return False
-    return True
+        board.path = pro.kicad_pro_path.with_suffix(".kicad_pcb")
+        pro.pcb_root = board
+        pro.pcb = [board]
+        board.to_file()
 
 
-def init_pcb(
-    project: KicadProject,
+def init_design_file(
+    file: Schematic | Board,
     company: str,
     reload: bool,
     title: str = "",
@@ -261,66 +178,18 @@ def init_pcb(
     paper_size: str = "A3",
 ) -> None:
     """
-    Initialize pcb file
-
-    :param project: Kicad project object to work into
-    """
-    project.get_pcb_file_name_from_dir(_dir=os.getcwd())
-
-    pcb = project.pcb_file
-    pcb_data = read_pcb(board_file=pcb)
-    pcb_title_block = get_title_block(target=pcb_data)
-    pcb_page_settings = pcb_data.paper
-
-    if not reload and not compare_project_revisions(title_block=pcb_title_block, project_revision=revision):
-        exit(-1)
-    if not force_title and not compare_project_title(title_block=pcb_title_block, project_title=title):
-        exit(-1)
-
-    pcb_title_block = set_title_block(
-        title_block=pcb_title_block, company=company, revision=revision, title=title, reload=reload
-    )
-    pcb_data.titleBlock = pcb_title_block
-
-    pcb_page_settings = set_paper_size(page=pcb_page_settings, size=paper_size)
-    pcb_data.paper = pcb_page_settings
-
-    pcb_data.to_file()
-
-
-def init_sch(
-    project: KicadProject,
-    company: str,
-    reload: bool,
-    title: str = "",
-    force_title: bool = False,
-    revision: str = "1.0.0",
-    paper_size: str = "A3",
-) -> None:
-    """
-    Initialize sch file
-
-    :param project: Kicad project object to work into
+    Initialize design file (pcb or sch), setting its title block and paper
     """
 
-    for sch in project.all_sch_files:
-        sch_data = read_sch(sch_file=sch)
-        sch_title_block = get_title_block(target=sch_data)
-        sch_page_settings = sch_data.paper
+    if not reload and not compare_project_revisions(file.title_block, project_revision=revision):
+        sys.exit(-1)
+    if not force_title and not compare_project_title(file.title_block, project_title=title):
+        sys.exit(-1)
 
-        if not reload and not compare_project_revisions(title_block=sch_title_block, project_revision=revision):
-            exit(-1)
-        if not force_title and not compare_project_title(title_block=sch_title_block, project_title=title):
-            exit(-1)
+    set_title_block(file.title_block, company=company, revision=revision, title=title, reload=reload)
 
-        sch_title_block = set_title_block(
-            title_block=sch_title_block, company=company, revision=revision, title=title, reload=reload
-        )
-        sch_data.titleBlock = sch_title_block
-
-        sch_page_settings = set_paper_size(page=sch_page_settings, size=paper_size)
-        sch_data.paper = sch_page_settings
-        sch_data.to_file()
+    set_paper_size(page=file.paper, size=paper_size)
+    file.to_file()
 
 
 def get_title_str(title_list: list) -> str:
@@ -338,30 +207,23 @@ def get_title_str(title_list: list) -> str:
     return title
 
 
-def main(project: KicadProject, args: argparse.Namespace) -> None:
+def init_project(pro: Project, args: argparse.Namespace) -> None:
     """Main module function."""
     project_title = get_title_str(args.title)
-    create_empty_pro(project, project_title)
-    create_empty_sch(project, project_title)
-    create_empty_pcb(project, project_title)
-    init_sch(
-        project,
-        company=args.company,
-        reload=args.reload,
-        title=project_title,
-        force_title=args.force_title,
-        paper_size=args.size,
-    )
-    init_pcb(
-        project,
-        company=args.company,
-        reload=args.reload,
-        title=project_title,
-        force_title=args.force_title,
-        paper_size=args.size,
-    )
+    create_empty_pro(pro, project_title)
+    create_empty_sch(pro)
+    create_empty_pcb(pro)
+    for design_file in (*pro.sch, *pro.pcb):
+        init_design_file(
+            design_file,
+            company=args.company,
+            reload=args.reload,
+            title=project_title,
+            force_title=args.force_title,
+            paper_size=args.size,
+        )
 
 
-def run(project: KicadProject, args: argparse.Namespace) -> None:
+def run(pro: Project, args: argparse.Namespace) -> None:
     """Entry function for module."""
-    main(project, args)
+    init_project(pro, args)
