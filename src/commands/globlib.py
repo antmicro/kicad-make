@@ -5,12 +5,9 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 import re
 
-from askiff.board import Board
+from askiff import Board, Project, Schematic
 from askiff.footprint import Footprint, FootprintFile, LibId
-
-from kiutils.items.schitems import SchematicSymbol
-from kiutils.schematic import Schematic
-from kiutils.symbol import Symbol, SymbolLib
+from askiff.symbol import Symbol, SymbolLib
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import get_property, set_property
@@ -173,12 +170,10 @@ def update_props(
                 local_property.value = global_property.value
 
 
-def get_sch_paths_based_on_args(args: argparse.Namespace, pro: KicadProject) -> List[Path]:
-    schematic_paths = [Path(file).resolve() for file in pro.all_sch_files]
+def get_sch_paths_based_on_args(args: argparse.Namespace, pro: Project) -> list[Schematic]:
     if args.sch is not None:
-        whitelist = [file.resolve() for file in args.sch]
-        schematic_paths = [path for path in schematic_paths if path in whitelist]
-    return schematic_paths
+        return [sch for sch in pro.sch if sch.path.name in args.sch]
+    return pro.sch
 
 
 def find_global_symbol(
@@ -228,11 +223,10 @@ def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list
 
     failures: list[UniSymbol] = []
 
-    for schematic_path in get_sch_paths_based_on_args(args, pro):
-        log.info("Processing schematic: %s", schematic_path)
-        schematic = Schematic().from_file(str(schematic_path))
+    for schematic in get_sch_paths_based_on_args(args, pro):
+        log.info("Processing schematic: %s", schematic.path)
 
-        for local_symbol in schematic.schematicSymbols:
+        for local_symbol in schematic.symbols:
             if not should_symbol_be_globlibed(local_symbol, library_mapping.keys(), args.update_all):
                 continue
             result = find_global_symbol(local_symbol, global_symbols)
@@ -286,14 +280,9 @@ def globlib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
     pcb = Board().from_file(Path(pro.pcb_file))
     log.info("Updating footprint links")
 
-    for schematic_path in pro.all_sch_files:
-        if args.sch is not None:
-            schematic_name = schematic_path.replace(pro.path + "/", "")
-            if schematic_name not in args.sch:
-                continue
-        log.info("Processing schematic: %s", schematic_path)
-        schematic = Schematic().from_file(schematic_path)
-        for schematic_symbol in schematic.schematicSymbols:
+    for schematic in get_sch_paths_based_on_args(args, pro):
+        log.info("Processing schematic: %s", schematic.path)
+        for schematic_symbol in schematic.symbols:
             ref = get_property(schematic_symbol, "Reference")
             log.debug("Processing:  %s", ref)
             for fp in pcb.footprints:

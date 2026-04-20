@@ -134,7 +134,7 @@ def main() -> None:
     no_log_subcommands = ["init-project"]
     disable_logging = args.subcommand in no_log_subcommands
 
-    kpro = KicadProject(path=pro_path, disable_logging=disable_logging, local_share_path=args.share_path).load()
+    kpro = KicadProject(path=pro_path, disable_logging=disable_logging, local_share_path=args.share_path)
 
     # Run selected tool
     args.func(kpro, args)

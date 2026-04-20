@@ -75,13 +75,8 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         log.error("Failed to open any of the provided logo. Exit")
         exit(1)
 
-    # Load schematics
-    schematics = []
-    for path in pro.all_sch_files:
-        schematics.append(Schematic.from_file(path))
-
     # Check page size
-    for schematic in schematics:
+    for schematic in pro.sch:
         check_schematic_size(schematic=schematic)
         # Add logos to schematic
         logos = get_current_logos(schematic=schematic)

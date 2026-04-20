@@ -7,7 +7,6 @@ import logging
 import subprocess
 import json
 from pathlib import Path
-from typing import List, Optional
 
 from askiff import Project
 from askiff.common import LibraryTable
@@ -15,6 +14,7 @@ from askiff.common import LibraryTable
 from .kmake_helper import find_files_by_ext, get_kicad_cli_command
 
 log = logging.getLogger(__name__)
+
 
 class KicadProject(Project):
     sch_ext: str = "kicad_sch"
@@ -34,20 +34,19 @@ class KicadProject(Project):
     system_fp_lib_table = "/usr/share/kicad/template/fp-lib-table"
     system_sym_lib_table = "/usr/share/kicad/template/sym-lib-table"
 
-    def __init__(self, disable_logging: bool = False, local_share_path: Optional[Path] = None) -> None:
+    def __init__(self, path: Path, disable_logging: bool = False, local_share_path: Path | None = None) -> None:
         """Manage kicad files
 
         Parameters:
                 disable_logging (bool): do not log when no KiCad file exists
         """
-        Project.__init__(self)
+        Project.__init__(self, path=path)
+        self.load()
         self.disable_logging = disable_logging
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)
 
         self.pcb_file: str = ""
-        self.all_sch_files: List[str] = []
-        self.sch_files: List[str] = []
 
         # Get KiCad version
         kicad_cli_name = get_kicad_cli_command()[0]
@@ -63,22 +62,14 @@ class KicadProject(Project):
         self.env_var_name_sym_lib = f"KICAD{self.kicad_version[0]}_SYMBOL_DIR"
         self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
 
-        self.get_pcb_file_name_from_dir(self.dir)
-        self.get_dru_file_name_from_dir(self.dir)
-        self.sort_sch_files()
-        self.fab_dir = f"{self.dir}/{self.relative_fab_path}"
-        self.doc_dir = f"{self.dir}/{self.relative_doc_path}"
-        self.step_model3d_dir = f"{self.dir}/{self.relative_step_model3d_path}"
-        self.lib_dir = f"{self.dir}/{self.relative_lib_path}"
-        self.fp_lib_dir = f"{self.dir}/{self.relative_lib_path}/{self.name}-{self.relative_fp_lib_path}"
-        self.model_3d_lib_dir = f"{self.dir}/{self.relative_lib_path}/{self.relative_3d_model_path}"
-
-    def sort_sch_files(self) -> None:
-        """Sort .kicad_sch, root file on top"""
-        self.sch_files.sort(
-            key=lambda x: x.rpartition("/")[2].startswith(self.name + "."),
-            reverse=True,
-        )
+        self.get_pcb_file_name_from_dir(self.path)
+        self.get_dru_file_name_from_dir(self.path)
+        self.fab_dir = self.path / self.relative_fab_path
+        self.doc_dir = self.path / self.relative_doc_path
+        self.step_model3d_dir = self.path / self.relative_step_model3d_path
+        self.lib_dir = self.path / self.relative_lib_path
+        self.fp_lib_dir = self.path / self.relative_lib_path / f"{self.project_name}-{self.relative_fp_lib_path}"
+        self.model_3d_lib_dir = self.path / self.relative_lib_path / self.relative_3d_model_path
 
     def get_pcb_file_name_from_dir(self, _dir: str = "") -> None:
         """Get .kicad_pcb file name from directory `dir`"""
@@ -94,8 +85,8 @@ class KicadProject(Project):
             self.pcb_file = ""
             return
 
-        if os.path.exists(self.name + ".kicad_pcb"):
-            self.pcb_file = self.name + ".kicad_pcb"
+        if os.path.exists(self.project_name + ".kicad_pcb"):
+            self.pcb_file = self.project_name + ".kicad_pcb"
         else:
             self.pcb_file = found_pcb_files[0]
 
@@ -151,7 +142,6 @@ class KicadProject(Project):
         exit(1)
 
     def load_kicad_environ_vars(self) -> None:
-
         if os.path.exists(self.comm_cfg_path):
             with open(self.comm_cfg_path, encoding="utf-8") as kicad_conf:
                 cfg = json.load(kicad_conf)

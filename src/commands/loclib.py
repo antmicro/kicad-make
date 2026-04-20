@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from copy import deepcopy
 from typing import List
 
-from askiff import Board, FootprintFile, Schematic, SymbolFile
+from askiff import Board, FootprintFile, SymbolFile
 from askiff.common import LibEntry, LibId
 from askiff.footprint import FootprintBoard, FootprintLibraryTable
 from askiff.symbol import SymbolDefinition, SymbolLibraryTable
@@ -137,9 +137,8 @@ def append_template_symbol_to_library(symbol: SymbolDefinition, library: SymbolF
 def cleanup_schematic_lib_symbols(pro: KicadProject) -> None:
     """Remove unreferrenced schematic symbols from schematis cache"""
     log.info("Removing unrefferenced schematic symbols")
-    for schematic_path in pro.all_sch_files:
-        log.info("Processing: %s", os.path.basename(schematic_path))
-        schematic = Schematic.from_file(schematic_path)
+    for schematic in pro.sch:
+        log.info("Processing: %s", schematic.path.name)
         sch_symbol_instances: list[str] = []
         for sch_symbol in schematic.symbols:
             # Special case for symbols that have libId token
@@ -172,9 +171,8 @@ def group_symbols_by_library_name(pro: KicadProject) -> SymbolsLibs:
     lib_list = SymbolsLibs([UsedLib(schematic_cache_lib, "", [])])
 
     # get list of all used libraries and symbols
-    for schematic_path in pro.all_sch_files:
-        schematic = Schematic.from_file(schematic_path)
-        log.info("Loading symbols from %s", os.path.basename(schematic_path))
+    for schematic in pro.sch:
+        log.info("Loading symbols from %s", schematic.path.name)
         for schematic_symbol in schematic.lib_symbols:
             library = schematic_symbol.lib_id.library
             if library is None:
@@ -362,7 +360,7 @@ def loclib_3d_models(pro: KicadProject, args: argparse.Namespace) -> None:
         log.debug("Copied    : %s to %s", model_name, local_model_path)
 
 
-def update_links(pro: KicadProject, local_lib: SymbolFile, args: argparse.Namespace) -> None:
+def update_links(pro: KicadProject, local_lib: SymbolFile) -> None:
     local_symbols: list[str] = []
 
     for symbol in local_lib.symbols:
@@ -374,9 +372,8 @@ def update_links(pro: KicadProject, local_lib: SymbolFile, args: argparse.Namesp
     local_lib_path = f"{pro.lib_dir}/{pro.project_name}.{pro.sym_lib_ext}"
 
     # Patch paths in schematic symbols
-    for schematic_path in pro.all_sch_files:
-        log.info("Patching paths in: %s", os.path.basename(schematic_path))
-        schematic = Schematic.from_file(schematic_path)
+    for schematic in pro.sch:
+        log.info("Patching paths in: %s", schematic.path.name)
         for symbol in schematic.lib_symbols + schematic.symbols:
             if symbol.lib_id.name in local_symbols:
                 if not symbol.lib_id.library:
@@ -492,7 +489,7 @@ def loclib_project(pro: KicadProject, args: argparse.Namespace) -> None:
     loclib_3d_models(pro, args)
 
     # Update symbol/footprint library links
-    update_links(pro, kiprjmod_lib, args)
+    update_links(pro, kiprjmod_lib)
 
     # Generate/extend sym-lib-table
     kiprjmod_sym_lib_path = f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.project_name}.{pro.sym_lib_ext}"
