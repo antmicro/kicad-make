@@ -10,7 +10,7 @@ from itertools import chain
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from askiff.gritems import GrTable, GrText, GrTextBox
+from askiff.gritems import GrText, GrTextBox
 from askiff import Project
 from askiff.common import Position
 from platformdirs import PlatformDirs
@@ -137,7 +137,7 @@ class SpellCheck:
         self.forbidden = {phrase: comment for phrase, _, comment in (item.partition("#") for item in forbidden)}
 
     def norm_str(self, text: str) -> str:
-        return self.str_normalize_regex.sub(" ", text)
+        return self.str_normalize_regex.sub(" ", text.strip()).lower()
 
     def split_str(self, text: str) -> Iterable[str]:
         split = (t.strip("+-#~$:,.\"'(){}[]0123456789") for t in text.split())
@@ -189,9 +189,10 @@ class SpellCheck:
 
     def check_str_forbidden_pattern_usage(self, text: str, context: SpellCheckIssueContext) -> None:
         """Reports forbidden phrase usage in text"""
+        norm_text = self.norm_str(text)
         for phrase, comment in self.forbidden.items():
             comment = f": {comment}" if comment else ""
-            if phrase in text:
+            if self.norm_str(phrase) in norm_text:
                 self.issues.append(
                     SpellCheckIssue(SpellCheckIssueType.FORBIDDEN, context, phrase, text, "Forbidden phrase" + comment)
                 )
@@ -216,14 +217,15 @@ class SpellCheck:
                 elif isinstance(gritem, GrTextBox):
                     context = SpellCheckIssueContext(kfile._fs_path.name, "TextBox", layer, gritem.box.position)
                     self.check_str(gritem.text, context)
-                elif isinstance(gritem, GrTable):
-                    for idx, cell in enumerate(gritem.cells):
-                        col = idx % gritem.column_count
-                        row = idx // gritem.column_count
-                        context = SpellCheckIssueContext(
-                            kfile._fs_path.name, "Table", layer, cell.box.position, f"{col}:{row}(col:row)"
-                        )
-                        self.check_str(cell.text, context)
+            for table in kfile.tables:
+                layer = str(getattr(table, "layer", ""))
+                for idx, cell in enumerate(table.cells):
+                    col = idx % table.column_count
+                    row = idx // table.column_count
+                    context = SpellCheckIssueContext(
+                        kfile._fs_path.name, "Table", layer, cell.box.position, f" (col:{col}, row:{row})"
+                    )
+                    self.check_str(cell.text, context)
 
             for meta_name in ("title", "date", "rev", "company"):
                 meta = getattr(kfile.title_block, meta_name)
