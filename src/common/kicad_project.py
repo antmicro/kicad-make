@@ -1,17 +1,16 @@
 """KiCad project class"""
 
-import os
-
-import sys
-import logging
-import subprocess
 import json
+import logging
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 from askiff import Project
 from askiff.common import LibraryTable
 
-from .kmake_helper import find_files_by_ext, get_kicad_cli_command
+from .kmake_helper import get_kicad_cli_command
 
 log = logging.getLogger(__name__)
 
@@ -62,8 +61,8 @@ class KicadProject(Project):
         self.env_var_name_sym_lib = f"KICAD{self.kicad_version[0]}_SYMBOL_DIR"
         self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
 
-        self.get_pcb_file_name_from_dir(self.path)
-        self.get_dru_file_name_from_dir(self.path)
+        self.get_pcb_file_name_from_dir()
+        self.get_dru_file_name_from_dir()
         self.fab_dir = self.path / self.relative_fab_path
         self.doc_dir = self.path / self.relative_doc_path
         self.step_model3d_dir = self.path / self.relative_step_model3d_path
@@ -71,15 +70,10 @@ class KicadProject(Project):
         self.fp_lib_dir = self.path / self.relative_lib_path / f"{self.project_name}-{self.relative_fp_lib_path}"
         self.model_3d_lib_dir = self.path / self.relative_lib_path / self.relative_3d_model_path
 
-    def get_pcb_file_name_from_dir(self, _dir: str = "") -> None:
+    def get_pcb_file_name_from_dir(self) -> None:
         """Get .kicad_pcb file name from directory `dir`"""
 
-        assert _dir != ""
-        found_pcb_files = []
-
-        found_pcb_files = find_files_by_ext(_dir, self.pcb_ext, disable_logging=True)
-
-        if len(found_pcb_files) == 0:
+        if len(self.pcb) == 0:
             if not self.disable_logging:
                 log.error("No .kicad_pcb file detected.")
             self.pcb_file = ""
@@ -88,18 +82,15 @@ class KicadProject(Project):
         if os.path.exists(self.project_name + ".kicad_pcb"):
             self.pcb_file = self.project_name + ".kicad_pcb"
         else:
-            self.pcb_file = found_pcb_files[0]
+            self.pcb_file = self.pcb[0]
 
-        if len(found_pcb_files) > 1:
+        if len(self.pcb) > 1:
             log.warning(f"More than 1 .kicad_pcb file detected. Using {self.pcb_file}")
 
-    def get_dru_file_name_from_dir(self, _dir: str = "") -> None:
+    def get_dru_file_name_from_dir(self) -> None:
         """Get .kicad_dru file name from directory `dir`"""
 
-        assert _dir != ""
-        found_dru_files = []
-
-        found_dru_files = find_files_by_ext(_dir, self.dru_ext, disable_logging=True)
+        found_dru_files = list(self.path.glob(self.dru_ext))
 
         if len(found_dru_files) > 1:
             log.error("More than 1 .kicad_dru file detected. Exit.")
