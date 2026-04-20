@@ -6,10 +6,9 @@ import json
 import logging
 import os
 from typing import Any
-from pathlib import Path
-import enum
 
-from askiff.board import Board, StackupLayer, LayerDef, StackupLayerDielectricSubLayer
+from askiff.board import LayerDef, StackupLayer, StackupLayerDielectric, StackupLayerDielectricSubLayer
+
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)
@@ -55,25 +54,19 @@ def get_layer_dict(layer: StackupLayer | StackupLayerDielectricSubLayer) -> dict
     return layer_dict
 
 
-def get_name(layer: StackupLayer) -> str:
-    """Get layer name"""
-    if isinstance(layer.layer, enum.Enum):
-        return layer.layer.value
-    return layer.layer
-
-
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """Run stackup-export command"""
+    if not pro.pcb_root:
+        raise RuntimeError("No PCB found in project")
 
-    board = Board().from_file(Path(pro.pcb_file))
-    if not board.setup.stackup:
+    if not pro.pcb_root.setup.stackup:
         raise RuntimeError("Stackup is not set for the project, open the PCB design and save it to update it.")
 
     layer_dicts = []
-    for layer in board.setup.stackup.layers:
-        layerdef = get_layerdef(layer, board.layer_map)
-        name = get_name(layer)
-        if hasattr(layer, "sublayers"):  # handle layer with sublayers (dielectrics)
+    for layer in pro.pcb_root.setup.stackup.layers:
+        layerdef = get_layerdef(layer, pro.pcb_root.layer_map)
+        name = str(layer.layer)
+        if isinstance(layer, StackupLayerDielectric):  # handle layer with sublayers (dielectrics)
             for idx, sublayer in enumerate(layer.sublayers):
                 sublayer_dict = {k: v for (k, v) in get_layer_dict(sublayer).items() if v}
                 layer_dict = get_layer_dict(layer) | sublayer_dict  # type: ignore
