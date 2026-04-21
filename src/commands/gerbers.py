@@ -2,23 +2,20 @@ import argparse
 import logging
 import tempfile
 from pathlib import Path
-from typing import List, Optional
 
+from askiff.board import Board
+from askiff.common_pcb import Layer
+from askiff.footprint import Footprint
+from askiff.fp_pad import PadTHT
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
-from askiff.board import Board
-from askiff.footprint import Footprint
-from askiff.fp_pad import PadTHT
-from askiff.common_pcb import Layer
-
 from common.kicad_project import KicadProject
-from common.kmake_helper import run_kicad_cli, tag_gerbers
+from common.kmake_helper import run_kicad_cli
 
 log = logging.getLogger(__name__)
 
-PASTE_LAYERS = [Layer.PASTE_B, Layer.PASTE_F]
-# potentially this could be PASTE_ALL in askiff?
+PASTE_LAYERS = (Layer.PASTE_B, Layer.PASTE_F)
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -106,6 +103,20 @@ def rename_gbr_files(gbr_dir: str, temp_name: str, prj_name: str) -> None:
             file_path.rename(str(file_path).replace(temp_name, prj_name))
 
 
+def tag_gerbers(folder: Path, tag: str) -> None:
+    """Mark all Gerber files with hash tag"""
+    for gerber_file in folder.glob("*.gbr"):
+        with open(gerber_file, "r+", encoding="ascii") as file:
+            filedata = ""
+            for line in file:
+                if "G04 Created by KiCad" in line and " commit " not in line:
+                    stripped_line = line.rstrip("*\n")
+                    line = f"{stripped_line} commit  {tag} *\n"
+                filedata += line
+            file.seek(0)
+            file.write(filedata)
+
+
 # Stamp gerber files with short commit SHA
 def stamp_gerbers(pro: KicadProject) -> None:
     try:
@@ -120,7 +131,7 @@ def stamp_gerbers(pro: KicadProject) -> None:
 
         sha = kicad_project_repo.head.commit.hexsha
         short_sha = kicad_project_repo.git.rev_parse(sha, short=7)
-        tag_gerbers(f"{pro.path}/fab", short_sha)
+        tag_gerbers(pro.fab_dir, short_sha)
 
     except InvalidGitRepositoryError:
         log.warning("Project is not in repository. Githash not added.")
@@ -129,7 +140,9 @@ def stamp_gerbers(pro: KicadProject) -> None:
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
     pro.create_fab_dir()
-    board = Board.from_file(Path(pro.pcb_file))
+    if not pro.pcb_root:
+        raise RuntimeError("No PCB file in project!")
+    board = pro.pcb_root
 
     common_layers = []  # comma separated list of layers names
     if not args.noedge:
@@ -146,17 +159,17 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
 
         export_gerbers(
             temporary_board_file.name,
-            output_folder=f"{pro.path}/fab/",
+            output_folder=str(pro.fab_dir),
             common_layers=common_layers,
             verbose=args.debug,
         )
         export_drill(
             temporary_board_file.name,
-            f"{pro.path}/fab/",
+            str(pro.fab_dir),
             excellon=args.excellon,
             origin=args.drill_origin,
         )
-        rename_gbr_files(f"{pro.path}/fab/", Path(temporary_board_file.name).stem, pro.project_name)
+        rename_gbr_files(pro.fab_dir, Path(temporary_board_file.name).stem, pro.project_name)
 
         stamp_gerbers(pro)
 
@@ -173,7 +186,7 @@ def export_gerbers(
     subtract_soldermask: bool = True,
     disable_aperture_macros: bool = False,
     precision: int = 6,
-    common_layers: Optional[List[str]] = None,
+    common_layers: list[str] | None = None,
     board_plot_params: bool = False,
     protel_names: bool = False,
     verbose: bool = False,
