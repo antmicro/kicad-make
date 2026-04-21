@@ -1,7 +1,6 @@
 import argparse
 import copy
 import logging
-import os
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -17,7 +16,6 @@ from platformdirs import PlatformDirs
 from rich.console import Console
 from rich.table import Table
 from spellchecker import SpellChecker as PySpellChecker
-
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 

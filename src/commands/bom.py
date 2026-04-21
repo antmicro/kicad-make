@@ -1,11 +1,9 @@
 import argparse
 import csv
-import logging
-import os
-import sys
 import dataclasses
-from typing_extensions import Self
-from typing import TextIO, Dict, List, Tuple
+import logging
+import sys
+from typing import Dict, List, TextIO, Tuple, Self
 
 import kicad_netlist_reader
 
@@ -364,7 +362,7 @@ def create_netlist(
     assert output_format in ["kicadsexpr", "kicadxml", "cadstar", "cadstar", "orcadpcb2", "spice", "spicemodel"]
 
     pro.create_doc_dir()
-    filename = f"{pro.doc_dir}/netlist"
+    filename = pro.doc_dir / "netlist"
     command = [
         "sch",
         "export",
@@ -373,15 +371,15 @@ def create_netlist(
         output_format,
         pro.sch_root.path,
         "-o",
-        filename,
+        str(filename),
     ]
 
     log.info("Generating netlist file: %s", filename)
     run_kicad_cli(command, debug)
 
-    net = kicad_netlist_reader.netlist(filename)
+    net = kicad_netlist_reader.netlist(str(filename))
 
     if not debug:
-        os.remove(filename)
+        filename.rmdir()
 
     return net

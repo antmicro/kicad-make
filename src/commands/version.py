@@ -1,6 +1,7 @@
-from importlib.metadata import version
 import argparse
 import logging
+from importlib.metadata import version
+
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)

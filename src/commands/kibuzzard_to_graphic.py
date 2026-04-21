@@ -6,7 +6,6 @@ import logging
 from askiff import Project
 from askiff.gritems import GrPolyFp
 
-
 log = logging.getLogger(__name__)
 
 

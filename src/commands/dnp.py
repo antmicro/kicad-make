@@ -1,13 +1,13 @@
-from askiff.symbol import SymbolSchematic
 import argparse
+import itertools
 import logging
+import re
 import sys
 from dataclasses import dataclass
-import itertools
-import re
 
 from askiff import Board, Project, Schematic
 from askiff.footprint import Footprint
+from askiff.symbol import SymbolSchematic
 
 log = logging.getLogger(__name__)
 
