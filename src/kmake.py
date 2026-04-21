@@ -131,13 +131,11 @@ def main() -> None:
     log.debug("Running in debug mode")
 
     pro_path = Path.cwd()
-    no_log_subcommands = ["init-project"]
-    disable_logging = args.subcommand in no_log_subcommands
 
-    kpro = KicadProject(path=pro_path, disable_logging=disable_logging, local_share_path=args.share_path)
+    pro = KicadProject(path=pro_path, local_share_path=args.share_path)
 
     # Run selected tool
-    args.func(kpro, args)
+    args.func(pro, args)
 
 
 if __name__ == "__main__":

@@ -9,13 +9,14 @@ from itertools import chain
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from askiff.gritems import GrText, GrTextBox
 from askiff import Project
 from askiff.common import Position
+from askiff.gritems import GrText, GrTextBox
 from platformdirs import PlatformDirs
 from rich.console import Console
 from rich.table import Table
 from spellchecker import SpellChecker as PySpellChecker
+
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 
@@ -77,7 +78,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 @dataclass
 class SpellCheckIssueContext:
-    file: Path
+    file: Path | None
     object_type: str
     layer: str
     position: Position | None
@@ -86,7 +87,7 @@ class SpellCheckIssueContext:
     def row_part(self) -> tuple[str, str, str]:
         layer = "" if not self.layer else f" {self.layer:>10}"
         return (
-            self.file.name,
+            self.file.name if self.file else "",
             self.object_type,
             f"(X,Y): ({self.position.x:8.3f}, {self.position.y:8.3f}){layer}{self.cell}" if self.position else "",
         )

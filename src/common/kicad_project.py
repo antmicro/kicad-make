@@ -40,15 +40,9 @@ class KicadProject(Project):
     fp_lib_dir: Path
     model_3d_lib_dir: Path
 
-    def __init__(self, path: Path, disable_logging: bool = False, local_share_path: Path | None = None) -> None:
-        """Manage kicad files
-
-        Parameters:
-                disable_logging (bool): do not log when no KiCad file exists
-        """
+    def __init__(self, path: Path, local_share_path: Path | None = None) -> None:
         Project.__init__(self, path=path)
         self.load()
-        self.disable_logging = disable_logging
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)
 
