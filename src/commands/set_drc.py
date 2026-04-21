@@ -6,6 +6,7 @@ from pathlib import Path
 
 from kiutils.dru import DesignRules
 from kiutils.utils import sexpr
+
 from common.kicad_project import KicadProject
 
 log = logging.getLogger(__name__)

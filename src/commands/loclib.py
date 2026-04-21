@@ -6,11 +6,11 @@ import logging
 import os
 import shutil
 import typing
-from dataclasses import dataclass, field
 from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import List
 
-from askiff import Board, FootprintFile, SymbolFile
+from askiff import FootprintFile, SymbolFile
 from askiff.common import LibEntry, LibId
 from askiff.footprint import FootprintBoard, FootprintLibraryTable
 from askiff.symbol import SymbolDefinition, SymbolLibraryTable
@@ -283,22 +283,23 @@ def loclib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
         log.info("Localize footprints in force mode")
     else:
         log.info("Localize footprints in append mode")
-    log.info("Processing : %s", os.path.basename(pro.pcb_file))
-    board = Board.from_file(pro.pcb_file)
+
     footprints_list: List[FootprintBoard] = []
-    for footprint in board.footprints:
-        if any(fp.lib_id.name == footprint.lib_id.name for fp in footprints_list):
-            continue
-        # skip kibuzzard footprints
-        if "kibuzzard-" in footprint.lib_id.name:
-            continue
-        if footprint.lib_id.library == "" or footprint.lib_id.library is None:
-            log.warning("Skipping %s. No library defined.", footprint.lib_id.name)
-            continue
-        footprints_list.append(footprint)
+    for pcb in pro.pcb:
+        log.info("Processing : %s", pcb.path.name)
+        for footprint in pcb.footprints:
+            if any(fp.lib_id.name == footprint.lib_id.name for fp in footprints_list):
+                continue
+            # skip kibuzzard footprints
+            if "kibuzzard-" in footprint.lib_id.name:
+                continue
+            if footprint.lib_id.library == "" or footprint.lib_id.library is None:
+                log.warning("Skipping %s. No library defined.", footprint.lib_id.name)
+                continue
+            footprints_list.append(footprint)
 
     for footprint in footprints_list:
-        remote_lib_path = library_mapping.get(footprint.lib_id.library)
+        remote_lib_path = library_mapping.get(footprint.lib_id.library or "")
         if remote_lib_path is None:
             log.error("Library %s not found. Skipping %s", footprint.lib_id.library, footprint.lib_id.name)
             continue
@@ -395,20 +396,20 @@ def update_links(pro: KicadProject, local_lib: SymbolFile) -> None:
         schematic.to_file()
 
     # Patch paths in PCB footprints
-    log.info("Patching paths in: %s", os.path.basename(pro.pcb_file))
-    board = Board.from_file(pro.pcb_file)
-    for footprint in board.footprints:
-        if footprint.lib_id.name in local_footprint_names:
-            footprint.lib_id.library = f"{pro.project_name}-{pro.relative_fp_lib_path}"
+    for pcb in pro.pcb:
+        log.info("Processing : %s", pcb.path.name)
+        log.info("Patching paths in: %s", pcb.path.name)
+        for footprint in pcb.footprints:
+            if footprint.lib_id.name in local_footprint_names:
+                footprint.lib_id.library = f"{pro.project_name}-{pro.relative_fp_lib_path}"
 
-            for idx, _ in enumerate(footprint.models):
-                model_name = os.path.basename(footprint.models[idx].path)
-                if model_name in local_3d_models:
-                    footprint.models[idx].path = (
-                        f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.relative_3d_model_path}/{model_name}"
-                    )
-
-    board.to_file()
+                for idx, _ in enumerate(footprint.models):
+                    model_name = os.path.basename(footprint.models[idx].path)
+                    if model_name in local_3d_models:
+                        footprint.models[idx].path = (
+                            f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.relative_3d_model_path}/{model_name}"
+                        )
+        pcb.to_file()
 
     # Patch paths in local symbol library
     log.info("Patching paths in: %s", os.path.basename(local_lib_path))

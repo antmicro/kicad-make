@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     """Register parser and its arguments as subparser."""
-    init_project_parser = subparsers.add_parser("version", help="Print kmake, kiutils & kicad version")
+    init_project_parser = subparsers.add_parser("version", help="Print kmake, askiff & kicad version")
     init_project_parser.set_defaults(func=run)
 
 

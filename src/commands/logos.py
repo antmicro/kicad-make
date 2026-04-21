@@ -2,8 +2,8 @@ import argparse
 import base64
 import io
 import logging
-from typing import List, Union
 from pathlib import Path
+from typing import List, Union
 
 from kiutils.items.common import Image
 from kiutils.schematic import Schematic

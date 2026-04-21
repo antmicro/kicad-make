@@ -1,13 +1,12 @@
+from __future__ import annotations
+
 import argparse
-import glob
 import json
 import logging
-import os
 import re
-from typing import Dict, List
 from pathlib import Path
 
-from askiff.board import Board, Via
+from askiff.board import Via
 from askiff.common_pcb import Net
 
 from common.kicad_project import KicadProject
@@ -27,17 +26,15 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     with open(pro.kicad_pro_path) as f:
         j = json.load(f)
 
-    if not pro.pcb_file:
-        log.error("PCB file was not detected or does not exists")
-        return
+    if not pro.pcb_root:
+        raise RuntimeError("PCB file not found in project!")
 
     log.info("Loading PCB")
 
-    board = Board.from_file(Path(pro.pcb_file))
     net_classes: list[NetClass] = NetClass.load_net_classes(j)
 
     log.info("Processing board items")
-    max([layer.layer.order_id() for layer in board.layer_map if ".Cu" in layer.layer.value])
+    max([layer.layer.order_id() for layer in pro.pcb_root.layer_map if ".Cu" in layer.layer.value])
 
     # Mark non-impedance controlled traces for removal
     # for item in board.traces:
@@ -50,11 +47,11 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
         target_layer = net_class.impedance
 
         # if target_layer is None:
-        #     board.layer_map.append(Layer(last_cu_id, f"In{last_cu_id}.Cu"))
+        #     pro.pcb_root.layer_map.append(Layer(last_cu_id, f"In{last_cu_id}.Cu"))
         #     layers[net_class.impedance] = last_cu_id
         #     target_layer = last_cu_id
         #     last_cu_id += 1
-        for trace in board.traces:
+        for trace in pro.pcb_root.traces:
             # print(item.net)
 
             if not net_class.contains(trace.net):
@@ -64,17 +61,17 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
 
             trace.layers = [f"In{target_layer}.Cu"]
 
-    board.traceItems = [i for i in board.traces if not i.dirty]
-    board.footprints = []
-    board.zones = []
+    pro.pcb_root.traces = [i for i in pro.pcb_root.traces if not i.dirty]
+    pro.pcb_root.footprints = []
+    pro.pcb_root.zones = []
 
     log.info("Saving the generated impedance map")
     pro.create_fab_dir()
-    pcb_file = os.path.join(pro.fab_dir, "impedance_map.kicad_pcb")
-    board.to_file(Path(pcb_file))
+    pcb_file = pro.fab_dir / "impedance_map.kicad_pcb"
+    pro.pcb_root.to_file(pcb_file)
 
     log.info("Plotting gerbers")
-    output_folder = Path(pro.fab_dir) / "impedance_maps"
+    output_folder = pro.fab_dir / "impedance_maps"
 
     export_impedance_gerbers(pcb_file, output_folder)
     log.info(f"Impedance maps have been generated, gerbers are located at {output_folder}")
@@ -84,7 +81,7 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     )
 
 
-def export_impedance_gerbers(pcb_file: str, output_folder: Path) -> None:
+def export_impedance_gerbers(pcb_file: Path, output_folder: Path) -> None:
     output_folder.mkdir(exist_ok=True)
     gerber_export_cli_command = [
         "pcb",
@@ -92,22 +89,19 @@ def export_impedance_gerbers(pcb_file: str, output_folder: Path) -> None:
         "gerbers",
         pcb_file,
         "-o",
-        str(output_folder),
+        output_folder,
         "--precision",
         "6",
     ]
     run_kicad_cli(gerber_export_cli_command, True)
 
-    for gerber_file in glob.glob(f"{output_folder}/*.g*"):
-        gerber_name, _ = os.path.splitext(gerber_file)
-        if "Ohm" in gerber_name:
-            os.rename(gerber_file, f"{gerber_name}.gbr")
-        else:
-            os.remove(gerber_file)
+    for gerber_file in output_folder.glob("*.gbr"):
+        if "Ohm" not in gerber_file.stem:
+            gerber_file.unlink()
 
 
 class NetClass:
-    def __init__(self, class_json: Dict, patterns: List) -> None:
+    def __init__(self, class_json: dict, patterns: list) -> None:
         self.name = class_json["name"]
         self.patterns = [pattern["pattern"] for pattern in patterns if pattern["netclass"] == self.name]
         self.impedance: int | None = self.name.split("_")[0] if "ohm-" in self.name.lower() else None
@@ -118,7 +112,7 @@ class NetClass:
         return self.name
 
     @staticmethod
-    def load_net_classes(project_json: Dict) -> List["NetClass"]:
+    def load_net_classes(project_json: dict) -> list[NetClass]:
         classes_json = project_json["net_settings"]["classes"]
         try:
             classes_patterns = project_json["net_settings"]["netclass_patterns"]

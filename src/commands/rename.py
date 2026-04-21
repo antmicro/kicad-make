@@ -1,6 +1,6 @@
 import argparse
-import logging
 import fileinput
+import logging
 
 from common.kicad_project import KicadProject
 

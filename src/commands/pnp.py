@@ -1,10 +1,10 @@
 import argparse
 import logging
-import os
 import tempfile
 from pathlib import Path
 
 from askiff.board import Board
+from askiff.footprint import FootprintType
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -48,38 +48,30 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     pnp_parser.set_defaults(func=run)
 
 
-def convert_other_to_smd(board: Board) -> Board:
+def convert_other_to_smd(board: Board) -> None:
     """Converts components of type `undefined` to `smd` type"""
     for footprint in board.footprints:
-        if (
-            not footprint.attributes.smd
-            and not footprint.attributes.through_hole
-            and not footprint.attributes.board_only
-        ):
-            footprint.attributes.smd = True
-    return board
+        if footprint.attributes.fp_type == FootprintType.UNSPECIFIED and not footprint.attributes.board_only:
+            footprint.attributes.fp_type = FootprintType.SMD
 
 
-def convert_virtual_to_smd(board: Board) -> Board:
+def convert_virtual_to_smd(board: Board) -> None:
     """Converts components of type `virtual` to `smd` type"""
     for footprint in board.footprints:
         if footprint.attributes.board_only:
             footprint.attributes.board_only = False
-            footprint.attributes.smd = True
-    return board
+            footprint.attributes.fp_type = FootprintType.SMD
 
 
-def unset_exclude_from_position_file(board: Board) -> Board:
+def unset_exclude_from_position_file(board: Board) -> None:
     """Unsets `Exclude from position file` field on the components"""
     for footprint in board.footprints:
-        if footprint.attributes.exclude_from_pos_files:
-            footprint.attributes.exclude_from_pos_files = False
-    return board
+        footprint.attributes.exclude_from_pos_files = False
 
 
 def export_pnp(
-    board: str,
-    output_file_name: str = '""',
+    board: Path,
+    output_file_name: Path,
     side: str = "both",
     output_format: str = "csv",
     units: str = "mm",
@@ -93,10 +85,6 @@ def export_pnp(
 ) -> None:
     """Generate pick and place position file from the given PCB file."""
 
-    if board == "":
-        raise AttributeError("Board filename can't be an empty string")
-    if output_file_name == "":
-        raise AttributeError("Output file name can't be an empty string")
     if gerber_board_edge and output_format != "gerber":
         raise AttributeError("Output format must be 'gerber' for gerber_board_edge")
 
@@ -129,12 +117,15 @@ def export_pnp(
         pnp_export_cli_command.extend(["--gerber-board-edge"])
 
     run_kicad_cli(pnp_export_cli_command, verbose)
-    log.info("Saved to %s", output_file_name.replace(os.getcwd(), ""))
+    log.info("Saved to %s", output_file_name.name)
 
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """Run pnp command"""
-    board_path = pro.pcb_file
+    board = pro.pcb_root
+    if not board:
+        raise RuntimeError("PCB not found in project!")
+    board_path = board.path
     pro.create_fab_dir()
     temporary_board_file = None
 
@@ -143,7 +134,6 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
 
     if args.virtual or args.excluded or args.other:
         log.info("Loading PCB")
-        board = Board.from_file(Path(pro.pcb_file))
 
         log.info("Creating tmp PCB for manipulation and using it for output generation")
         temporary_board_file = tempfile.NamedTemporaryFile(suffix=".kicad_pcb")
@@ -155,10 +145,8 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         if args.excluded:
             unset_exclude_from_position_file(board)
 
-        board.to_file(Path(temporary_board_file.name))
-        board_path = temporary_board_file.name
-
-    pnp_path_base = f"{pro.fab_dir}/{pro.project_name}"
+        board_path = Path(temporary_board_file.name)
+        board.to_file(board_path)
 
     combinations = [
         ("front", "ascii", "-top.pos"),
@@ -169,7 +157,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     for side, output_format, suffix in combinations:
         export_pnp(
             board_path,
-            output_file_name=pnp_path_base + suffix,
+            output_file_name=pro.fab_dir / (pro.project_name + suffix),
             side=side,
             output_format=output_format,
             drill_origin=True,

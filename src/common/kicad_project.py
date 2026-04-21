@@ -52,8 +52,6 @@ class KicadProject(Project):
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)
 
-        self.pcb_file: str = ""
-
         # Get KiCad version
         kicad_cli_name = get_kicad_cli_command()[0]
         self.kicad_version_full = subprocess.run(
@@ -68,7 +66,6 @@ class KicadProject(Project):
         self.env_var_name_sym_lib = f"KICAD{self.kicad_version[0]}_SYMBOL_DIR"
         self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
 
-        self.get_pcb_file_name_from_dir()
         self.get_dru_file_name_from_dir()
         self.fab_dir = self.path / self.relative_fab_path
         self.doc_dir = self.path / self.relative_doc_path
@@ -76,23 +73,6 @@ class KicadProject(Project):
         self.lib_dir = self.path / self.relative_lib_path
         self.fp_lib_dir = self.path / self.relative_lib_path / f"{self.project_name}-{self.relative_fp_lib_path}"
         self.model_3d_lib_dir = self.path / self.relative_lib_path / self.relative_3d_model_path
-
-    def get_pcb_file_name_from_dir(self) -> None:
-        """Get .kicad_pcb file name from directory `dir`"""
-
-        if len(self.pcb) == 0:
-            if not self.disable_logging:
-                log.error("No .kicad_pcb file detected.")
-            self.pcb_file = ""
-            return
-
-        if os.path.exists(self.project_name + ".kicad_pcb"):
-            self.pcb_file = self.project_name + ".kicad_pcb"
-        else:
-            self.pcb_file = self.pcb[0]
-
-        if len(self.pcb) > 1:
-            log.warning(f"More than 1 .kicad_pcb file detected. Using {self.pcb_file}")
 
     def get_dru_file_name_from_dir(self) -> None:
         """Get .kicad_dru file name from directory `dir`"""
