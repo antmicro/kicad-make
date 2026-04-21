@@ -33,6 +33,13 @@ class KicadProject(Project):
     system_fp_lib_table = "/usr/share/kicad/template/fp-lib-table"
     system_sym_lib_table = "/usr/share/kicad/template/sym-lib-table"
 
+    fab_dir: Path
+    doc_dir: Path
+    step_model3d_dir: Path
+    lib_dir: Path
+    fp_lib_dir: Path
+    model_3d_lib_dir: Path
+
     def __init__(self, path: Path, disable_logging: bool = False, local_share_path: Path | None = None) -> None:
         """Manage kicad files
 

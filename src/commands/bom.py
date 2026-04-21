@@ -3,7 +3,7 @@ import csv
 import dataclasses
 import logging
 import sys
-from typing import Dict, List, TextIO, Tuple, Self
+from typing import Dict, List, Self, TextIO, Tuple
 
 import kicad_netlist_reader
 

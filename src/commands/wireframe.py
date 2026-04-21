@@ -1,19 +1,19 @@
 import argparse
-import logging
-import os
 import json
+import logging
+import shutil
+from pathlib import Path
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Any
 
-from askiff.board import Board, Layer, LayerSet
+from askiff.board import Board, Layer
+from askiff.common import Effects, Font, Justify, Position, Size
+from askiff.common_pcb import BoardSide
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 
 from .pcb_filter import pcb_filter_run
-
-from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import List, Dict, Any
-from pathlib import Path
-import shutil
 
 log = logging.getLogger(__name__)
 
@@ -174,9 +174,9 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
-    if args.input is None:
-        args.input = pro.pcb_file
-    if not len(args.input):
+    if args.input is None and pro.pcb_root:
+        args.input = pro.pcb_root
+    if not args.input or not Path(args.input).exists():
         log.error("PCB file was not detected or does not exists")
         return
 
@@ -191,16 +191,14 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         for footprint in board.footprints:
             log.debug(f"Processing footprint {footprint.path}")
 
-            outline_items = [
-                item for item in footprint.graphic_items if item.layers == {Layer.USER9} or item.layers == {Layer.USER8}
-            ]
+            outline_items = [item for item in footprint.graphic_items if item.layer in {Layer.USER(9), Layer.USER(8)}]
 
             for item in outline_items:
-                item.layers = LayerSet({Layer.USER9})
+                item.layer = Layer.USER(9)
 
         log.info("Finished changing layer of outline items for all footprints")
         log.info("Saving PCB")
-        board.to_file(Path(args.input))
+        board.to_file()
         return
 
     for preset in PRESETS:
@@ -243,15 +241,15 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
 
 def generate_wireframe(
     oname: str,
-    filter_args: Dict[str, Any],
-    sides: List[str],
-    export_layers: List[str],
+    filter_args: dict[str, Any],
+    sides: list[str],
+    export_layers: list[str],
     pro: KicadProject,
     args: argparse.Namespace,
 ) -> None:
     """Preprocess board and export it to SVG & GBR"""
-    output_folder = os.path.join(pro.fab_dir, "wireframe/")
-    os.makedirs(output_folder, exist_ok=True)
+    output_folder = pro.fab_dir / "wireframe"
+    output_folder.mkdir(parents=True, exist_ok=True)
 
     for side in sides:
         with NamedTemporaryFile(suffix=".kicad_pcb", delete=not args.debug) as fp:
@@ -283,10 +281,10 @@ def generate_wireframe(
                     export_gerber(fp.name, output_folder, oname_side_l, layer)
 
 
-def export_svg(ifile: str, output_folder: str, oname_side_l: str, layer: str, side: str) -> None:
+def export_svg(ifile: str, output_folder: Path, oname_side_l: str, layer: str, side: str) -> None:
     """Run kicad-cli and do exports to SVG"""
     # SVG
-    outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".svg")
+    outfile = output_folder / ("wireframe_" + oname_side_l + ".svg")
     log.info(f"Exporting {layer} svg to {outfile}")
     svg_export_cli_command = [
         "pcb",
@@ -311,15 +309,14 @@ def export_svg(ifile: str, output_folder: str, oname_side_l: str, layer: str, si
 
     run_kicad_cli(svg_export_cli_command, True)
 
-    ofile = Path(outfile)
-    svg = ofile.read_text()
+    svg = outfile.read_text()
     svg = svg.replace("<circle ", '<circle fill="none" stroke="#000000" stroke-width="0.05" stroke-opacity="1" ')
-    ofile.write_text(svg)
+    outfile.write_text(svg)
 
 
-def export_gerber(ifile: str, output_folder: str, oname_side_l: str, layer: str) -> None:
+def export_gerber(ifile: str, output_folder: Path, oname_side_l: str, layer: str) -> None:
     """Run kicad-cli and do exports to gerber"""
-    outfile = os.path.join(output_folder, "wireframe_" + oname_side_l + ".gbr")
+    outfile = output_folder / ("wireframe_" + oname_side_l + ".gbr")
     base_layer, _, common_layers = layer.partition(",")
     log.info(f"Exporting {layer} gerber to {outfile}")
 
@@ -346,33 +343,16 @@ def export_gerber(ifile: str, output_folder: str, oname_side_l: str, layer: str)
 
 def reset_footprint_val_props(file: str) -> None:
     """Reset footprint value property settings (font, position, visibility, ..)"""
-    try:
-        import pcbnew
+    log.info("Reset footprint reference properties")
 
-        log.info("Reset footprint reference properties")
-
-        board = pcbnew.LoadBoard(file)
-        # board = pcbnew.GetBoard() # Used in KiCad scripting console
-        modules = board.GetFootprints()
-        for m in modules:
-            m.Reference().SetVisible(True)
-            m.Reference().SetKeepUpright(True)
-            m.Reference().SetPosition(m.GetPosition())
-            m.Reference().SetVertJustify(0)
-            m.Reference().SetHorizJustify(0)
-            m.Reference().SetTextSize(pcbnew.VECTOR2I(350000, 350000))
-            m.Reference().SetTextThickness(70000)
-        for m in [m for m in board.GetFootprints() if "F" in board.GetLayerName(m.GetLayer())]:
-            m.Reference().SetLayer(pcbnew.F_Fab)
-        for m in [m for m in board.GetFootprints() if "B" in board.GetLayerName(m.GetLayer())]:
-            m.Reference().SetLayer(pcbnew.B_Fab)
-        board.Save(file)
-        # pcbnew.Refresh() # Used in KiCad scripting console
-    except ModuleNotFoundError:
-        log.error("Module `pcbnew`(KiCad API) cannot be found!")
-        log.warning("Add `pcbnew.py` to paths recognized by python")
-        log.warning("OR run above code block in KiCad scripting console")
-        log.error("Footprint value properties has not be set!")
+    board = Board.from_file(Path(file))
+    for fp in board.footprints:
+        ref = fp.properties.ref
+        ref.hide = False
+        ref.effects = Effects(Font(None, Size(0.35, 0.35), 0.07), Justify(), unlocked=None)
+        ref.position = Position(angle=fp.position.angle)
+        ref.layer = Layer.FAB_F if fp.side == BoardSide.FRONT else Layer.FAB_B
+    board.to_file()
 
 
 def substitute_layer_vars(layer: str, side: str) -> str:

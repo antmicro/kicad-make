@@ -4,7 +4,6 @@ import logging
 import os
 import subprocess
 
-
 log = logging.getLogger(__name__)
 
 
