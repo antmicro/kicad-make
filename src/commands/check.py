@@ -211,10 +211,10 @@ class SpellCheck:
             for gritem in kfile.graphic_items:
                 layer = str(getattr(gritem, "layer", ""))
                 if isinstance(gritem, GrText):
-                    context = SpellCheckIssueContext(kfile.path, "Text", layer, gritem.position)
+                    context = SpellCheckIssueContext(kfile.fs_path, "Text", layer, gritem.position)
                     self.check_str(gritem.text, context)
                 elif isinstance(gritem, GrTextBox):
-                    context = SpellCheckIssueContext(kfile.path, "TextBox", layer, gritem.box.position)
+                    context = SpellCheckIssueContext(kfile.fs_path, "TextBox", layer, gritem.box.position)
                     self.check_str(gritem.text, context)
             for table in kfile.tables:
                 layer = str(getattr(table, "layer", ""))
@@ -222,16 +222,16 @@ class SpellCheck:
                     col = idx % table.column_count
                     row = idx // table.column_count
                     context = SpellCheckIssueContext(
-                        kfile.fs_path.name, "Table", layer, cell.box.position, f" (col:{col}, row:{row})"
+                        kfile.fs_path, "Table", layer, cell.box.position, f" (col:{col}, row:{row})"
                     )
                     self.check_str(cell.text, context)
 
             for meta_name in ("title", "date", "rev", "company"):
                 meta = getattr(kfile.title_block, meta_name)
-                context = SpellCheckIssueContext(kfile.path, f"TitleBlock: {meta_name}", "", None)
+                context = SpellCheckIssueContext(kfile.fs_path, f"TitleBlock: {meta_name}", "", None)
                 self.check_str(meta, context)
             for comment in kfile.title_block.comment:
-                context = SpellCheckIssueContext(kfile.path, f"TitleBlock: comment {comment.number}", "", None)
+                context = SpellCheckIssueContext(kfile.fs_path, f"TitleBlock: comment {comment.number}", "", None)
                 self.check_str(comment.content, context)
 
     def check_file(self, path: Path) -> None:

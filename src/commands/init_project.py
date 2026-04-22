@@ -134,7 +134,7 @@ def create_empty_pro(pro: Project, project_title: str) -> None:
     """
     if not pro.kicad_pro_path:
         log.info("Creating project file")
-        with open(pro.path / (project_title + ".kicad_pro"), mode="w") as file:
+        with open(pro.fs_path / (project_title + ".kicad_pro"), mode="w") as file:
             file.write("{}")
 
 
@@ -147,7 +147,7 @@ def create_empty_sch(pro: Project) -> None:
     if not pro.sch_root:
         log.info("Creating SCH file")
         sch = Schematic()
-        sch.path = pro.kicad_pro_path.with_suffix(".kicad_sch")
+        sch.fs_path = pro.kicad_pro_path.with_suffix(".kicad_sch")
         pro.sch_root = sch
         pro.sch = [sch]
         sch.to_file()
@@ -162,7 +162,7 @@ def create_empty_pcb(pro: Project) -> None:
     if not pro.pcb_root:
         log.info("Creating PCB file")
         board = Board()
-        board.path = pro.kicad_pro_path.with_suffix(".kicad_pcb")
+        board.fs_path = pro.kicad_pro_path.with_suffix(".kicad_pcb")
         pro.pcb_root = board
         pro.pcb = [board]
         board.to_file()

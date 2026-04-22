@@ -210,7 +210,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
             kind = "DNP"
 
     if args.output:
-        filename = pro.path / args.output
+        filename = pro.fs_path / args.output
     else:
         if args.group_references:
             filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}.csv"
@@ -369,7 +369,7 @@ def create_netlist(
         "netlist",
         "--format",
         output_format,
-        pro.sch_root.path,
+        pro.sch_root.fs_path,
         "-o",
         str(filename),
     ]

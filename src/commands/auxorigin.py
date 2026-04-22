@@ -42,7 +42,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 def set_aux_axis_origin(board: Board, x: float, y: float) -> None:
     log.info("Setting auxilary axis origin to (%.3f,%.3f)", x, y)
     board.setup.aux_axis_origin = Position(x, y)
-    log.info(f"Saving PCB: {board.path}")
+    log.info(f"Saving PCB: {board.fs_path}")
     board.to_file()
 
 
@@ -71,7 +71,7 @@ def set_aux_origin(pro: Project, args: argparse.Namespace) -> None:
     """Sets aux Axis Origin in .kicad_pcb file according to args"""
 
     for pcb in pro.pcb:
-        log.info(f"Loading PCB : {pcb.path}")
+        log.info(f"Loading PCB : {pcb.fs_path}")
         if args.reset:
             set_aux_axis_origin(pcb, 0, 0)
         elif args.position:

@@ -30,4 +30,4 @@ def generate_netlist(input_sch_file: str, output_netlist_file: str) -> None:
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
     pro.create_fab_dir()
-    generate_netlist(pro.sch_root.path, f"{pro.relative_fab_path}/netlist.net")
+    generate_netlist(pro.sch_root.fs_path, f"{pro.relative_fab_path}/netlist.net")

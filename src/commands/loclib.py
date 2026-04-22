@@ -138,7 +138,7 @@ def cleanup_schematic_lib_symbols(pro: KicadProject) -> None:
     """Remove unreferrenced schematic symbols from schematis cache"""
     log.info("Removing unrefferenced schematic symbols")
     for schematic in pro.sch:
-        log.info("Processing: %s", schematic.path.name)
+        log.info("Processing: %s", schematic.fs_path.name)
         sch_symbol_instances: list[str] = []
         for sch_symbol in schematic.symbols:
             # Special case for symbols that have libId token
@@ -172,7 +172,7 @@ def group_symbols_by_library_name(pro: KicadProject) -> SymbolsLibs:
 
     # get list of all used libraries and symbols
     for schematic in pro.sch:
-        log.info("Loading symbols from %s", schematic.path.name)
+        log.info("Loading symbols from %s", schematic.fs_path.name)
         for schematic_symbol in schematic.lib_symbols:
             library = schematic_symbol.lib_id.library
             if library is None:
@@ -286,7 +286,7 @@ def loclib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
 
     footprints_list: List[FootprintBoard] = []
     for pcb in pro.pcb:
-        log.info("Processing : %s", pcb.path.name)
+        log.info("Processing : %s", pcb.fs_path.name)
         for footprint in pcb.footprints:
             if any(fp.lib_id.name == footprint.lib_id.name for fp in footprints_list):
                 continue
@@ -374,7 +374,7 @@ def update_links(pro: KicadProject, local_lib: SymbolFile) -> None:
 
     # Patch paths in schematic symbols
     for schematic in pro.sch:
-        log.info("Patching paths in: %s", schematic.path.name)
+        log.info("Patching paths in: %s", schematic.fs_path.name)
         for symbol in schematic.lib_symbols + schematic.symbols:
             if symbol.lib_id.name in local_symbols:
                 if not symbol.lib_id.library:
@@ -397,8 +397,7 @@ def update_links(pro: KicadProject, local_lib: SymbolFile) -> None:
 
     # Patch paths in PCB footprints
     for pcb in pro.pcb:
-        log.info("Processing : %s", pcb.path.name)
-        log.info("Patching paths in: %s", pcb.path.name)
+        log.info("Patching paths in: %s", pcb.fs_path.name)
         for footprint in pcb.footprints:
             if footprint.lib_id.name in local_footprint_names:
                 footprint.lib_id.library = f"{pro.project_name}-{pro.relative_fp_lib_path}"

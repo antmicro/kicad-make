@@ -132,7 +132,7 @@ def main() -> None:
 
     pro_path = Path.cwd()
 
-    pro = KicadProject(path=pro_path, local_share_path=args.share_path)
+    pro = KicadProject(fs_path=pro_path, local_share_path=args.share_path)
 
     # Run selected tool
     args.func(pro, args)

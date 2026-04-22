@@ -120,7 +120,7 @@ def tag_gerbers(folder: Path, tag: str) -> None:
 # Stamp gerber files with short commit SHA
 def stamp_gerbers(pro: KicadProject) -> None:
     try:
-        kicad_project_repo = Repo(pro.path)
+        kicad_project_repo = Repo(pro.fs_path)
         modified_files = kicad_project_repo.index.diff(None)
 
         for file_path in modified_files:

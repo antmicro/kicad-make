@@ -98,7 +98,7 @@ def get_global_footprint_list(lib_mapping: dict[str, str]) -> dict[str, tuple[st
             if not file.name.endswith(".kicad_mod"):
                 continue
             name = file.name.removesuffix(".kicad_mod")
-            fp_list[name] = (lib_name, FootprintFile.from_file(Path(file.path)))
+            fp_list[name] = (lib_name, FootprintFile.from_file(file))
     return fp_list
 
 
@@ -158,7 +158,7 @@ def update_props(
 
 def get_sch_paths_based_on_args(args: argparse.Namespace, pro: Project) -> list[Schematic]:
     if args.sch is not None:
-        return [sch for sch in pro.sch if sch.path.name in args.sch]
+        return [sch for sch in pro.sch if sch.fs_path.name in args.sch]
     return pro.sch
 
 
@@ -208,7 +208,7 @@ def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list
     failures: list[Symbol] = []
 
     for schematic in get_sch_paths_based_on_args(args, pro):
-        log.info("Processing schematic: %s", schematic.path)
+        log.info("Processing schematic: %s", schematic.fs_path)
 
         for local_symbol in schematic.symbols:
             if not should_symbol_be_globlibed(local_symbol, library_mapping.keys(), args.update_all):
@@ -265,7 +265,7 @@ def globlib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
         log.info("Updating footprint links")
 
         for schematic in get_sch_paths_based_on_args(args, pro):
-            log.info("Processing schematic: %s", schematic.path)
+            log.info("Processing schematic: %s", schematic.fs_path)
             for schematic_symbol in schematic.symbols:
                 ref = schematic_symbol.properties.ref.value
                 log.debug("Processing:  %s", ref)

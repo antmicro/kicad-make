@@ -40,8 +40,8 @@ class KicadProject(Project):
     fp_lib_dir: Path
     model_3d_lib_dir: Path
 
-    def __init__(self, path: Path, local_share_path: Path | None = None) -> None:
-        Project.__init__(self, path=path)
+    def __init__(self, fs_path: Path, local_share_path: Path | None = None) -> None:
+        Project.__init__(self, fs_path=fs_path)
         self.load()
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)
@@ -61,17 +61,17 @@ class KicadProject(Project):
         self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
 
         self.get_dru_file_name_from_dir()
-        self.fab_dir = self.path / self.relative_fab_path
-        self.doc_dir = self.path / self.relative_doc_path
-        self.step_model3d_dir = self.path / self.relative_step_model3d_path
-        self.lib_dir = self.path / self.relative_lib_path
-        self.fp_lib_dir = self.path / self.relative_lib_path / f"{self.project_name}-{self.relative_fp_lib_path}"
-        self.model_3d_lib_dir = self.path / self.relative_lib_path / self.relative_3d_model_path
+        self.fab_dir = self.fs_path / self.relative_fab_path
+        self.doc_dir = self.fs_path / self.relative_doc_path
+        self.step_model3d_dir = self.fs_path / self.relative_step_model3d_path
+        self.lib_dir = self.fs_path / self.relative_lib_path
+        self.fp_lib_dir = self.fs_path / self.relative_lib_path / f"{self.project_name}-{self.relative_fp_lib_path}"
+        self.model_3d_lib_dir = self.fs_path / self.relative_lib_path / self.relative_3d_model_path
 
     def get_dru_file_name_from_dir(self) -> None:
         """Get .kicad_dru file name from directory `dir`"""
 
-        found_dru_files = list(self.path.glob(self.dru_ext))
+        found_dru_files = list(self.fs_path.glob(self.dru_ext))
 
         if len(found_dru_files) > 1:
             log.error("More than 1 .kicad_dru file detected. Exit.")

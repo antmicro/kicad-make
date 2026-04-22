@@ -189,7 +189,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         log.info("Reseting wireframes layer")
 
         for footprint in board.footprints:
-            log.debug(f"Processing footprint {footprint.path}")
+            log.debug(f"Processing footprint {footprint.fs_path}")
 
             outline_items = [item for item in footprint.graphic_items if item.layer in {Layer.USER(9), Layer.USER(8)}]
 

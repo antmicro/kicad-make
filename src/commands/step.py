@@ -46,7 +46,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     colorf = [c / 256 for c in color]
 
     export_step(
-        pro.pcb_root.path,
+        pro.pcb_root.fs_path,
         output_file_path,
         verbose=args.debug,
     )
