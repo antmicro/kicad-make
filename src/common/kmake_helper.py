@@ -1,5 +1,7 @@
 """File and working directory helper scripts"""
 
+from pathlib import Path
+
 import logging
 import os
 import subprocess
@@ -28,10 +30,10 @@ def get_kicad_cli_command() -> tuple[str, list[str]]:
     return kicad_cli_path, kicad_cli_args
 
 
-def run_kicad_cli(args: list[str], verbose: bool) -> None:
+def run_kicad_cli(args: list[str | Path], verbose: bool) -> None:
     kicad_cli_path, kicad_cli_args = get_kicad_cli_command()
     command = [kicad_cli_path] + kicad_cli_args
-    command.extend(args)
+    command.extend(str(a) for a in args)
     log.info(f"Running command: {' '.join(command)}")
     stdout_redirect = None
     stderr_redirect = None

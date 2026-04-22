@@ -41,13 +41,13 @@ class LoclibTest(KmakeTestCase, unittest.TestCase):
         """
 
         # Check if +5V symbol is in cache
-        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root.path))
+        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root.fs_path))
         target_symbols_libs = sorted([str(symbol.entryName) for symbol in target_sch.libSymbols])
         self.assertIn("DIAC", target_symbols_libs)
 
         self.run_test_command(["--cleanup"])
 
-        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root.path))
+        target_sch = Schematic().from_file(filepath=str(self.kpro.sch_root.fs_path))
         target_symbols_libs = sorted([str(symbol.entryName) for symbol in target_sch.libSymbols])
         self.assertNotIn("DIAC", target_symbols_libs)
 

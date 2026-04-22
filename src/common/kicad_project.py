@@ -40,8 +40,8 @@ class KicadProject(Project):
     fp_lib_dir: Path
     model_3d_lib_dir: Path
 
-    def __init__(self, fs_path: Path, local_share_path: Path | None = None) -> None:
-        Project.__init__(self, fs_path=fs_path)
+    def __init__(self, fs_path: Path | None = None, local_share_path: Path | None = None) -> None:
+        Project.__init__(self, fs_path=fs_path or Path.cwd())
         self.load()
         if local_share_path is not None:
             self.local_share_path = Path(local_share_path)

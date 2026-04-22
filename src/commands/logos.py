@@ -1,13 +1,12 @@
+from askiff.common import PaperSize, DataBlock
 import argparse
-import base64
 import io
 import logging
 from pathlib import Path
-from typing import List, Union
 
-from kiutils.items.common import Image
-from kiutils.schematic import Schematic
-from kiutils.utils.sexpr import parse_sexp
+from askiff.gritems import ImageSch
+from askiff import Schematic
+
 from PIL import Image as PIL_Image
 from xdg import BaseDirectory
 
@@ -37,7 +36,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         type=str,
         help="Custom path to logos folder.",
     )
-    logos_parser.add_argument("--list", action="store_true", help="List available logos.")
+    logos_parser.add_argument("--list", action="store_true", help="list available logos.")
     logos_parser.set_defaults(func=run)
 
 
@@ -82,64 +81,76 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         logos = get_current_logos(schematic=schematic)
         logos.extend(new_logos)
         position_logos(logos=logos, schematic=schematic, args=args)
-        schematic.graphicalItems.extend(new_logos)
+        schematic.graphic_items.extend(new_logos)
         schematic.to_file()
-        log.info(f"Saved {schematic.filePath}")
+        log.info(f"Saved {schematic.fs_path}")
         for logo in args.logo:
-            log.info(f"Added {logo} to {schematic.filePath}")
+            log.info(f"Added {logo} to {schematic.fs_path}")
 
 
 # Check page size (acceptable sizes are A3/A4)
 def check_schematic_size(schematic: Schematic) -> None:
-    schematic_name = schematic.filePath
-    if schematic.paper.paperSize == "A3" or schematic.paper.paperSize == "A4":
-        log.info(f"Found {schematic_name} in {schematic.paper.paperSize} size")
+    assert schematic.fs_path
+    if schematic.paper.size in (PaperSize.A3, PaperSize.A4):
+        log.info(f"Found {schematic.fs_path.name} in {schematic.paper.size} size")
     else:
-        log.error(f"{schematic_name} in wrong size ({schematic.paper.paperSize}) Accepted sizes: A3, A4")
+        log.error(f"{schematic.fs_path.name} in wrong size ({schematic.paper.size}) Accepted sizes: A3, A4")
         exit(1)
 
 
-# Open logo file and parse it to sexpression
-def read_logos(args: argparse.Namespace) -> List[Image]:
-    logos: List[Image] = []
+# Open logo file and parse it to s-expression
+def read_logos(args: argparse.Namespace) -> list[ImageSch]:
+    logos: list[ImageSch] = []
     for logo in args.logo:
         logo_path = Path(args.path) / logo
+
+        if logo_path.suffix == "":
+            logo_path = logo_path.with_suffix(".png")
+
+        if logo_path.suffix != ".png":
+            raise ValueError(f"Not supported image format: {logo_path} (supported: png)")
+
         if not logo_path.exists():
-            logo_path = BUILTIN_LOGO_PATH / logo
-        try:
-            with open(logo_path, "r", encoding="utf-8") as logo_file:
-                logos.append(Image.from_sexpr(parse_sexp(logo_file.read())))
-        except IOError:
+            logo_path = (BUILTIN_LOGO_PATH / logo).with_suffix(".png")
+        if not logo_path.exists():
             log.error(f"{logo} not found")
+
+        with open(logo_path, "rb") as f:
+            data = f.read()  # raw binary buffer
+        img = ImageSch(data=DataBlock(data))
+        logos.append(img)
+
     return logos
 
 
 # Load logos already present on the schematic by checking Y pos of the img
-def get_current_logos(schematic: Schematic) -> List[Image]:
-    logos: List[Image] = []
-    for img in schematic.images:
+def get_current_logos(schematic: Schematic) -> list[ImageSch]:
+    logos: list[ImageSch] = []
+    for img in schematic.graphic_items:
+        if not isinstance(img, ImageSch):
+            continue
         # TODO: extract magic numbers to constants as percentage of page size
-        if schematic.paper.paperSize == "A3":
-            if img.position.Y >= 254 and img.position.Y <= 285:
+        if schematic.paper.size == PaperSize.A3:
+            if img.position.y >= 254 and img.position.y <= 285:
                 logos.append(img)
-        elif schematic.paper.paperSize == "A4":
-            if img.position.Y >= 165 and img.position.Y <= 195:
+        elif schematic.paper.size == PaperSize.A4:
+            if img.position.y >= 165 and img.position.y <= 195:
                 logos.append(img)
 
     return logos
 
 
-def position_logos(logos: List[Image], schematic: Schematic, args: argparse.Namespace) -> None:
+def position_logos(logos: list[ImageSch], schematic: Schematic, args: argparse.Namespace) -> None:
     # mm to px ratio in Eschema
     mm_px_ratio = 0.0846
     logo_clearance = 5
     # Holds right edges of the images
-    logo_right_edge: List[Union[float, int]] = []
+    logo_right_edge: list[float | int] = []
     logos_height = args.size
     log.debug(f"Logo height = {logos_height}")
     for i, logo in enumerate(logos):
         # set scale
-        decoded_logo = decode_img(img=logo)
+        decoded_logo = PIL_Image.open(io.BytesIO(logo.data))
         scale_factor = logos_height / decoded_logo.size[1]
         logo.scale = scale_factor
         log.debug(f"Scale factor = {scale_factor}")
@@ -147,23 +158,15 @@ def position_logos(logos: List[Image], schematic: Schematic, args: argparse.Name
         logo_width = decoded_logo.size[0] * scale_factor * mm_px_ratio
         # most left logo
         if i == 0:
-            logo.position.X = 15 + logo_width / 2
+            logo.position.x = 15 + logo_width / 2
         # rest of the logos
         else:
-            logo.position.X = logo_right_edge[i - 1] + logo_width / 2 + logo_clearance
-        logo_right_edge.append(logo.position.X + logo_width / 2)
-        log.debug(f"X position = {logo.position.X}")
+            logo.position.x = logo_right_edge[i - 1] + logo_width / 2 + logo_clearance
+        logo_right_edge.append(logo.position.x + logo_width / 2)
+        log.debug(f"X position = {logo.position.x}")
         # set Y position
-        if schematic.paper.paperSize == "A3":
-            logo.position.Y = 270
-        elif schematic.paper.paperSize == "A4":
-            logo.position.Y = 180
+        if schematic.paper.size == PaperSize.A3:
+            logo.position.y = 270
+        elif schematic.paper.size == PaperSize.A4:
+            logo.position.y = 180
         log.debug(f"Position = {logo.position}")
-
-
-# converts base64 to PIL image
-def decode_img(img: Image) -> PIL_Image.Image:
-    image_mime_data = img.data  # MIME base 64 data
-    image_mime_data = "".join(image_mime_data)
-    imgdata = base64.b64decode(image_mime_data)
-    return PIL_Image.open(io.BytesIO(imgdata))
