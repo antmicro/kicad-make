@@ -64,3 +64,24 @@ class KmakeTestCase:
         os.chdir(self.target_dir)
         run_kicad_cli(["pcb", "export", "gerbers", self.kpro.pcb_file], False)
         run_kicad_cli(["sch", "export", "pdf", self.kpro.sch_root.path], False)
+
+
+def get_property(obj, prop: str) -> str:  # type: ignore
+    for item in obj.properties:
+        if item.key.lower() == prop.lower():
+            return item.value
+    return None  # type: ignore
+
+
+def remove_property(obj, name: str) -> list:  # type: ignore
+    return [prop for prop in obj.properties if prop.key.lower() != name.lower()]
+
+
+def set_property(symbol, name: str, value) -> None:  # type: ignore
+    try:
+        prop = next(filter(lambda prop: prop.key == name, symbol.properties))
+        prop.value = value
+    except StopIteration:
+        from kiutils.items.common import Property
+
+        symbol.properties.append(Property(name, value))

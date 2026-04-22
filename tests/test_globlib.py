@@ -1,8 +1,7 @@
 import unittest
 from kiutils.schematic import Schematic
 from kiutils.board import Board
-from kmake_test_common import KmakeTestCase
-from common.kmake_helper import get_property, set_property
+from kmake_test_common import KmakeTestCase, get_property, set_property
 from pathlib import Path
 
 

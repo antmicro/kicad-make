@@ -3,8 +3,7 @@ from typing import List
 from kiutils.board import Board
 from kiutils.footprint import Footprint
 from kiutils.items.brditems import Via
-from kmake_test_common import KmakeTestCase
-from common.kmake_helper import get_property
+from kmake_test_common import KmakeTestCase, get_property
 
 
 class PCBFilterTest(KmakeTestCase, unittest.TestCase):

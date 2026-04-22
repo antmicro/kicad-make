@@ -1,13 +1,11 @@
 import logging
 import unittest
 from typing import List
-from kmake_test_common import KmakeTestCase
+from kmake_test_common import KmakeTestCase, get_property, set_property, remove_property
 from kiutils.schematic import Schematic
 from kiutils.board import Board
 import argparse
 from commands.prettify import run as prettify
-
-from common.kmake_helper import get_property, set_property, remove_property
 
 
 class DnpTest(KmakeTestCase, unittest.TestCase):
