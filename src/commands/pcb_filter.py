@@ -235,13 +235,9 @@ def pcb_filter_run(
         outfile += ".kicad_pcb"
     if cascade and Path(outfile).exists():
         infile = outfile
-    if infile is None:
-        infile = pro.pcb_root
-    if not len(infile):
-        log.error("PCB file was not detected or does not exists")
-        return
+
     log.info("Loading PCB")
-    board = Board.from_file(Path(infile))
+    board = Board.from_file(Path(infile)) if infile is not None else pro.pcb_root
 
     if not side:
         _side = None

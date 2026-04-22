@@ -380,6 +380,6 @@ def create_netlist(
     net = kicad_netlist_reader.netlist(str(filename))
 
     if not debug:
-        filename.rmdir()
+        filename.unlink()
 
     return net

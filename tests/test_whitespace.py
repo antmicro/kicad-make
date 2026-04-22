@@ -2,8 +2,7 @@ import unittest
 import shutil
 import os
 
-from common.kicad_project import KicadProject
-from kmake_test_common import KmakeTestCase
+from kmake_test_common import KmakeTestCase, KicadProject
 
 
 class WhitespaceTest(KmakeTestCase, unittest.TestCase):

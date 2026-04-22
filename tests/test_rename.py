@@ -1,8 +1,7 @@
 import unittest
 from pathlib import Path
 
-from kmake_test_common import KmakeTestCase
-from common.kicad_project import KicadProject
+from kmake_test_common import KmakeTestCase, KicadProject
 
 
 class RenameTest(KmakeTestCase, unittest.TestCase):

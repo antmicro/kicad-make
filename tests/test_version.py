@@ -18,7 +18,7 @@ class VersionTest(KmakeTestCase, unittest.TestCase):
         out = stdout.getvalue().splitlines()
         op = [[s.strip() for s in line.partition(":")] for line in out]
 
-        self.assertEqual([o[0] for o in op], ["kmake", "kicad", "kiutils"])
+        self.assertEqual([o[0] for o in op], ["kmake", "kicad", "askiff"])
         [o[2] for o in op[0:3] if o[2][0].isdigit()]
 
 

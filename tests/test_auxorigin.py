@@ -1,9 +1,8 @@
 import unittest
 from unittest.mock import patch
 from io import StringIO
-from kmake_test_common import KmakeTestCase
+from kmake_test_common import KmakeTestCase, KicadProject
 
-from common.kicad_project import KicadProject
 from kiutils.board import Board
 from kiutils.schematic import Position
 

@@ -4,12 +4,11 @@ import os
 import tempfile
 import logging
 from pathlib import Path
-from common.kicad_project import KicadProject
 from typing import Tuple
 from kiutils.items.common import TitleBlock
 from datetime import date
 import shutil
-from kmake_test_common import KmakeTestCase
+from kmake_test_common import KmakeTestCase, KicadProject
 
 
 class InitProjectTest(KmakeTestCase, unittest.TestCase):

@@ -175,7 +175,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
     if args.input is None and pro.pcb_root:
-        args.input = pro.pcb_root
+        args.input = pro.pcb_root.fs_path
     if not args.input or not Path(args.input).exists():
         log.error("PCB file was not detected or does not exists")
         return
@@ -189,7 +189,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         log.info("Reseting wireframes layer")
 
         for footprint in board.footprints:
-            log.debug(f"Processing footprint {footprint.fs_path}")
+            log.debug(f"Processing footprint {footprint.path}")
 
             outline_items = [item for item in footprint.graphic_items if item.layer in {Layer.USER(9), Layer.USER(8)}]
 

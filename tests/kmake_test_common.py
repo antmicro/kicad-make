@@ -3,10 +3,19 @@ from pathlib import Path
 import git
 from typing import List
 import os
-from common.kicad_project import KicadProject
+from common.kicad_project import KicadProject as _KicadProject
 from common.kmake_helper import run_kicad_cli
 import shutil
 import tempfile
+
+
+class KicadProject(_KicadProject):
+    def __init__(self, **kwargs) -> None:  # type: ignore
+        # compat layer with old KiCadProject
+        _KicadProject.__init__(self, **kwargs)
+        self.pcb_file = self.pcb_root.fs_path
+        self.name = self.project_name
+        self.dir = self.fs_path
 
 
 class KmakeTestCase:
@@ -52,7 +61,6 @@ class KmakeTestCase:
         self.project_repo.index.commit("initial")
 
         self.kpro = KicadProject(local_share_path=self.shared_dir)
-        self.kpro.pcb_file = self.kpro.pcb_root.fs_path
 
     def tearDown(self) -> None:
         """Check if Kicad files are not corrupted & remove tmp directory after test"""

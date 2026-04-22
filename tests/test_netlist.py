@@ -1,7 +1,6 @@
 import unittest
 import re
-from kmake_test_common import KmakeTestCase
-from common.kicad_project import KicadProject
+from kmake_test_common import KmakeTestCase, KicadProject
 
 
 class BomNetlist(KmakeTestCase, unittest.TestCase):
