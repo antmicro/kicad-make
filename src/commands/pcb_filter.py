@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import logging
 import math
@@ -22,7 +24,6 @@ from askiff.gritems import (
     DimensionUnit,
     DimensionUnitStyle,
     DimensionValueFormat,
-    GrItem,
     GrItemPCB,
     GrRectPCB,
     GrShapeFp,
@@ -261,12 +262,10 @@ def pcb_filter_run(
     board.footprints = [fp for fp in board.footprints if reference_match(fp, _side, filter_main, filter_other)]
 
     if stackup:
-        try:
-            stackup_group = [g for g in board.groups if g.name == "group-boardStackUp"][0]
+        stackup_group = next((g for g in board.groups if g.name == "group-boardStackUp"), None)
+        if stackup_group:
             board.graphic_items = [item for item in board.graphic_items if item.uuid not in stackup_group.members]
             board.groups = [g for g in board.groups if g.name != "group-boardStackUp"]
-        except IndexError:
-            pass
 
     if references or values:
         for fp in board.footprints:
@@ -358,7 +357,7 @@ def copy_edge_from_footprint(board: Board) -> None:
     """Copies all Edge.Cuts graphics found in footprints to board level"""
     for fp in board.footprints:
         for item in fp.graphic_items:
-            if item.layer != Layer.EDGE_CUTS:
+            if not isinstance(item, GrShapeFp) or item.layer != Layer.EDGE_CUTS:
                 continue
 
             board.graphic_items.append(item.to_board_shape(fp.position))  # doesn't work, probably in newest askiff
@@ -367,7 +366,7 @@ def copy_edge_from_footprint(board: Board) -> None:
 def unify_style_graphics(board: Board, layers: LayerSet[BaseLayer], width: float) -> None:
     """set thickness of graphics on specified layer"""
     for g in board.graphic_items:
-        if isinstance(g, GrItem) and g.layer in layers:
+        if isinstance(g, GrShapePCB) and g.layer in layers:
             if g.stroke is None:
                 g.stroke = Stroke()
             g.stroke.width = width
@@ -418,7 +417,7 @@ def reference_match(
 
     # Extract prefix from reference,
     ref = fp.properties.ref.value
-    ref_type = fp.properties.ref.value.rstrip("0123456789?*")
+    ref_type = ref.rstrip("0123456789?*")
 
     # Compare prefix with selected pattern
     if filt.mode_additive:
@@ -427,9 +426,7 @@ def reference_match(
 
 
 def layer_filter_match(g: GrItemPCB, layers: LayerSet[BaseLayer], full: bool) -> bool:
-    if not hasattr(g, "layer"):
-        return True
-    if g.layer not in layers:
+    if hasattr(g, "layer") and g.layer not in layers:
         if full:
             return False
         if not isinstance(g, GrTextPCB):
@@ -455,7 +452,7 @@ def mirror_text_justify(effects: Effects) -> Effects:
     return effects
 
 
-def mirror_footprint_text(fp: Footprint) -> Footprint:
+def mirror_footprint_text(fp: Footprint) -> None:
     """Mirror texts inside footprint (property & standalone texts)"""
 
     for p in fp.properties:
@@ -466,19 +463,19 @@ def mirror_footprint_text(fp: Footprint) -> Footprint:
     for g in fp.graphic_items:
         if isinstance(g, GrTextFp):
             g.effects = mirror_text_justify(g.effects)
-    return fp
 
 
 def mirror_texts(board: Board) -> Board:
     """Mirror all text in pcb (footprint, dimension & standalone texts)"""
-    board.footprints = [mirror_footprint_text(fp) for fp in board.footprints]
+    for fp in board.footprints:
+        mirror_footprint_text(fp)
 
     for g in board.graphic_items:
         if isinstance(g, GrTextFp):
             g.effects = mirror_text_justify(g.effects)
 
     for d in board.dimensions:
-        if not hasattr(d, "text"):
+        if not isinstance(d, (DimensionLeader, DimensionRadial, DimensionOrthogonal, DimensionAligned)):
             continue
         if not d.text:
             d.text = GrTextPCBBase()
@@ -502,7 +499,7 @@ class BBoxPoint:
         self.aux_min = aux_min
         self.aux_max = aux_max
 
-    def update(self, ismin: bool, main: float, aux: float) -> "BBoxPoint":
+    def update(self, ismin: bool, main: float, aux: float) -> BBoxPoint:
         """Compare `(main,aux)` point with limits stored in self, return more extreme value"""
         op = min if ismin else max
 
@@ -632,11 +629,11 @@ def std_grtext(text: GrText, scale: float) -> float:
 def unify_style_text(board: Board, layers: LayerSet[BaseLayer], scale: float) -> None:
     """set text style on specified layer"""
     for g in board.graphic_items:
-        if isinstance(g, GrText) and g.layer in layers:
+        if isinstance(g, GrTextPCB) and g.layer in layers:
             std_grtext(g, scale)
 
 
-def get_aligned_dim_center(dim: Dimension) -> tuple[float, float]:
+def get_aligned_dim_center(dim: DimensionAligned) -> tuple[float, float]:
     """Gets point that is the center (middle of main dimension line) of dimension"""
     x1, y1 = dim.pts[0].x, dim.pts[0].y
     x2, y2 = dim.pts[1].x, dim.pts[1].y
@@ -711,6 +708,7 @@ def unify_style_dimensions(board: Board, layers: LayerSet[BaseLayer], scale: flo
     for d in board.dimensions:
         if isinstance(d, DimensionCenter):
             continue
+        assert isinstance(d, (DimensionLeader, DimensionRadial, DimensionOrthogonal, DimensionAligned))
         if d.layer in layers:
             d.format = DimensionValueFormat(
                 precision=1,  # one fraction digit
@@ -720,16 +718,11 @@ def unify_style_dimensions(board: Board, layers: LayerSet[BaseLayer], scale: flo
                 override_value=d.format.override_value if d.format else None,
             )
 
-            arrow_len = 1
-            try:
-                types = [DimensionLeader, DimensionCenter, DimensionRadial]
-                if any([isinstance(d, type_) for type_ in types]):
-                    arrow_len = d.style.arrow_length
-                else:
-                    length = ((d.pts[0].x - d.pts[1].x) ** 2 + (d.pts[0].y - d.pts[1].y) ** 2) ** 0.5
-                    arrow_len = min(1, round(length / 2, 2))
-            except Exception:
-                pass
+            if isinstance(d, (DimensionLeader, DimensionRadial)):
+                arrow_len = d.style.arrow_length
+            else:
+                length = ((d.pts[0].x - d.pts[1].x) ** 2 + (d.pts[0].y - d.pts[1].y) ** 2) ** 0.5
+                arrow_len = min(1, round(length / 2, 2))
 
             d.style = DimensionStyle(
                 extension_offset=d.style.extension_offset,
@@ -737,12 +730,7 @@ def unify_style_dimensions(board: Board, layers: LayerSet[BaseLayer], scale: flo
                 thickness=0.1,
                 arrow_length=arrow_len,
                 text_position_mode=DimensionTextPosition.OUTSIDE,
-                # """The ``textPositionMode`` token defines the position mode of the dimension text. Valid position
-                # modes are as follows:
-                # - 0: Text is outside the dimension line
-                # - 1: Text is in line with the dimension line
-                # - 2: Text has been manually placed by the user"""
-                arrow_direction=d.style.arrow_direction,  # inward/outward
+                arrow_direction=d.style.arrow_direction,
                 text_frame=d.style.text_frame,
                 keep_text_aligned=True,
             )
@@ -752,6 +740,7 @@ def unify_style_dimensions(board: Board, layers: LayerSet[BaseLayer], scale: flo
 
             # Extend dimensions to reduce overlaps due to text scaling
             if d.uuid in dim_qtr_pos:
+                assert isinstance(d, (DimensionOrthogonal, DimensionAligned))
                 qtr, pos = dim_qtr_pos[d.uuid]
                 dim_idx = qtr_dim[d.layer][qtr].index(pos)
                 # additional offset for dimmesniosn on the right and bottom of board
