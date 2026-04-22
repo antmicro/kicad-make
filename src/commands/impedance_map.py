@@ -6,8 +6,8 @@ import logging
 import re
 from pathlib import Path
 
-from askiff.board import Via
-from askiff.common_pcb import Net
+from askiff.board import Via, LayerDef
+from askiff.common_pcb import LayerCopper, Layer
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -34,36 +34,42 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     net_classes: list[NetClass] = NetClass.load_net_classes(j)
 
     log.info("Processing board items")
-    max([layer.layer.order_id() for layer in pro.pcb_root.layer_map if ".Cu" in layer.layer.value])
-
-    # Mark non-impedance controlled traces for removal
-    # for item in board.traces:
-    #     item.dirty = True
+    last_layer_id = int(
+        max(
+            [
+                (layer.layer.order_id() - 2) / 2
+                for layer in pro.pcb_root.layer_map
+                if isinstance(layer.layer, LayerCopper)
+            ]
+        )
+    )
+    impedance_layers = {}
 
     for net_class in net_classes:
         if not net_class.impedance:
             continue
+        if net_class.impedance not in impedance_layers:
+            last_layer_id += 1
+            target_layer = Layer.CU_IN(last_layer_id)
+            impedance_layers[net_class.impedance] = target_layer
+            pro.pcb_root.layer_map.append(LayerDef(target_layer, user_name=net_class.impedance))
+        else:
+            target_layer = impedance_layers[net_class.impedance]
 
-        target_layer = net_class.impedance
-
-        # if target_layer is None:
-        #     pro.pcb_root.layer_map.append(Layer(last_cu_id, f"In{last_cu_id}.Cu"))
-        #     layers[net_class.impedance] = last_cu_id
-        #     target_layer = last_cu_id
-        #     last_cu_id += 1
         for trace in pro.pcb_root.traces:
-            # print(item.net)
-
-            if not net_class.contains(trace.net):
-                continue
             if isinstance(trace, Via):
                 continue
+            if not net_class.contains(trace.net.name):
+                print(trace.net.name)
+                continue
 
-            trace.layers = [f"In{target_layer}.Cu"]
+            trace.layer = target_layer
 
-    pro.pcb_root.traces = [i for i in pro.pcb_root.traces if not i.dirty]
+    layer_keys = impedance_layers.values()
+    pro.pcb_root.traces = [i for i in pro.pcb_root.traces if not isinstance(i, Via) and i.layer in layer_keys]
     pro.pcb_root.footprints = []
     pro.pcb_root.zones = []
+    pro.pcb_root.graphic_items = [item for item in pro.pcb_root.graphic_items if item.layer == Layer.EDGE_CUTS]
 
     log.info("Saving the generated impedance map")
     pro.create_fab_dir()
@@ -90,13 +96,14 @@ def export_impedance_gerbers(pcb_file: Path, output_folder: Path) -> None:
         pcb_file,
         "-o",
         output_folder,
+        "--no-protel-ext",
         "--precision",
         "6",
     ]
     run_kicad_cli(gerber_export_cli_command, True)
 
     for gerber_file in output_folder.glob("*.gbr"):
-        if "Ohm" not in gerber_file.stem:
+        if "ohm" not in gerber_file.stem.lower():
             gerber_file.unlink()
 
 
@@ -104,7 +111,9 @@ class NetClass:
     def __init__(self, class_json: dict, patterns: list) -> None:
         self.name = class_json["name"]
         self.patterns = [pattern["pattern"] for pattern in patterns if pattern["netclass"] == self.name]
-        self.impedance: int | None = self.name.split("_")[0] if "ohm-" in self.name.lower() else None
+        self.impedance: str | None = self.name.split("_")[0] if "ohm" in self.name.lower() else None
+        self.nets: set[str] = set()
+        self.nets_not_matching: set[str] = set()
 
         logging.debug(f"Patterns in class {self.name}: {self.patterns}")
 
@@ -137,8 +146,16 @@ class NetClass:
             net_classes.append(NetClass(class_json, classes_patterns))
         return net_classes
 
-    def contains(self, net: Net) -> bool:
-        try:
-            return any([re.match(pattern, net.name) for pattern in self.patterns])
-        except TypeError:
+    def contains(self, net: str) -> bool:
+        if net in self.nets:
+            return True
+
+        if net in self.nets_not_matching:
             return False
+
+        if any([re.match(pattern, net) for pattern in self.patterns]):
+            self.nets.add(net)
+            return True
+
+        self.nets_not_matching.add(net)
+        return False
