@@ -4,7 +4,6 @@ import argparse
 import csv
 import json
 import logging
-import os
 from typing import Any
 
 from askiff.board import LayerDef, StackupLayer, StackupLayerDielectric, StackupLayerDielectricSubLayer
@@ -69,7 +68,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         if isinstance(layer, StackupLayerDielectric):  # handle layer with sublayers (dielectrics)
             for idx, sublayer in enumerate(layer.sublayers):
                 sublayer_dict = {k: v for (k, v) in get_layer_dict(sublayer).items() if v}
-                layer_dict = get_layer_dict(layer) | sublayer_dict  # type: ignore
+                layer_dict = get_layer_dict(layer) | sublayer_dict
                 layer_dict["name"] = f"{name} ({idx + 1}/{len(layer.sublayers)})" if len(layer.sublayers) > 1 else name
                 layer_dict["user_name"] = layerdef.user_name if layerdef else None
                 layer_dicts.append(layer_dict)
@@ -80,17 +79,17 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
             layer_dict["user_name"] = layerdef.user_name if layerdef else None
             layer_dicts.append(layer_dict)
 
-    pro.create_fab_dir()
+    pro.doc_fab.mkdir(exist_ok=True, parents=True)
 
     if args.legacy_csv:
         save_csv(
             layer_dicts,
-            (args.output_filename if args.output_filename else os.path.join(pro.relative_fab_path, FILENAME + ".csv")),
+            (args.output_filename if args.output_filename else pro.fab_dir / (FILENAME + ".csv")),
         )
     else:
         save_json(
             {"layers": layer_dicts},
-            (args.output_filename if args.output_filename else os.path.join(pro.relative_fab_path, FILENAME + ".json")),
+            (args.output_filename if args.output_filename else pro.fab_dir / (FILENAME + ".json")),
         )
 
 

@@ -277,7 +277,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     """
     Main command function
     """
-    pro.create_doc_dir()
+    pro.doc_dir.mkdir(exist_ok=True, parents=True)
     fmt = getattr(args, "format", "")
     output_paths = _get_output_paths(pro, args.check_subcommand, fmt)
 

@@ -6,8 +6,8 @@ import logging
 import re
 from pathlib import Path
 
-from askiff.board import Via, LayerDef
-from askiff.common_pcb import LayerCopper, Layer
+from askiff.board import LayerDef, Via
+from askiff.common_pcb import Layer, LayerCopper
 
 from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
@@ -72,7 +72,7 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     pro.pcb_root.graphic_items = [item for item in pro.pcb_root.graphic_items if item.layer == Layer.EDGE_CUTS]
 
     log.info("Saving the generated impedance map")
-    pro.create_fab_dir()
+    pro.doc_fab.mkdir(exist_ok=True, parents=True)
     pcb_file = pro.fab_dir / "impedance_map.kicad_pcb"
     pro.pcb_root.to_file(pcb_file)
 

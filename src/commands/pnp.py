@@ -126,7 +126,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     if not board:
         raise RuntimeError("PCB not found in project!")
     board_path = board.fs_path
-    pro.create_fab_dir()
+    pro.doc_fab.mkdir(exist_ok=True, parents=True)
     temporary_board_file = None
 
     if args.tht:

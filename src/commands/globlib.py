@@ -2,13 +2,15 @@ import argparse
 import logging
 import os
 import re
+import sys
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Union
 
 from askiff import FootprintFile, Project, Schematic, SymbolFile
-from askiff.footprint import Footprint, LibId
-from askiff.symbol import SymbolDefinition, SymbolSchematic
+from askiff.common import LibraryTable
+from askiff.footprint import Footprint, FootprintLibraryTable, LibId
+from askiff.symbol import SymbolDefinition, SymbolLibraryTable, SymbolSchematic
 
 from common.kicad_project import KicadProject
 
@@ -56,20 +58,36 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     globlib_project(pro, args)
 
 
+def get_lib_table_path(name: Path, global_lib: Path) -> Path:
+    if name.exists():
+        log.debug(f"Using config from {name}")
+        return name
+    if global_lib.exists():
+        log.warning(f"Provided lib table ({name}) doesn't exist. Using global lib table")
+        return global_lib
+    log.error("Provided lib table doesn't exist and couldn't find global lib table")
+    sys.exit(1)
+
+
 def get_lib_mapping(
-    pro: KicadProject, include_kicad_lib: bool, lib_table_file: str, system_table_file: str, lib_dir: str
+    pro: KicadProject,
+    include_kicad_lib: bool,
+    lib_table_file: Path,
+    system_table_file: Path,
+    lib_dir: str,
+    libcls: type[LibraryTable],
 ) -> dict[str, str]:
     """Returns dict mapping symbol library names to paths based on user's kicad config."""
-    libtable = pro.read_lib_table_file(lib_table_file, system_table_file)
+    libtable = libcls.from_file(get_lib_table_path(lib_table_file, system_table_file))
 
     if not include_kicad_lib:  # if not using original KiCad libraries, remove them from list
-        libtable.lib = [lib for lib in libtable.libs if lib_dir not in lib.uri]
+        libtable.lib = [lib for lib in libtable.lib if lib_dir not in lib.uri]
 
     # Sort so that kicad libaries are last
-    libtable.libs = sorted(libtable.libs, key=lambda x: lib_dir not in x.uri, reverse=True)
+    libtable.lib = sorted(libtable.lib, key=lambda x: lib_dir not in x.uri, reverse=True)
 
     pro.load_kicad_environ_vars()
-    return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.libs}
+    return {lib.name: os.path.expandvars(lib.uri) for lib in libtable.lib}
 
 
 def get_global_symbol_list(lib_mapping: dict[str, str]) -> dict[str, tuple[str, SymbolDefinition]]:
@@ -199,6 +217,7 @@ def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list
         pro.glob_sym_lib_table_path,
         pro.system_sym_lib_table,
         pro.env_var_name_sym_lib,
+        SymbolLibraryTable,
     )
     log.debug("Libary name to path mapping: %s", library_mapping)
 
@@ -258,6 +277,7 @@ def globlib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
         pro.glob_fp_lib_table_path,
         pro.system_fp_lib_table,
         pro.env_var_name_fp_lib,
+        FootprintLibraryTable,
     )
     fp_list = get_global_footprint_list(lib_mapping)
     log.info("Loading PCB ...")

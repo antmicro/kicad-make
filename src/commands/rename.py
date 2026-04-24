@@ -19,7 +19,6 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
 
 
 def rename(pro: KicadProject, new_name: str) -> None:
-
     whitelist = [
         ".kicad_pro",
         ".kicad_pcb",

@@ -1,10 +1,9 @@
 """File and working directory helper scripts"""
 
-from pathlib import Path
-
 import logging
 import os
 import subprocess
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 

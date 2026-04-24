@@ -18,7 +18,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
-    pro.create_step_model3d_dir()
+    pro.step_model3d_dir.mkdir(exist_ok=True, parents=True)
 
     step_file_name = f"{pro.project_name}.step"
     output_file_path = f"{pro.step_model3d_dir}/{step_file_name}"

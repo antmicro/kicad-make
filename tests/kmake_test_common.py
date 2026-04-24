@@ -16,6 +16,9 @@ class KicadProject(_KicadProject):
         self.pcb_file = str(self.pcb_root.fs_path) if self.pcb_root else ""
         self.name = self.project_name
         self.dir = str(self.fs_path)
+        self.dru_file = next(self.fs_path.glob("*.kicad_dru"), "")
+        self.sch_ext = "kicad_sch"
+        self.pcb_ext = "kicad_pcb"
 
 
 class KmakeTestCase:

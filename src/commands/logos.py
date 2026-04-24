@@ -1,12 +1,11 @@
-from askiff.common import PaperSize, DataBlock
 import argparse
 import io
 import logging
 from pathlib import Path
 
-from askiff.gritems import ImageSch
 from askiff import Schematic
-
+from askiff.common import DataBlock, PaperSize
+from askiff.gritems import ImageSch
 from PIL import Image as PIL_Image
 from xdg import BaseDirectory
 

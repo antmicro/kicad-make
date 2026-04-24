@@ -5,6 +5,7 @@ import sys
 
 from askiff import Board, Project, Schematic
 from askiff.common import Paper, PaperSize, TitleBlock
+from askiff.const import Version
 
 log = logging.getLogger(__name__)
 
@@ -134,8 +135,8 @@ def create_empty_pro(pro: Project, project_title: str) -> None:
     """
     if not pro.kicad_pro_path:
         log.info("Creating project file")
-        with open(pro.fs_path / (project_title + ".kicad_pro"), mode="w") as file:
-            file.write("{}")
+        pro.kicad_pro_path = pro.fs_path / (project_title + ".kicad_pro")
+        pro.kicad_pro_path.write_text("{}")
 
 
 def create_empty_sch(pro: Project) -> None:
@@ -146,8 +147,8 @@ def create_empty_sch(pro: Project) -> None:
     """
     if not pro.sch_root:
         log.info("Creating SCH file")
-        sch = Schematic()
-        sch.fs_path = pro.kicad_pro_path.with_suffix(".kicad_sch")
+        sch = Schematic(version=Version.K9.sch)
+        sch.fs_path = pro.kicad_pro_path.with_suffix(Schematic.fs_ext)
         pro.sch_root = sch
         pro.sch = [sch]
         sch.to_file()
@@ -161,8 +162,8 @@ def create_empty_pcb(pro: Project) -> None:
     """
     if not pro.pcb_root:
         log.info("Creating PCB file")
-        board = Board()
-        board.fs_path = pro.kicad_pro_path.with_suffix(".kicad_pcb")
+        board = Board(version=Version.K9.pcb)
+        board.fs_path = pro.kicad_pro_path.with_suffix(Board.fs_ext)
         pro.pcb_root = board
         pro.pcb = [board]
         board.to_file()

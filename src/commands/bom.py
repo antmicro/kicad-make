@@ -361,7 +361,7 @@ def create_netlist(
 
     assert output_format in ["kicadsexpr", "kicadxml", "cadstar", "cadstar", "orcadpcb2", "spice", "spicemodel"]
 
-    pro.create_doc_dir()
+    pro.doc_dir.mkdir(exist_ok=True, parents=True)
     filename = pro.doc_dir / "netlist"
     command = [
         "sch",
