@@ -4,8 +4,7 @@ import logging
 import sys
 from pathlib import Path
 
-from kiutils.dru import DesignRules
-from kiutils.utils import sexpr
+from askiff.dru import DesignRulesFile
 
 from common.kicad_project import KicadProject
 
@@ -35,7 +34,7 @@ def save_json_file(file_path: Path, file_content: dict) -> None:
         sys.exit(1)
 
 
-def get_extenstion_from_type(template_type: str) -> str:
+def get_extension_from_type(template_type: str) -> str:
     if template_type == "DRC":
         return ".kicad_pro"
     if template_type == "DRU":
@@ -46,7 +45,7 @@ def get_extenstion_from_type(template_type: str) -> str:
 
 
 def find_templates(local_share_dir: Path, template_type: str) -> dict:
-    extension = get_extenstion_from_type(template_type)
+    extension = get_extension_from_type(template_type)
     templates_path = local_share_dir / TEMPLATES_NAME
     templates: dict = dict(template_type=list())
 
@@ -96,9 +95,9 @@ def get_drc_rules(template_path: Path) -> dict:
     return extract_drc_rules(file_content)
 
 
-def set_drc_template(templates_share_path: Path, template: Path, target_file: Path) -> None:
-    drc_rules = get_drc_rules(templates_share_path / TEMPLATES_NAME / template)
-    target_file_content = read_json_file(target_file)
+def set_drc_template(pro: KicadProject, template: Path) -> None:
+    drc_rules = get_drc_rules(pro.local_share_path / TEMPLATES_NAME / template)
+    target_file_content = read_json_file(pro.kicad_pro_path)
     if "board" not in target_file_content:
         target_file_content["board"] = {}
     if "design_settings" not in target_file_content["board"]:
@@ -106,22 +105,13 @@ def set_drc_template(templates_share_path: Path, template: Path, target_file: Pa
 
     target_file_content["board"]["design_settings"]["rules"] = drc_rules
 
-    save_json_file(target_file, target_file_content)
+    save_json_file(pro.kicad_pro_path, target_file_content)
     log.info("Rules updated successfully")
 
 
-def read_dru_file(file_path: Path) -> DesignRules:
+def read_dru_file(file_path: Path) -> DesignRulesFile:
     try:
-        dru_file = list()
-        with open(file_path, "r") as file:
-            for line in file:
-                if line.strip().startswith("#"):
-                    continue
-                dru_file.append(line)
-        data = "".join(dru_file)
-        data = f"({data})"
-        design_rules = DesignRules().from_sexpr(sexpr.parse_sexp(data))
-        design_rules.filePath = str(file_path)
+        design_rules = DesignRulesFile.from_file(file_path)
         log.debug(f"Loaded {file_path} ")
         return design_rules
     except Exception as error_descriptor:
@@ -129,37 +119,20 @@ def read_dru_file(file_path: Path) -> DesignRules:
         sys.exit(1)
 
 
-def create_dru_file(file_path: str) -> bool:
-    dru = DesignRules().create_new()
-    try:
-        dru.to_file(file_path)
-        log.debug(f"Created {file_path}")
-    except Exception as error_descriptor:
-        log.error(f"Can't create DRU file, due to {error_descriptor}")
-        return False
-
-    return True
-
-
-def create_project_dru_if_not_exists(project: KicadProject) -> None:
-    if project.dru_file is None:
+def create_project_dru_if_not_exists(pro: KicadProject) -> None:
+    if pro.dru_root is None:
         log.info("No DRU file in project directory")
-        log.info("Converting .kicad_pro file to .kicad_dru file.")
-        project.dru_file = project.kicad_pro_path.replace(project.pro_ext, project.dru_ext)
-        if not create_dru_file(project.dru_file):
-            log.error(f"Can't create DRU file in {project.dru_file}")
-            sys.exit(1)
+        pro.dru_root = DesignRulesFile(fs_path=pro.kicad_pro_path.with_suffix(DesignRulesFile.fs_ext))
 
 
-def set_dru_rules(templates_share_path: Path, template: Path, target_file: Path) -> None:
-    dru_template = read_dru_file(Path(templates_share_path / TEMPLATES_NAME / template))
-    dru_target = read_dru_file(target_file)
+def set_dru_rules(pro: KicadProject, template: Path) -> None:
+    dru_template = read_dru_file(pro.local_share_path / TEMPLATES_NAME / template)
+    current_rules_names = {rule.name for rule in pro.dru_root.rules}
     for rule in dru_template.rules:
-        if rule not in dru_target.rules:
-            dru_target.rules.append(rule)
-
+        if rule.name not in current_rules_names:
+            pro.dru_root.rules.append(rule)
     try:
-        dru_target.to_file()
+        pro.dru_root.to_file()
         log.info("Rules updated successfully")
     except Exception as error_descriptor:
         log.error(f"Can't save DRU file, due to {error_descriptor}")
@@ -191,43 +164,34 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     set_dru_parser.set_defaults(func=run_dru)
 
 
-def run_drc(project: KicadProject, args: argparse.Namespace) -> None:
-    templates = find_templates(project.local_share_path, "DRC")
+def run_drc(pro: KicadProject, args: argparse.Namespace) -> None:
+    templates = find_templates(pro.local_share_path, "DRC")
 
     if args.drc is None:
-        show_templates(project.local_share_path, templates, "DRC")
+        show_templates(pro.local_share_path, templates, "DRC")
         return
 
     if args.drc not in templates["DRC"]:
         log.error(f"Selected {args.drc} DRC template doesn't exist")
         sys.exit(1)
 
-    if not project.kicad_pro_path:
+    if not pro.kicad_pro_path:
         log.error("No .kicad_pro file in project directory")
         sys.exit(1)
 
-    set_drc_template(
-        project.local_share_path, Path(args.drc).with_suffix(f".{project.pro_ext}"), Path(project.kicad_pro_path)
-    )
+    set_drc_template(pro, Path(args.drc).with_suffix(".kicad_pro"))
 
 
-def run_dru(project: KicadProject, args: argparse.Namespace) -> None:
-    templates = find_templates(project.local_share_path, "DRU")
+def run_dru(pro: KicadProject, args: argparse.Namespace) -> None:
+    templates = find_templates(pro.local_share_path, "DRU")
 
     if args.dru is None:
-        show_templates(project.local_share_path, templates, "DRU")
+        show_templates(pro.local_share_path, templates, "DRU")
         return
 
     if args.dru not in templates["DRU"]:
         log.error(f"Selected {args.dru} DRU template doesn't exist")
         sys.exit(1)
 
-    if not project.dru_file:
-        log.error("No .kicad_dru file in project directory")
-        sys.exit(1)
-
-    if args.dru in templates["DRU"]:
-        create_project_dru_if_not_exists(project)
-        set_dru_rules(
-            project.local_share_path, Path(args.dru).with_suffix(f".{project.dru_ext}"), Path(project.dru_file)
-        )
+    create_project_dru_if_not_exists(pro)
+    set_dru_rules(pro, Path(args.dru).with_suffix(DesignRulesFile.fs_ext))
