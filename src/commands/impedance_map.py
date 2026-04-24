@@ -72,7 +72,7 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
     pro.pcb_root.graphic_items = [item for item in pro.pcb_root.graphic_items if item.layer == Layer.EDGE_CUTS]
 
     log.info("Saving the generated impedance map")
-    pro.doc_fab.mkdir(exist_ok=True, parents=True)
+    pro.fab_dir.mkdir(exist_ok=True, parents=True)
     pcb_file = pro.fab_dir / "impedance_map.kicad_pcb"
     pro.pcb_root.to_file(pcb_file)
 

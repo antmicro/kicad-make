@@ -331,14 +331,14 @@ def loclib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
 
 
 def loclib_3d_models(pro: KicadProject, args: argparse.Namespace) -> None:
-    pro.create_3d_model_lib_dir.mkdir(exist_ok=True, parents=True)
+    pro.model_3d_lib_dir.mkdir(exist_ok=True, parents=True)
 
     local_footprints = os.listdir(pro.fp_lib_dir)
 
     model_paths: list[str] = []
 
     for fp_name in local_footprints:
-        fp_path = f"{pro.fp_lib_dir}/{fp_name}"
+        fp_path = pro.fp_lib_dir / fp_name
         footprint = FootprintFile.from_file(fp_path)
         for model in footprint.models:
             model_paths.append(os.path.expandvars(model.path))

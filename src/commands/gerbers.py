@@ -139,7 +139,7 @@ def stamp_gerbers(pro: KicadProject) -> None:
 
 
 def run(pro: KicadProject, args: argparse.Namespace) -> None:
-    pro.doc_fab.mkdir(exist_ok=True, parents=True)
+    pro.fab_dir.mkdir(exist_ok=True, parents=True)
     if not pro.pcb_root:
         raise RuntimeError("No PCB file in project!")
     board = pro.pcb_root

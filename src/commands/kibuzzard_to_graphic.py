@@ -24,7 +24,7 @@ def kibuzzard_to_graphic(pro: Project, _args: argparse.Namespace) -> None:
         for footprint in pcb.footprints:
             if not footprint.lib_id.name.startswith("kibuzzard") or not footprint.graphic_items:
                 continue
-            log.debug(f"KiBuzzard footprint found ({footprint.entry_name})")
+            log.debug(f"KiBuzzard footprint found ({footprint.lib_id})")
 
             footprints_to_remove.append(footprint)
             pcb.graphic_items.extend(
@@ -33,7 +33,7 @@ def kibuzzard_to_graphic(pro: Project, _args: argparse.Namespace) -> None:
 
         for footprint in footprints_to_remove:
             pcb.footprints.remove(footprint)
-            log.debug(f"Deleted KiBuzzard footprint ({footprint.entry_name})")
+            log.debug(f"Deleted KiBuzzard footprint ({footprint.lib_id})")
 
         pcb.to_file()
 

@@ -120,7 +120,7 @@ def run(pro: Project, args: argparse.Namespace) -> None:
                     if instance.reference not in sym_dnp:
                         sym_dnp.append(instance.reference)
 
-    sheet_prop = get_sch_prop(pro.sch)  # ty:ignore[invalid-argument-type]
+    sheet_prop = get_sch_prop(pro.sch)
     # resolve sheet level dnp
     for schematic in pro.sch:
         for symbol in schematic.symbols:
@@ -131,12 +131,15 @@ def run(pro: Project, args: argparse.Namespace) -> None:
                     if instance.reference.startswith("#"):
                         continue
                     if instance.reference not in sym_dnp and any(
-                        [uid in instance.path and prop.dnp for uid, prop in sheet_prop.items()]
+                        [uid in instance.path.segments and prop.dnp for uid, prop in sheet_prop.items()]
                     ):
                         sym_dnp.append(instance.reference)
     log.debug(f"DNP references from schematic: {' '.join(sorted(sym_dnp))}")
 
     pcb = pro.pcb_root
+    if not pcb:
+        log.warning("No PCB file in project!")
+        sys.exit(0)
     fp_dnp = find_dnp_footprints_on_pcb(pcb)
 
     if args.list_broken:
@@ -177,14 +180,14 @@ def run(pro: Project, args: argparse.Namespace) -> None:
 def get_dnp_components(pro: Project) -> list[SymbolSchematic]:
     components = []
     for schematic in pro.sch:
-        components.extend([symbol for symbol in schematic.schematicSymbols if is_dnp(symbol)])
+        components.extend([symbol for symbol in schematic.symbols if is_dnp(symbol)])
     return components
 
 
 def get_cleanup_components(pro: Project) -> list[SymbolSchematic]:
     components = []
     for schematic in pro.sch:
-        for comp in schematic.schematicSymbols:
+        for comp in schematic.symbols:
             if comp.properties.get("DNP") is not None:
                 components.append(comp)
     return components

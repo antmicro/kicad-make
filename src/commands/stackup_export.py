@@ -79,7 +79,7 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
             layer_dict["user_name"] = layerdef.user_name if layerdef else None
             layer_dicts.append(layer_dict)
 
-    pro.doc_fab.mkdir(exist_ok=True, parents=True)
+    pro.fab_dir.mkdir(exist_ok=True, parents=True)
 
     if args.legacy_csv:
         save_csv(
