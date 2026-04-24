@@ -10,6 +10,7 @@ from typing import Union
 from askiff import FootprintFile, Project, Schematic, SymbolFile
 from askiff.common import LibraryTable
 from askiff.footprint import Footprint, FootprintLibraryTable, LibId
+from askiff.pro import _LazyFile
 from askiff.symbol import SymbolDefinition, SymbolLibraryTable, SymbolSchematic
 
 from common.kicad_project import KicadProject
@@ -110,13 +111,8 @@ def get_global_footprint_list(lib_mapping: dict[str, str]) -> dict[str, tuple[st
             log.warning(f"Library {lib_name} points to file that does not exist. Library will be omitted.")
             continue
         log.debug(f"Parsing global library: {lib_name}")
-        for file in os.scandir(path):
-            if not file.is_file():
-                continue
-            if not file.name.endswith(".kicad_mod"):
-                continue
-            name = file.name.removesuffix(".kicad_mod")
-            fp_list[name] = (lib_name, FootprintFile.from_file(file))
+        for file in Path(path).glob("*" + FootprintFile.fs_ext):
+            fp_list[file.stem] = (lib_name, _LazyFile(FootprintFile, file))  # ty:ignore[invalid-assignment]
     return fp_list
 
 
