@@ -13,9 +13,9 @@ class KicadProject(_KicadProject):
     def __init__(self, **kwargs) -> None:  # type: ignore
         # compat layer with old KiCadProject
         _KicadProject.__init__(self, **kwargs)
-        self.pcb_file = self.pcb_root.fs_path
+        self.pcb_file = str(self.pcb_root.fs_path) if self.pcb_root else ""
         self.name = self.project_name
-        self.dir = self.fs_path
+        self.dir = str(self.fs_path)
 
 
 class KmakeTestCase:
