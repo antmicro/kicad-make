@@ -1,7 +1,7 @@
 import logging
 import unittest
 from typing import List
-from kmake_test_common import KmakeTestCase, get_property, set_property, remove_property
+from kmake_test_common import KicadProject, KmakeTestCase, get_property, set_property, remove_property
 from kiutils.schematic import Schematic
 from kiutils.board import Board
 import argparse
@@ -120,4 +120,6 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
                 fp.attributes.dnp = False
                 fp.attributes.excludeFromBom = True
         pcb.to_file()
+
+        self.kpro = KicadProject()
         prettify(self.kpro, argparse.Namespace())

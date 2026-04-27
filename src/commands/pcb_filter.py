@@ -11,6 +11,7 @@ from askiff.board import Board, Layer, Via
 from askiff.common import BBox, Effects, Justify, JustifyH, Position, Stroke
 from askiff.common_pcb import BaseLayer, BoardSide, LayerSet, LayerUser
 from askiff.footprint import Footprint
+from askiff.fp_pad import PadEdgeConnector, PadSMD
 from askiff.gritems import (
     Dimension,
     DimensionAligned,
@@ -392,9 +393,11 @@ def check_primary_side(fp: Footprint, side: BoardSide | None) -> bool:
     if side is None or fp.side == side:
         return True
 
+    # Simplified check to detect edge connectors
     front, back = False, False
     for pad in fp.pads:
-        # todo: check after pulling newest askiff, there's a bug
+        if not isinstance(pad, (PadSMD, PadEdgeConnector)):
+            continue
         front = front or Layer.CU_F in pad.layers
         back = back or Layer.CU_B in pad.layers
     return front and back
@@ -408,7 +411,7 @@ def reference_match(
             return True
     else:
         filt = filt_other
-        if not filt:
+        if filt is None:
             return False
 
     # Extract prefix from reference,

@@ -60,7 +60,6 @@ def run(pro: KicadProject, args: argparse._SubParsersAction) -> None:
             if isinstance(trace, Via):
                 continue
             if not net_class.contains(trace.net.name):
-                print(trace.net.name)
                 continue
 
             trace.layer = target_layer
@@ -102,9 +101,9 @@ def export_impedance_gerbers(pcb_file: Path, output_folder: Path) -> None:
     ]
     run_kicad_cli(gerber_export_cli_command, True)
 
-    for gerber_file in output_folder.glob("*.gbr"):
-        if "ohm" not in gerber_file.stem.lower():
-            gerber_file.unlink()
+    for file in output_folder.iterdir():
+        if file.suffix != ".gbr" or "ohm" not in file.stem.lower():
+            file.unlink()
 
 
 class NetClass:

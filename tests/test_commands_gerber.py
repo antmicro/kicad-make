@@ -40,6 +40,11 @@ class GerberTest(KmakeTestCase, unittest.TestCase):
             without_dnp_pads, 278, "Different number of pads on paste layers after 'kmake gerber --remove-dnp-paste'"
         )
 
+        # `kmake gerber` should not modify original files
+        self.run_test_command([])
+        base_pads = self.count_pads(paste_files)
+        self.assertEqual(base_pads, 303, "Different number of pads on paste layers after 'kmake gerber'")
+
 
 if __name__ == "__main__":
     unittest.main()

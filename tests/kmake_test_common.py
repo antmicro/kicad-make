@@ -37,12 +37,12 @@ class KmakeTestCase:
     def run_kmake_command(self, arguments: List[str]) -> None:
         "Template for running kmake commands"
         args = kmake.parse_arguments(arguments)  # type: ignore
-        args.func(self.kpro, args)
+        pro = KicadProject(local_share_path=self.shared_dir)
+        args.func(pro, args)
 
     def run_test_command(self, arguments: List[str]) -> None:
         "Template for running tested command"
-        args = kmake.parse_arguments([self.test_cmd] + arguments)  # type: ignore
-        args.func(self.kpro, args)
+        self.run_kmake_command([self.test_cmd] + arguments)
 
     def setUp(self) -> None:
         """Copy test project to temp dir & prepare KiCad project and git repo"""

@@ -4,8 +4,8 @@ import tempfile
 from pathlib import Path
 
 from askiff.board import Board
-from askiff.common_pcb import Layer
-from askiff.footprint import Footprint
+from askiff.common_pcb import LayerPaste
+from askiff.footprint import Footprint, FootprintType
 from askiff.fp_pad import PadTHT
 from git import Repo
 from git.exc import InvalidGitRepositoryError
@@ -14,8 +14,6 @@ from common.kicad_project import KicadProject
 from common.kmake_helper import run_kicad_cli
 
 log = logging.getLogger(__name__)
-
-PASTE_LAYERS = (Layer.PASTE_B, Layer.PASTE_F)
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -64,7 +62,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 def add_fp_tht_paste(footprint: Footprint) -> bool:
     modified = False
     for pad in (pad for pad in footprint.pads if isinstance(pad, PadTHT)):
-        pad.layers.extend(PASTE_LAYERS)
+        pad.layers.extend(LayerPaste.all)
         modified = True
     return modified
 
@@ -73,16 +71,18 @@ def add_fp_tht_paste(footprint: Footprint) -> bool:
 def remove_fp_dnp_paste(footprint: Footprint) -> bool:
     modified = False
     for pad in footprint.pads:
-        for layer in PASTE_LAYERS:
-            if layer in pad.layers:
-                pad.layers.remove(layer)
-                modified = True
+        initial_layer_count = len(pad.layers)
+        pad.layers -= LayerPaste.all
+        if len(pad.layers) != initial_layer_count:
+            modified = True
     return modified
 
 
 # Adds Paste layer on THT pads of SMD/THT footprints
 def add_pcb_tht_paste(board: Board) -> None:
     for fp in board.footprints:
+        if fp.attributes.fp_type == FootprintType.UNSPECIFIED:
+            continue
         if add_fp_tht_paste(fp):
             log.debug(f"Added solder paste on THT pads of {fp.properties.ref.value}")
 

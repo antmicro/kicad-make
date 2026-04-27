@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Tuple
 from kiutils.items.common import TitleBlock
+from kiutils import board as _kiboard, schematic as _kisch  # noqa: F401
 from datetime import date
 import shutil
 from kmake_test_common import KmakeTestCase, KicadProject
@@ -212,6 +213,7 @@ class InitProjectTest(KmakeTestCase, unittest.TestCase):
         """Test if only company, title and size fields are set with -r flag"""
         self.run_test_command(["-t", "project", "-c", "company", "-s", "A5", "-r"])
         self.set_title_blocks()
+        self.run_test_command(["-t", "project", "-c", "company", "-s", "A5", "-r"])
         sch_title_block, brd_title_block = self.get_title_blocks()
         sch_paper, brd_paper = self.get_papers()
 
@@ -230,6 +232,7 @@ class InitProjectTest(KmakeTestCase, unittest.TestCase):
         """Test if only company, title and size fields are set with -r flag"""
         self.run_test_command(["-t", "project", "-c", "company", "-s", "A5", "--reload"])
         self.set_title_blocks()
+        self.run_test_command(["-t", "project", "-c", "company", "-s", "A5", "--reload"])
         sch_title_block, brd_title_block = self.get_title_blocks()
         sch_paper, brd_paper = self.get_papers()
 

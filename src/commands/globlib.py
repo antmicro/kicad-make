@@ -215,7 +215,7 @@ def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list
         pro.env_var_name_sym_lib,
         SymbolLibraryTable,
     )
-    log.debug("Libary name to path mapping: %s", library_mapping)
+    log.debug("Library name to path mapping: %s", library_mapping)
 
     log.info("Generating global symbol list.")
     global_symbols = get_global_symbol_list(library_mapping)
