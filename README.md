@@ -5,8 +5,8 @@ Copyright (c) 2019-2026 [Antmicro](https://www.antmicro.com)
 This is a simple utility that automates handling of [KiCad](https://www.kicad.org/) projects.
 `kmake` provides a unified way to generate KiCad production files and manage project structure.
 The script can be used locally and in conjunction with CI infrastructure.
-`Kmake` is developed with KiCad 8+ and a CI environment in mind.
-It uses the KiCad CLI where possible and [kiutils](https://github.com/antmicro/kiutils) for functions that require raw file manipulation.
+`kmake` primarily targets KiCad 9 projects (supporting also KiCad 8-10).
+It uses the KiCad CLI where possible and [askiff](https://github.com/antmicro/askiff) for functions that require raw file manipulation.
 
 > KiCad 8 files should be fully supported (they will be upgraded on fly), however this has not been extensively tested.
 
