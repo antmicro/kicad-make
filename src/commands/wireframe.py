@@ -349,9 +349,10 @@ def reset_footprint_val_props(file: str) -> None:
     for fp in board.footprints:
         ref = fp.properties.ref
         ref.hide = False
-        ref.effects = Effects(Font(None, Size(0.35, 0.35), 0.07), Justify(), unlocked=None)
+        ref.effects = Effects(Font(None, Size(0.35, 0.35), 0.07), Justify())
         ref.position = Position(angle=fp.position.angle)
         ref.layer = Layer.FAB_F if fp.side == BoardSide.FRONT else Layer.FAB_B
+        ref.unlocked = None
     board.to_file()
 
 

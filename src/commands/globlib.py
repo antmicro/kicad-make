@@ -249,7 +249,7 @@ def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list
 
 def update_fp_props(source: SymbolSchematic, ref: str, fp: Footprint, update_all: bool) -> tuple[bool, bool]:
     changed = False
-    if fp.properties.get("Reference") != ref:
+    if fp.properties.ref.value != ref:
         return (False, False)
     ofp = fp.lib_id
     nfp = source.properties.get_value("Footprint")
