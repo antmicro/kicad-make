@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 # Major only when breaking changes are implemented
 FORMAT_VERSION = "1.0"
 FILENAME = "stackup"
-DEF_KEYS = ["name", "type", "color", "material", "thickness", "epsilon_r", "loss_tangent", "user_name"]
+DEF_KEYS = ["name", "type", "color", "material", "thickness", "epsilon", "lossTangent", "user-name"]
+FIELD_NAME_MAP = {"loss_tangent": "lossTangent", "epsilon_r": "epsilon", "user_name": "user-name"}
 
 
 def add_subparser(subparsers: argparse._SubParsersAction) -> None:
@@ -46,6 +47,7 @@ def get_layer_dict(layer: StackupLayer | StackupLayerDielectricSubLayer) -> dict
 
     layer_dict = dict.fromkeys(DEF_KEYS, None)
     for key, val in layer.__dict__.items():
+        key = FIELD_NAME_MAP.get(key, key)
         if key not in DEF_KEYS:
             continue
         layer_dict[key] = val
@@ -65,18 +67,19 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     for layer in pro.pcb_root.setup.stackup.layers:
         layerdef = get_layerdef(layer, pro.pcb_root.layer_map)
         name = str(layer.layer)
+        user_name = ((layerdef.user_name if layerdef else None) or name).replace(".", "_")
         if isinstance(layer, StackupLayerDielectric):  # handle layer with sublayers (dielectrics)
             for idx, sublayer in enumerate(layer.sublayers):
                 sublayer_dict = {k: v for (k, v) in get_layer_dict(sublayer).items() if v}
                 layer_dict = get_layer_dict(layer) | sublayer_dict
                 layer_dict["name"] = f"{name} ({idx + 1}/{len(layer.sublayers)})" if len(layer.sublayers) > 1 else name
-                layer_dict["user_name"] = layerdef.user_name if layerdef else None
+                layer_dict["user-name"] = user_name
                 layer_dicts.append(layer_dict)
 
         else:  # handle layer without sublayers
             layer_dict = get_layer_dict(layer)
             layer_dict["name"] = name
-            layer_dict["user_name"] = layerdef.user_name if layerdef else None
+            layer_dict["user-name"] = user_name
             layer_dicts.append(layer_dict)
 
     pro.fab_dir.mkdir(exist_ok=True, parents=True)
@@ -114,7 +117,7 @@ def save_csv(stackup: Any, filename: str) -> None:
                     layer["type"],
                     layer["material"],
                     layer["thickness"],
-                    layer["epsilon_r"],
+                    layer["epsilon"],
                     layer.get("user-name", layer["name"]),
                 ]
             )
