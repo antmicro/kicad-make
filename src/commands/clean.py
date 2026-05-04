@@ -77,8 +77,8 @@ def run(kicad_project: KicadProject, args: argparse.Namespace) -> None:
 
 def clean_unused_files(pro: Project) -> None:
     """Remove unnecessary files from project directory"""
-    for file_path in pro.path.rglob("*"):
-        if file_path.relative_to(pro.path).parts[0] in folders_to_skip:
+    for file_path in pro.fs_path.rglob("*"):
+        if file_path.relative_to(pro.fs_path).parts[0] in folders_to_skip:
             continue
 
         # remove only files
