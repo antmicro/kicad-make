@@ -133,8 +133,8 @@ def search_by_mpn(
     matching_symbols: list[tuple[str, Symbol]] = []
 
     for _, (global_lib_name, global_symbol) in global_symbols.items():
-        global_mpn = global_symbol.properties.get_value("MPN") or ""
-        if not global_mpn and normalize_mpn(global_mpn) == normalize_mpn(local_mpn):
+        global_mpn = global_symbol.properties.get_value("MPN")
+        if global_mpn and normalize_mpn(global_mpn) == normalize_mpn(local_mpn):
             matching_symbols.append((global_lib_name, global_symbol))
 
     if not matching_symbols:

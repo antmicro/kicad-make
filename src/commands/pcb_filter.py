@@ -470,7 +470,7 @@ def mirror_texts(board: Board) -> Board:
         mirror_footprint_text(fp)
 
     for g in board.graphic_items:
-        if isinstance(g, GrTextFp):
+        if isinstance(g, GrTextPCB):
             g.effects = mirror_text_justify(g.effects)
 
     for d in board.dimensions:

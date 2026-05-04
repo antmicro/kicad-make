@@ -112,13 +112,12 @@ def run(pro: Project, args: argparse.Namespace) -> None:
     log.debug("Collecting all symbol references in schematics.")
     for sym in dnp_components:
         sym_dnp.append(sym.properties.ref.value)
-        for instance in sym.instances:
-            for project_instances in sym.instances:
-                if project_instances.project_name != pro.project_name:
-                    continue
-                for instance in project_instances.instances:
-                    if instance.reference not in sym_dnp:
-                        sym_dnp.append(instance.reference)
+        for project_instances in sym.instances:
+            if project_instances.project_name != pro.project_name:
+                continue
+            for instance in project_instances.instances:
+                if instance.reference not in sym_dnp:
+                    sym_dnp.append(instance.reference)
 
     sheet_prop = get_sch_prop(pro.sch)
     # resolve sheet level dnp

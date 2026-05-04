@@ -494,7 +494,7 @@ def loclib_project(pro: KicadProject, args: argparse.Namespace) -> None:
     update_links(pro, kiprjmod_lib)
 
     # Generate/extend sym-lib-table
-    kiprjmod_sym_lib_path = f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.project_name}.{SymbolFile.fs_ext}"
+    kiprjmod_sym_lib_path = f"${{KIPRJMOD}}/{pro.relative_lib_path}/{pro.project_name}{SymbolFile.fs_ext}"
     add_lib_to_sym_lib_table(lib_name=pro.project_name, symb_lib_path=kiprjmod_sym_lib_path)
 
     # Generate/extend fp-lib-table

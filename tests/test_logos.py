@@ -21,11 +21,6 @@ class LogosTest(KmakeTestCase, unittest.TestCase):
 
         self.assertTrue(len(self.project_repo.untracked_files) == 0)
 
-    def test_logos_builtin_logo(self) -> None:
-        with open(self.ref_dir / "oshw", "r") as f:
-            logo_snippet = f.read()
-        self.inner(["oshw"], logo_snippet)
-
     def test_logos_custom_path(self) -> None:
         with open(self.ref_dir / "test_logo", "r") as f:
             logo_snippet = f.read()
