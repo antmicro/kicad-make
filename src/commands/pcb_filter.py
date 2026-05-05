@@ -357,7 +357,7 @@ def copy_edge_from_footprint(board: Board) -> None:
             if not isinstance(item, GrShapeFp) or item.layer != Layer.EDGE_CUTS:
                 continue
 
-            board.graphic_items.append(item.to_board_shape(fp.position))  # doesn't work, probably in newest askiff
+            board.graphic_items.append(item.to_shape_pcb(fp.position))
 
 
 def unify_style_graphics(board: Board, layers: LayerSet[BaseLayer], width: float) -> None:
@@ -530,7 +530,7 @@ def get_outline_bbox(board: Board) -> list[BBoxPoint]:
     for fp in board.footprints:
         pts.extend(
             BBox.extrema_from_shapes(
-                g.to_board_shape(fp.position)
+                g.to_shape_pcb(fp.position)
                 for g in fp.graphic_items
                 if isinstance(g, GrShapeFp) and g.layer == Layer.EDGE_CUTS
             )

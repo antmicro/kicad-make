@@ -48,7 +48,9 @@ def set_aux_axis_origin(board: Board, x: float, y: float) -> None:
 
 def get_bbox(items: Iterable[GrItem], fp_pos: Position | None = None) -> BBox | None:
     bbox = BBox.from_shapes(item for item in items if isinstance(item, _GrShapePCBFp) and item.layer == Layer.EDGE_CUTS)
-    return bbox.to_global(fp_pos) if bbox and fp_pos else bbox
+    if bbox and fp_pos:
+        bbox.to_global(fp_pos)
+    return bbox
 
 
 def set_aux_origin_on_size(board: Board, side: str) -> None:
