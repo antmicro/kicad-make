@@ -1,5 +1,4 @@
 variables:
-  DESIGNS_PATH: $CI_PROJECT_DIR/tests/designs
   DEBIAN_FRONTEND: "noninteractive"
   GIT_DEPTH: 1
   GIT_SUBMODULE_STRATEGY: none
@@ -35,62 +34,134 @@ build-kmake:
     - main
     - merge_requests
 
-.build-kmake-docker-image:
+.setup-docker: &setup_docker |-
+  cgroupfs-mount
+  mkdir -p "$DOCKER_DATA_ROOT"
+  dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
+  while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
+  trap "kill $(cat /var/run/docker.pid)" EXIT
+  docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+
+.docker-base:
   image: "debian:bookworm"
+  variables:    
+    DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}
+  before_get_sources:
+    - apt -qqy update > /dev/null
+    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates git > /dev/null
+
+
+
+.build-kmake-docker-image:  
+  extends: .docker-base
   stage: build_docker
   dependencies:
     - build-kmake
   only:
     - main
     - merge_requests
-  variables:
-    DOCKER_DATA_ROOT: "$CI_PROJECT_DIR/.docker_data_root"
-    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}-testing
-  before_get_sources:
-    - apt -qqy update > /dev/null
-    - apt -qqy --no-install-recommends install docker.io cgroupfs-mount crun fuse-overlayfs pigz ca-certificates git > /dev/null
   script:
-    - cgroupfs-mount
-    - mkdir -p "$DOCKER_DATA_ROOT"
-    - dockerd --data-root=$DOCKER_DATA_ROOT -s fuse-overlayfs --add-runtime=crun=/usr/bin/crun --default-runtime=crun --config-file="" > /dev/null 2>&1 &
-    - while ! test -S /var/run/docker.sock; do echo "Waiting for Docker..." && sleep 1; done; docker info
-    - trap "kill $(cat /var/run/docker.pid)" EXIT
-    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - *setup_docker
     - DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=${KICAD_IMAGE}/${KICAD_VERSION} --build-arg BASE_TAG=main -t $IMAGE_NAME .
-    - docker push $IMAGE_NAME
+    - docker run $IMAGE_NAME kmake version
+    - docker tag $IMAGE_NAME ${IMAGE_NAME}-testing
+    - docker push ${IMAGE_NAME}-testing
+    - docker save -o ${KICAD_VERSION}.tar $IMAGE_NAME
+  artifacts:
+    paths:
+      - ${KICAD_VERSION}.tar
 
 build-deploy-testing-kmake-kicad9:
   extends: .build-kmake-docker-image
   variables:
     KICAD_VERSION: "kicad9"
 
-.test-base: &test-base
+build-deploy-testing-kmake-kicad10:
+  extends: .build-kmake-docker-image
+  allow_failure: True
+  variables:
+    KICAD_VERSION: "kicad10"
+
+
+
+build-production-files-prepare-blend-kicad9:
+  extends: .build-production-files-prepare-blend
   image: $CI_REGISTRY_IMAGE/kmake-kicad9:${CI_COMMIT_REF_SLUG}-testing
+  variables:
+    KICAD_VERSION: "kicad9"
+
+build-production-files-prepare-blend-kicad10:
+  extends: .build-production-files-prepare-blend
+  allow_failure: True
+  image: $CI_REGISTRY_IMAGE/kmake-kicad10:${CI_COMMIT_REF_SLUG}-testing
+  variables:
+    KICAD_VERSION: "kicad10"
+
+
+
+.pytest-base:
   stage: test_docker
   dependencies: []
   when: on_success
   only:
     - main
     - merge_requests
-
-.pytest-base:
-  <<: *test-base
   script:
     - apt update
     - apt install -y git
     - *resolve_askiff
     - pip3 install --break-system-packages -e ".[dev]"
     - pytest --cov-report term --cov-report html:htmlcov --cov=src -n auto
+    - touch ${KICAD_VERSION}-pytest-pass
   artifacts:
     expire_in: 2 week
     paths:
       - htmlcov
       - tests/results
       - dist
+      - ${KICAD_VERSION}-pytest-pass
 
 test-kicad9-docker:
   extends: .pytest-base
   image: $CI_REGISTRY_IMAGE/kmake-kicad9:${CI_COMMIT_REF_SLUG}-testing
+  variables:
+    KICAD_VERSION: "kicad9"
+
+test-kicad10-docker:
+  extends: .pytest-base
+  allow_failure: True
+  image: $CI_REGISTRY_IMAGE/kmake-kicad10:${CI_COMMIT_REF_SLUG}-testing
+  variables:
+    KICAD_VERSION: "kicad10"
+
+
+
+.deploy-main-kmake:
+  extends: .docker-base
+  stage: deploy
+  only:
+    - main
+  script:
+    - if [[ ! -f ${KICAD_VERSION}-pytest-pass ]]; then exit 1; fi
+    - if [[ ! -f ${KICAD_VERSION}-blend-pass ]]; then exit 1; fi
+    - *setup_docker
+    - docker load -i ${KICAD_VERSION}.tar
+    - docker push $IMAGE_NAME
+
+deploy-main-kmake-kicad9:
+  extends: .deploy-main-kmake
+  variables:
+    KICAD_VERSION: "kicad9"
+
+deploy-main-kmake-kicad10:
+  extends: .deploy-main-kmake
+  allow_failure: True
+  variables:
+    KICAD_VERSION: "kicad10"
+
+
+
 
 .check-code:
   image: python:3.11
@@ -116,6 +187,8 @@ ruff:
   script:
     - ruff check .
 
+
+
 build-docs:
   stage: build_docs
   before_get_sources:
@@ -138,16 +211,3 @@ build-docs:
   only:
     - main
     - merge_requests
-
-.deploy-main-kmake:
-  extends: .build-kmake-docker-image
-  stage: deploy
-  only:
-    - main
-  variables:
-    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/kmake-${KICAD_VERSION}:${CI_COMMIT_REF_SLUG}
-
-deploy-main-kmake-kicad9:
-  extends: .deploy-main-kmake
-  variables:
-    KICAD_VERSION: "kicad9"
