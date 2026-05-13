@@ -1,5 +1,4 @@
 import unittest
-from typing import List
 from pathlib import Path
 
 from kmake_test_common import KmakeTestCase
@@ -13,7 +12,7 @@ class GerberTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.__init__(self, "gerber")
         unittest.TestCase.__init__(self, method_name)
 
-    def count_pads(self, file_paths: List[Path]) -> int:
+    def count_pads(self, file_paths: list[Path]) -> int:
         count = 0
         for file_path in file_paths:
             if file_path.exists():
@@ -26,7 +25,10 @@ class GerberTest(KmakeTestCase, unittest.TestCase):
         gerber_count = len(list(self.target_dir.joinpath("fab").glob("test_project-*.gbr")))
         self.assertEqual(gerber_count, 43)
         gbr_dir = self.target_dir / "fab"
-        paste_files = [gbr_dir / f"{self.kpro.name}-F_Paste.gbr", gbr_dir / f"{self.kpro.name}-B_Paste.gbr"]
+        paste_files = [
+            gbr_dir / f"{self.kpro.project_name}-F_Paste.gbr",
+            gbr_dir / f"{self.kpro.project_name}-B_Paste.gbr",
+        ]
         base_pads = self.count_pads(paste_files)
         self.assertEqual(base_pads, 303, "Different number of pads on paste layers after 'kmake gerber'")
         self.run_test_command(["--add-tht-paste"])

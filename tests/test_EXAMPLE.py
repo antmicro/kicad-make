@@ -1,7 +1,8 @@
-import unittest
 import logging
-from unittest.mock import patch
+import unittest
 from io import StringIO
+from unittest.mock import patch
+
 from kmake_test_common import KmakeTestCase
 
 

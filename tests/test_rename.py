@@ -1,7 +1,6 @@
 import unittest
-from pathlib import Path
 
-from kmake_test_common import KmakeTestCase, KicadProject
+from kmake_test_common import KicadProject, KmakeTestCase
 
 
 class RenameTest(KmakeTestCase, unittest.TestCase):
@@ -36,15 +35,15 @@ class RenameTest(KmakeTestCase, unittest.TestCase):
             "fp-lib-table",
             "fp-cache-table",
         ]
-        for file in Path(self.kpro.dir).rglob("*"):
-            file = file.relative_to(self.kpro.dir)
+        for file in self.kpro.fs_path.rglob("*"):
+            file = file.relative_to(self.kpro.fs_path)
             if str(file).startswith("."):
                 continue
-            self.assertTrue(self.old_kpro.name not in str(file))
+            self.assertTrue(self.old_kpro.project_name not in str(file))
             if file.is_file() and file in whitelist:
                 with open(file, "r", encoding="latin-1") as f:
                     content = f.read()
-                    self.assertTrue(self.old_kpro.name not in content)
+                    self.assertTrue(self.old_kpro.project_name not in content)
         KmakeTestCase.tearDown(self)
 
 

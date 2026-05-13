@@ -1,11 +1,9 @@
 import logging
 import unittest
-from typing import List
-from kmake_test_common import KicadProject, KmakeTestCase, get_property, set_property, remove_property
-from kiutils.schematic import Schematic
-from kiutils.board import Board
-import argparse
-from commands.prettify import run as prettify
+from pathlib import Path
+
+from askiff import Board, Schematic
+from kmake_test_common import KicadProject, KmakeTestCase
 
 
 class DnpTest(KmakeTestCase, unittest.TestCase):
@@ -17,7 +15,7 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.setUp(self)
         self.reset_repo()
 
-    def check_symbol(self, components: List[str], dnp: bool, dnp_field: bool = False) -> None:
+    def check_symbol(self, components: list[str], dnp: bool, dnp_field: bool = False) -> None:
         """Check if symbols have DNP attribute
 
         Parameters:
@@ -26,18 +24,18 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
             dnp_field: Allow component to have a DNP field (when dnp is set to False)
         """
 
-        scheet = Schematic().from_file(filepath="receiver.kicad_sch")
-        component_count = len(scheet.schematicSymbols)
+        sheet = Schematic.from_file(Path("receiver.kicad_sch"))
+        component_count = len(sheet.symbols)
         components_checked = 0
         for component_id in range(0, component_count):
-            symbol = scheet.schematicSymbols[component_id]
-            designator = get_property(symbol, "Reference")
+            symbol = sheet.symbols[component_id]
+            designator = symbol.properties.ref.value
 
             if designator in components:
                 if dnp_field:
-                    self.assertIsNot(get_property(symbol, "DNP"), None, "Symbol doesn't have DNP property")
+                    self.assertIsNot(symbol.properties.get_value("DNP"), None, "Symbol doesn't have DNP property")
                 else:
-                    self.assertIs(get_property(symbol, "DNP"), None, "Symbol has DNP property")
+                    self.assertIs(symbol.properties.get_value("DNP"), None, "Symbol has DNP property")
                 if dnp:
                     self.assertTrue(symbol.dnp, "Symbol is not DNP")
                 else:
@@ -46,20 +44,20 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
 
         self.assertEqual(components_checked, len(components), "Not all components checked, internal test error")
 
-    def check_footprint(self, components: List[str], dnp: bool) -> None:
+    def check_footprint(self, components: list[str], dnp: bool) -> None:
         """Check if footprints have `Do not populate` attribute valid
 
         Parameters:
             component: List of designators to check
             dnp: Define if component is DNP
         """
-        pcb = Board().from_file(filepath=self.kpro.pcb_file)
+        pcb = Board.from_file(self.kpro.pcb_file)
         footprints = pcb.footprints
         footprints_count = len(footprints)
         footprints_checked = 0
         for footprint_id in range(0, footprints_count):
             footprint = footprints[footprint_id]
-            designator = get_property(footprint, "Reference")
+            designator = footprint.properties.ref.value
             if designator in components:
                 if dnp:
                     self.assertEqual(footprint.attributes.dnp, True, f"{designator} not set to 'Do not populate'")
@@ -104,22 +102,21 @@ class DnpTest(KmakeTestCase, unittest.TestCase):
 
         # Plant few imperfections in project files
         sch = Schematic().from_file(self.target_dir / "receiver.kicad_sch")
-        for s in sch.schematicSymbols:
-            ref = get_property(s, "Reference")
+        for s in sch.symbols:
+            ref = s.properties.ref.value
             if ref == "R1" or ref == "R2":
-                set_property(s, "DNP", "DNP")
+                s.properties.set("DNP", "DNP")
                 s.dnp = False
             if ref == "R3":
-                s.properties = remove_property(s, "DNP")
+                s.properties.pop("DNP")
                 s.dnp = True
         sch.to_file()
 
-        pcb = Board().from_file(self.kpro.pcb_file)
+        pcb = Board.from_file(self.kpro.pcb_file)
         for fp in pcb.footprints:
-            if get_property(fp, "Reference") == "R1":
+            if fp.properties.ref.value == "R1":
                 fp.attributes.dnp = False
-                fp.attributes.excludeFromBom = True
+                fp.attributes.exclude_from_bom = True
         pcb.to_file()
 
         self.kpro = KicadProject()
-        prettify(self.kpro, argparse.Namespace())

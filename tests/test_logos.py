@@ -1,5 +1,5 @@
 import unittest
-from typing import List
+
 from kmake_test_common import KmakeTestCase
 
 
@@ -8,7 +8,7 @@ class LogosTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.__init__(self, "logos")
         unittest.TestCase.__init__(self, method_name)
 
-    def inner(self, args: List[str], reflogo: str) -> None:
+    def inner(self, args: list[str], reflogo: str) -> None:
         self.run_test_command(args)
         changed_files = [item.a_path for item in self.project_repo.index.diff(None)]
         logo = "\n".join([line.strip().strip('"') for line in reflogo.splitlines()])

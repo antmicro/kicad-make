@@ -31,8 +31,6 @@
 │   └── logos
 │       └── oshw
 └── tests
-    ├── designs
-    │   └── designs.list
     ├── test_auxorigin.py
     ├── ...
     └── test_wireframe.py

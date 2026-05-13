@@ -44,7 +44,6 @@ kmake = ["logos/*"]
 
 [project.optional-dependencies]
 dev = [
-    "kiutils @ git+https://github.com/antmicro/kiutils.git@f4fb3dc2b5665d64f2894a011fcd9a002caf176f",
     "pytest",
     "pytest-cov",
     "pytest-xdist",

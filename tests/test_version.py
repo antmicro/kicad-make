@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import patch
 from io import StringIO
+from unittest.mock import patch
 
 from kmake_test_common import KmakeTestCase
 

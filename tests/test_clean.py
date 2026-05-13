@@ -1,5 +1,6 @@
-import unittest
 import logging
+import unittest
+
 from kmake_test_common import KmakeTestCase
 
 
@@ -18,7 +19,7 @@ class ExampleTest(KmakeTestCase, unittest.TestCase):
         self.assertFalse(self.project_repo.is_dirty(untracked_files=True))
 
     def test_clean2(self) -> None:
-        from commands.clean import extensions_to_remove, files_to_remove, startswith_to_remove, endswith_to_remove
+        from commands.clean import endswith_to_remove, extensions_to_remove, files_to_remove, startswith_to_remove
 
         for ext in extensions_to_remove:
             open(self.target_dir / f"test{ext}", "w").close()

@@ -1,7 +1,7 @@
-import unittest
 import logging
+import unittest
 from pathlib import Path
-from typing import List
+
 from kmake_test_common import KmakeTestCase
 
 
@@ -11,14 +11,14 @@ class BomTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.__init__(self, "bom")
         unittest.TestCase.__init__(self, method_name)
 
-    def template_test(self, args: List[str], reference: Path, out_path: Path, fails: bool) -> None:
+    def template_test(self, args: list[str], reference: Path, out_path: Path, fails: bool) -> None:
         if fails:
             with self.assertLogs(level=logging.WARNING), self.assertRaises(SystemExit):
                 self.run_test_command(args)
         else:
             self.run_test_command(args)
 
-            def norm(file: Path) -> List[str]:
+            def norm(file: Path) -> list[str]:
                 return sorted([",".join([cell.replace(' "', '"') for cell in line.split(",")]) for line in open(file)])
 
             self.assertListEqual(norm(reference), norm(out_path))

@@ -1,6 +1,6 @@
-import unittest
-import os
 import json
+import unittest
+
 from kmake_test_common import KmakeTestCase
 
 
@@ -26,9 +26,9 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
 
         target_drc = self.target_dir / "doc" / "test_project_drc.json"
 
-        self.assertTrue(os.path.exists(target_erc), target_erc)
+        self.assertTrue(target_erc.exists(), target_erc)
 
-        self.assertTrue(os.path.exists(target_drc), target_drc)
+        self.assertTrue(target_drc.exists(), target_drc)
 
         with open(target_erc, "r") as file_target:
             target_erc_json = self._mask_metadata(json.load(file_target))
@@ -52,9 +52,9 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
         target_erc = self.target_dir / "doc" / "test_project_erc.report"
         target_drc = self.target_dir / "doc" / "test_project_drc.report"
 
-        self.assertTrue(os.path.exists(target_erc), target_erc)
+        self.assertTrue(target_erc.exists(), target_erc)
 
-        self.assertTrue(os.path.exists(target_drc), target_drc)
+        self.assertTrue(target_drc.exists(), target_drc)
 
         with open(target_erc, "r") as file_target:
             target_erc_content = file_target.read()
@@ -204,8 +204,8 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
         target_erc = self.target_dir / "doc" / "test_project_erc.report"
         target_drc = self.target_dir / "doc" / "test_project_drc.report"
 
-        self.assertTrue(os.path.exists(target_erc), target_erc)
-        self.assertFalse(os.path.exists(target_drc), target_drc)
+        self.assertTrue(target_erc.exists(), target_erc)
+        self.assertFalse(target_drc.exists(), target_drc)
 
     def test_erc_only_json(self) -> None:
         with self.assertRaises(SystemExit) as exit_code:
@@ -215,8 +215,8 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
         target_erc = self.target_dir / "doc" / "test_project_erc.json"
         target_drc = self.target_dir / "doc" / "test_project_drc.json"
 
-        self.assertTrue(os.path.exists(target_erc), target_erc)
-        self.assertFalse(os.path.exists(target_drc), target_drc)
+        self.assertTrue(target_erc.exists(), target_erc)
+        self.assertFalse(target_drc.exists(), target_drc)
 
     def test_drc_only_report(self) -> None:
         with self.assertRaises(SystemExit) as exit_code:
@@ -226,8 +226,8 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
         target_erc = self.target_dir / "doc" / "test_project_erc.report"
         target_drc = self.target_dir / "doc" / "test_project_drc.report"
 
-        self.assertFalse(os.path.exists(target_erc), target_erc)
-        self.assertTrue(os.path.exists(target_drc), target_drc)
+        self.assertFalse(target_erc.exists(), target_erc)
+        self.assertTrue(target_drc.exists(), target_drc)
 
     def test_drc_only_json(self) -> None:
         with self.assertRaises(SystemExit) as exit_code:
@@ -237,8 +237,8 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
         target_erc = self.target_dir / "doc" / "test_project_erc.json"
         target_drc = self.target_dir / "doc" / "test_project_drc.json"
 
-        self.assertFalse(os.path.exists(target_erc), target_erc)
-        self.assertTrue(os.path.exists(target_drc), target_drc)
+        self.assertFalse(target_erc.exists(), target_erc)
+        self.assertTrue(target_drc.exists(), target_drc)
 
 
 if __name__ == "__main__":

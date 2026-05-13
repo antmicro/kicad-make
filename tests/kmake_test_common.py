@@ -1,24 +1,25 @@
-import kmake
-from pathlib import Path
-import git
-from typing import List
 import os
-from common.kicad_project import KicadProject as _KicadProject
-from common.kmake_helper import run_kicad_cli
 import shutil
 import tempfile
+from pathlib import Path
+from typing import List
+
+import git
+from askiff.board import Board
+from common.kicad_project import KicadProject as _KicadProject
+from common.kmake_helper import run_kicad_cli
+
+import kmake
 
 
 class KicadProject(_KicadProject):
     def __init__(self, **kwargs) -> None:  # type: ignore
         # compat layer with old KiCadProject
         _KicadProject.__init__(self, **kwargs)
-        self.pcb_file = str(self.pcb_root.fs_path) if self.pcb_root else ""
-        self.name = self.project_name
-        self.dir = str(self.fs_path)
+        self.pcb_file = (
+            self.pcb_root.fs_path if self.pcb_root else Path.cwd() / ((self.project_name or "unknown") + Board.fs_ext)
+        )
         self.dru_file = next(self.fs_path.glob("*.kicad_dru"), "")
-        self.sch_ext = "kicad_sch"
-        self.pcb_ext = "kicad_pcb"
 
 
 class KmakeTestCase:
@@ -68,7 +69,7 @@ class KmakeTestCase:
     def tearDown(self) -> None:
         """Check if Kicad files are not corrupted & remove tmp directory after test"""
         self.check_if_pcb_sch_opens()
-        if os.path.exists(self.target_dir):
+        if self.target_dir.exists():
             shutil.rmtree(self.target_dir)
 
     def check_if_pcb_sch_opens(self) -> None:
@@ -76,24 +77,3 @@ class KmakeTestCase:
         os.chdir(self.target_dir)
         run_kicad_cli(["pcb", "export", "gerbers", self.kpro.pcb_file], False)
         run_kicad_cli(["sch", "export", "pdf", self.kpro.sch_root.fs_path], False)
-
-
-def get_property(obj, prop: str) -> str:  # type: ignore
-    for item in obj.properties:
-        if item.key.lower() == prop.lower():
-            return item.value
-    return None  # type: ignore
-
-
-def remove_property(obj, name: str) -> list:  # type: ignore
-    return [prop for prop in obj.properties if prop.key.lower() != name.lower()]
-
-
-def set_property(symbol, name: str, value) -> None:  # type: ignore
-    try:
-        prop = next(filter(lambda prop: prop.key == name, symbol.properties))
-        prop.value = value
-    except StopIteration:
-        from kiutils.items.common import Property
-
-        symbol.properties.append(Property(name, value))

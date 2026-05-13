@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Union
 
-from askiff import FootprintFile, Project, Schematic, SymbolFile
+from askiff import FootprintFile, Schematic, SymbolFile
 from askiff.common import LibraryTable
 from askiff.footprint import Footprint, FootprintLibraryTable, LibId
 from askiff.pro import _LazyFile
@@ -170,12 +170,6 @@ def update_props(
                 local_property.value = global_property.value
 
 
-def get_sch_paths_based_on_args(args: argparse.Namespace, pro: Project) -> list[Schematic]:
-    if args.sch is not None:
-        return [sch for sch in pro.sch if sch.fs_path.name in args.sch]
-    return pro.sch
-
-
 def find_global_symbol(
     local_symbol: Symbol,
     global_symbols: dict[str, tuple[str, SymbolDefinition]],
@@ -206,6 +200,10 @@ def should_symbol_be_globlibed(symbol: Symbol, global_libraries: Iterable[str], 
     return True
 
 
+def get_sch_list(pro: KicadProject, args: argparse.Namespace) -> list[Schematic]:
+    return [Schematic.from_file(s) for s in args.sch] if args.sch else pro.sch
+
+
 def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list[Symbol]:
     library_mapping = get_lib_mapping(
         pro,
@@ -222,7 +220,7 @@ def globlib_project_symbols(pro: KicadProject, args: argparse.Namespace) -> list
 
     failures: list[Symbol] = []
 
-    for schematic in get_sch_paths_based_on_args(args, pro):
+    for schematic in get_sch_list(pro, args):
         log.info("Processing schematic: %s", schematic.fs_path)
 
         for local_symbol in schematic.symbols:
@@ -280,7 +278,7 @@ def globlib_footprints(pro: KicadProject, args: argparse.Namespace) -> None:
     for pcb in pro.pcb:
         log.info("Updating footprint links")
 
-        for schematic in get_sch_paths_based_on_args(args, pro):
+        for schematic in get_sch_list(pro, args):
             log.info("Processing schematic: %s", schematic.fs_path)
             for schematic_symbol in schematic.symbols:
                 ref = schematic_symbol.properties.ref.value

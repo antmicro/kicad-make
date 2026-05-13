@@ -1,11 +1,12 @@
-import unittest
 import logging
-from unittest.mock import patch
-from pathlib import Path
+import unittest
 from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
+
+from kmake_test_common import KmakeTestCase
 
 from commands.set_drc import read_dru_file
-from kmake_test_common import KmakeTestCase
 
 
 class SetDruTest(KmakeTestCase, unittest.TestCase):

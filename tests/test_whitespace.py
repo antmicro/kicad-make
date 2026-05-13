@@ -1,8 +1,8 @@
-import unittest
-import shutil
 import os
+import shutil
+import unittest
 
-from kmake_test_common import KmakeTestCase, KicadProject
+from kmake_test_common import KicadProject, KmakeTestCase
 
 
 class WhitespaceTest(KmakeTestCase, unittest.TestCase):

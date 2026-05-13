@@ -1,12 +1,13 @@
-import unittest
 import os
+import unittest
 
+from askiff import Board
+from askiff.common_pcb import BoardSide, Layer
+from askiff.gritems import GrShapeFp
 from kmake_test_common import KmakeTestCase
-from kiutils.board import Board
 
 
 class WireframeTest(KmakeTestCase, unittest.TestCase):
-
     def __init__(self, method_name: str = "runTest") -> None:
         self.layer_suffixes = ["_User_6", "_User_7", "_User_Drawings"]
         self.side_suffixes = ["top", "bottom"]
@@ -16,10 +17,11 @@ class WireframeTest(KmakeTestCase, unittest.TestCase):
     def test_wireframe_reset(self) -> None:
         # Create board file that is equivalent of legacy wireframe result
         board = Board.from_file(self.kpro.pcb_file)
+        outline_layers = (Layer.USER(8), Layer.USER(9))
         for footprint in board.footprints:
-            target_layer = "User.8" if footprint.layer == "F.Cu" else "User.9"
+            target_layer = Layer.USER(8) if footprint.side == BoardSide.FRONT else Layer.USER(9)
             outline_items = [
-                item for item in footprint.graphicItems if item.layer == "User.9" or item.layer == "User.8"
+                item for item in footprint.graphic_items if isinstance(item, GrShapeFp) and item.layer in outline_layers
             ]
             for item in outline_items:
                 item.layer = target_layer
@@ -29,8 +31,9 @@ class WireframeTest(KmakeTestCase, unittest.TestCase):
 
         board = Board.from_file(self.kpro.pcb_file)
         for footprint in board.footprints:
-            for item in footprint.graphicItems:
-                self.assertNotEqual(item.layer, "User.8")
+            for item in footprint.graphic_items:
+                if isinstance(item, GrShapeFp):
+                    self.assertNotEqual(item.layer, Layer.USER(8))
 
     def wireframe_presets(self, preset: str, arg: list[str], suffix: list[list[str]]) -> None:
         self.run_test_command(["-p", f"{preset}"] + arg)

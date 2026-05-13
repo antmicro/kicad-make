@@ -1,9 +1,10 @@
 import unittest
-from typing import List
-from kiutils.board import Board
-from kiutils.footprint import Footprint
-from kiutils.items.brditems import Via
-from kmake_test_common import KmakeTestCase, get_property
+from pathlib import Path
+
+from askiff.board import Board, Via
+from askiff.common_pcb import BoardSide, Layer, LayerSet, LayerSilkS
+from askiff.footprint import FpProperty
+from kmake_test_common import KmakeTestCase
 
 
 class PCBFilterTest(KmakeTestCase, unittest.TestCase):
@@ -11,15 +12,15 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         KmakeTestCase.__init__(self, "pcb-filter")
         unittest.TestCase.__init__(self, method_name)
 
-    def command_test(self, args: List[str]) -> None:
-        self.run_test_command(args + ["-o", self.kpro.pcb_file])
+    def command_test(self, args: list[str]) -> None:
+        self.run_test_command(args + ["-o", str(self.kpro.pcb_file)])
         self.outpcb = BoardStats(self.kpro.pcb_file)
         self.refpcb = self.inpcb
 
     def setUp(self) -> None:
         KmakeTestCase.setUp(self)
         self.check_ref_val = False
-        self.inpcb = BoardStats(str(self.kpro.pcb_file))
+        self.inpcb = BoardStats(self.kpro.pcb_file)
 
     def tearDown(self) -> None:
         self.assertEqual(self.refpcb.footprintsT, self.outpcb.footprintsT)
@@ -34,7 +35,7 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
         self.assertEqual(self.refpcb.stackup, self.outpcb.stackup)
         self.assertEqual(self.refpcb.vias, self.outpcb.vias)
         self.assertEqual(self.refpcb.tracks, self.outpcb.tracks)
-        self.assertEqual(self.refpcb.graphicItems, self.outpcb.graphicItems)
+        self.assertEqual(self.refpcb.graphic_items, self.outpcb.graphic_items)
 
         KmakeTestCase.tearDown(self)
 
@@ -90,9 +91,10 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
 
     def test_pcb_filter_layers(self) -> None:
         self.command_test(["-l", "User.9,Edge.Cuts,User.Drawings"])
-        self.refpcb.graphicItems = (
-            14  # some graphics items should be left: SHA, Testpoints/connectors descriptions, Board Edge, ..
-            # 2x test-point description + 6x dimmensions object + 1x PCB SHA + 5x bezier
+        self.refpcb.graphic_items = (
+            16  # some graphics items should be left: SHA, Testpoints/connectors descriptions, Board Edge, ..
+            # 2x test-point description + 1x PCB SHA + 2x manual error text
+            # on edge.cuts: 5x bezier + 5x board outline + 1x circle
         )
         self.check_ref_val = True
         self.refpcb.references_visible = 0
@@ -114,36 +116,27 @@ class PCBFilterTest(KmakeTestCase, unittest.TestCase):
 
 
 class BoardStats:
-    def __init__(self, board: str):
+    def __init__(self, board: Path):
         pcb = Board.from_file(board)
-        self.footprintsT = len([fp for fp in pcb.footprints if fp.layer == "F.Cu"])
-        self.footprintsB = len([fp for fp in pcb.footprints if fp.layer == "B.Cu"])
+        self.footprintsT = len([fp for fp in pcb.footprints if fp.side == BoardSide.FRONT])
+        self.footprintsB = len([fp for fp in pcb.footprints if fp.side == BoardSide.BACK])
         self.footprintsT_J = len(
-            [fp for fp in pcb.footprints if fp.layer == "F.Cu" and get_property(fp, "Reference").startswith("J")]
+            [fp for fp in pcb.footprints if fp.side == BoardSide.FRONT and fp.properties.ref.value.startswith("J")]
         )
         self.footprintsB_J = len(
-            [fp for fp in pcb.footprints if fp.layer == "B.Cu" and get_property(fp, "Reference").startswith("J")]
+            [fp for fp in pcb.footprints if fp.side == BoardSide.BACK and fp.properties.ref.value.startswith("J")]
         )
-        self.references_visible = len([fp for fp in pcb.footprints if self.prop_visible(fp, "Reference")])
-        self.values = len([fp for fp in pcb.footprints if self.prop_visible(fp, "Value")])
+        self.references_visible = len([fp for fp in pcb.footprints if not fp.properties.ref.hide])
+        self.values = len([fp for fp in pcb.footprints if not fp.properties.get("Value", FpProperty).hide])
         self.zones = len(pcb.zones)
         self.dimensions = len(pcb.dimensions)
         self.stackup = len([g for g in pcb.groups if g.name == "group-boardStackUp"])
-        self.vias = len([item for item in pcb.traceItems if isinstance(item, Via)])
-        self.tracks = len([item for item in pcb.traceItems if not isinstance(item, Via)])
-        self.graphicItems = len(
-            [g for g in pcb.graphicItems if g.layer in ["User.9", "Edge.Cuts", "User.Drawings", "F.SilkS", "B.SilkS"]]
-        )
+        self.vias = len([item for item in pcb.traces if isinstance(item, Via)])
+        self.tracks = len([item for item in pcb.traces if not isinstance(item, Via)])
+        layers = LayerSet(Layer.USER(9), Layer.EDGE_CUTS, Layer.DRAWINGS, *LayerSilkS.all)
+        self.graphic_items = len([g for g in pcb.graphic_items if hasattr(g, "layer") and g.layer in layers])
         self.pads_one = sum([len([pad for pad in fp.pads if pad.number in ["1", "A1"]]) for fp in pcb.footprints])
         self.pads = sum([len(fp.pads) for fp in pcb.footprints])
-
-    @staticmethod
-    def prop_visible(fp: Footprint, field: str) -> bool:
-        for prop in fp.properties:
-            if prop.key != field:
-                continue
-            return not prop.hide
-        return False
 
 
 if __name__ == "__main__":
