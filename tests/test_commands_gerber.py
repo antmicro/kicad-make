@@ -7,7 +7,6 @@ GERBER_FLASH_APERTURE = "D03*"
 
 
 class GerberTest(KmakeTestCase, unittest.TestCase):
-
     def __init__(self, method_name: str = "runTest") -> None:
         KmakeTestCase.__init__(self, "gerber")
         unittest.TestCase.__init__(self, method_name)
@@ -23,7 +22,7 @@ class GerberTest(KmakeTestCase, unittest.TestCase):
     def test_gerber(self) -> None:
         self.run_test_command([])
         gerber_count = len(list(self.target_dir.joinpath("fab").glob("test_project-*.gbr")))
-        self.assertEqual(gerber_count, 43)
+        self.assertEqual(gerber_count, 43 if self.kpro.kicad_version_major == "9" else 46)
         gbr_dir = self.target_dir / "fab"
         paste_files = [
             gbr_dir / f"{self.kpro.project_name}-F_Paste.gbr",

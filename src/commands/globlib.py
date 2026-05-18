@@ -95,7 +95,7 @@ def get_global_symbol_list(lib_mapping: dict[str, str]) -> dict[str, tuple[str, 
     sym_list = {}
     for lib_name, path in lib_mapping.items():
         if not os.path.exists(path):
-            log.warning(f"Library {lib_name} points to file that does not exist. Library will be omitted.")
+            log.warning(f"Library {lib_name} points to file that does not exist ({path}). Library will be omitted.")
             continue
         sym_library = SymbolFile.from_file(path)
         log.debug(f"Parsing global library: {lib_name}")
@@ -108,7 +108,7 @@ def get_global_footprint_list(lib_mapping: dict[str, str]) -> dict[str, tuple[st
     fp_list: dict[str, tuple[str, Footprint]] = {}
     for lib_name, path in lib_mapping.items():
         if not os.path.exists(path):
-            log.warning(f"Library {lib_name} points to file that does not exist. Library will be omitted.")
+            log.warning(f"Library {lib_name} points to file that does not exist ({path}). Library will be omitted.")
             continue
         log.debug(f"Parsing global library: {lib_name}")
         for file in Path(path).glob("*" + FootprintFile.fs_ext):

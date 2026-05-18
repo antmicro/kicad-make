@@ -97,6 +97,7 @@ build-production-files-prepare-blend-kicad10:
   image: $CI_REGISTRY_IMAGE/kmake-kicad10:${CI_COMMIT_REF_SLUG}-testing
   variables:
     KICAD_VERSION: "kicad10"
+    KICAD_PROJECT_UPGRADE: Y
 
 
 
@@ -107,11 +108,19 @@ build-production-files-prepare-blend-kicad10:
   only:
     - main
     - merge_requests
-  script:
+  before_script:
     - apt update
     - apt install -y git
     - *resolve_askiff
     - pip3 install --break-system-packages -e ".[dev]"
+    - | 
+      if [[ -n $ASKIFF_INTERNAL ]]; then 
+        ASKIFF_REPO="${PIP_GIT_SOURCE#git+}/antmicro-askiff -b $ASKIFF_INTERNAL"
+      else 
+        ASKIFF_REPO="https://github.com/antmicro/askiff"
+      fi
+    - git clone $ASKIFF_REPO .askiff
+  script:
     - pytest --cov-report term --cov-report html:htmlcov --cov=src -n auto
     - touch ${KICAD_VERSION}-pytest-pass
   artifacts:

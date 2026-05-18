@@ -5,7 +5,7 @@
 	(uuid "812612d9-5d79-4d41-9343-3ea211517c5e")
 	(paper "A4")
 	(lib_symbols
-		(symbol "Connector:TestPoint"
+		(symbol "test_project:TestPoint"
 			(pin_numbers
 				(hide yes)
 			)
@@ -112,7 +112,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Device:R"
+		(symbol "test_project:R"
 			(pin_numbers
 				(hide yes)
 			)
@@ -236,7 +236,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "power:+3V3"
+		(symbol "test_project:+3V3"
 			(power)
 			(pin_numbers
 				(hide yes)
@@ -361,7 +361,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "power:GND"
+		(symbol "test_project:GND"
 			(power)
 			(pin_numbers
 				(hide yes)
@@ -550,7 +550,7 @@
 		(uuid "ef5ad9b9-3ef5-4a2f-babc-8d3c7e5d7c15")
 	)
 	(symbol
-		(lib_id "Device:R")
+		(lib_id "test_project:R")
 		(at 125.73 82.55 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -575,7 +575,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "test_project-footprints:R_0402_1005Metric"
 			(at 125.73 80.772 90)
 			(effects
 				(hide yes)
@@ -628,7 +628,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
+		(lib_id "test_project:R")
 		(at 101.6 82.55 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -653,7 +653,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "test_project-footprints:R_0402_1005Metric"
 			(at 101.6 80.772 90)
 			(effects
 				(hide yes)
@@ -706,7 +706,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
+		(lib_id "test_project:R")
 		(at 113.03 77.47 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -733,7 +733,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "test_project-footprints:R_0402_1005Metric"
 			(at 114.808 77.47 90)
 			(effects
 				(hide yes)
@@ -786,7 +786,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
+		(lib_id "test_project:TestPoint")
 		(at 133.35 82.55 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -813,7 +813,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+		(property "Footprint" "test_project-footprints:TestPoint_Pad_D1.0mm"
 			(at 133.35 87.63 0)
 			(effects
 				(hide yes)
@@ -863,7 +863,7 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
+		(lib_id "test_project:GND")
 		(at 113.03 93.98 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -941,7 +941,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
+		(lib_id "test_project:R")
 		(at 113.03 88.9 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -968,7 +968,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "test_project-footprints:R_0402_1005Metric"
 			(at 114.808 88.9 90)
 			(effects
 				(hide yes)
@@ -1021,7 +1021,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
+		(lib_id "test_project:TestPoint")
 		(at 93.98 82.55 90)
 		(unit 1)
 		(exclude_from_sim no)
@@ -1046,7 +1046,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+		(property "Footprint" "test_project-footprints:TestPoint_Pad_D1.0mm"
 			(at 93.98 77.47 0)
 			(effects
 				(hide yes)
@@ -1096,7 +1096,7 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+3V3")
+		(lib_id "test_project:+3V3")
 		(at 113.03 71.12 0)
 		(unit 1)
 		(exclude_from_sim no)

@@ -125,9 +125,8 @@ class CheckTest(KmakeTestCase, unittest.TestCase):
             self.assertIn(violation["severity"], ["error"])
 
         drc_types = self._drc_types(target_drc_json)
-        self.assertIn("solder_mask_bridge", drc_types)
-        self.assertIn("shorting_items", drc_types)
-        self.assertIn("zones_intersect", drc_types)
+        for err_type in ("clearance", "solder_mask_bridge", "shorting_items", "generic_error", "copper_edge_clearance"):
+            self.assertIn(err_type, drc_types)
 
     def test_warnings(self) -> None:
         with self.assertRaises(SystemExit) as exit_code:

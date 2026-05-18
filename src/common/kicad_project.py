@@ -39,19 +39,22 @@ class KicadProject(Project):
             self.local_share_path = Path(local_share_path)
 
         # Get KiCad version
-        kicad_cli_name = get_kicad_cli_command()[0]
+        kicad_cli_name, kicad_cli_args = get_kicad_cli_command()
         self.kicad_version_full = subprocess.run(
-            [kicad_cli_name, "--version"], text=True, check=True, capture_output=True
+            [kicad_cli_name, *kicad_cli_args, "--version"], text=True, check=True, capture_output=True
         ).stdout.strip()
-        self.kicad_version = ".".join(self.kicad_version_full.split(".")[0:2])
+
+        kicad_version_split = self.kicad_version_full.split(".")
+        self.kicad_version_major = kicad_version_split[0]
+        self.kicad_version = ".".join(kicad_version_split[0:2])
 
         kicad_cfg_dir = PlatformDirs("kicad", "kicad").user_config_path
         self.comm_cfg_path = Path(kicad_cfg_dir / self.kicad_version / "kicad_common.json")
         self.glob_fp_lib_table_path = Path(kicad_cfg_dir / self.kicad_version / "fp-lib-table")
         self.glob_sym_lib_table_path = Path(kicad_cfg_dir / self.kicad_version / "sym-lib-table")
 
-        self.env_var_name_sym_lib = f"KICAD{self.kicad_version[0]}_SYMBOL_DIR"
-        self.env_var_name_fp_lib = f"KICAD{self.kicad_version[0]}_FOOTPRINT_DIR"
+        self.env_var_name_sym_lib = f"KICAD{self.kicad_version_major}_SYMBOL_DIR"
+        self.env_var_name_fp_lib = f"KICAD{self.kicad_version_major}_FOOTPRINT_DIR"
 
         self.fab_dir = self.fs_path / "fab"
         self.doc_dir = self.fs_path / "doc"

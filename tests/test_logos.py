@@ -22,9 +22,10 @@ class LogosTest(KmakeTestCase, unittest.TestCase):
         self.assertTrue(len(self.project_repo.untracked_files) == 0)
 
     def test_logos_custom_path(self) -> None:
-        with open(self.ref_dir / "test_logo", "r") as f:
+        logos_path = self.TEST_DIR / "share-dir" / "logos"
+        with open(logos_path / "test_logo", "r") as f:
             logo_snippet = f.read()
-        self.inner(["test_logo", "-p", str(self.ref_dir)], logo_snippet)
+        self.inner(["test_logo", "-p", str(logos_path)], logo_snippet)
 
 
 if __name__ == "__main__":

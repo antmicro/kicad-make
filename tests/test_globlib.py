@@ -25,8 +25,23 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
             target_sch = Schematic.from_file(sch)
             reference_sch = Schematic.from_file(self.ref_dir / sch.name)
 
-            target_symbols_libs = sorted([symbol.lib_id.library or "" for symbol in target_sch.lib_symbols])
-            reference_symbols_libs = sorted([symbol.lib_id.library or "" for symbol in reference_sch.lib_symbols])
+            # globlib currently does not support non global libraries
+            # so skip symbol_power_local which is included via local library table
+            skip_sym_name = "symbol_power_local"
+            target_symbols_libs = sorted(
+                [
+                    symbol.lib_id.library or ""
+                    for symbol in target_sch.lib_symbols
+                    if symbol.lib_id.name != skip_sym_name
+                ]
+            )
+            reference_symbols_libs = sorted(
+                [
+                    symbol.lib_id.library or ""
+                    for symbol in reference_sch.lib_symbols
+                    if symbol.lib_id.name != skip_sym_name
+                ]
+            )
 
             self.assertListEqual(target_symbols_libs, reference_symbols_libs)
 
@@ -125,7 +140,8 @@ class GloblibTest(KmakeTestCase, unittest.TestCase):
             if symbol.properties.ref.value == "R1":
                 self.assertEqual(symbol.properties.get_value("Value"), "R")
                 self.assertEqual(symbol.properties.get_value("Footprint"), "")
-                self.assertEqual(symbol.properties.get_value("Datasheet"), "~")
+                expected_datasheet_val = "~" if self.kpro.kicad_version_major == "9" else ""
+                self.assertEqual(symbol.properties.get_value("Datasheet"), expected_datasheet_val)
                 r1_on_pcb = True
 
         self.assertTrue(r1_on_pcb)

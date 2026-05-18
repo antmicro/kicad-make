@@ -1,11 +1,10 @@
 import re
 import unittest
 
-from kmake_test_common import KicadProject, KmakeTestCase
+from kmake_test_common import KmakeTestCase
 
 
 class BomNetlist(KmakeTestCase, unittest.TestCase):
-
     def __init__(self, method_name: str = "runTest") -> None:
         KmakeTestCase.__init__(self, "netlist")
         unittest.TestCase.__init__(self, method_name)
@@ -14,32 +13,34 @@ class BomNetlist(KmakeTestCase, unittest.TestCase):
         """Test if target and reference netlists are equal"""
         self.run_test_command([])
 
-        ref = open(self.ref_dir / f"netlist-v{KicadProject().kicad_version.split('.')[0]}.net").readlines()
+        ref = open(self.ref_dir / "netlist.net").readlines()
         tar = open(self.target_dir / "fab" / "netlist.net").readlines()
 
         lines_to_remove = []
-        uri_match = False
-        source_match = False
-        tool_match = False
+        uri_match, source_match, tool_match, date_match = 0, 0, 0, 0
+        skip_groups = 0
 
         for line_id, line in enumerate(tar):
+            # `groups` section in netlist has no stable sort as of KiCad 10.0.3
+            # ignore it entirely
+            if "(groups" in line:
+                skip_groups = 32
+            if skip_groups:
+                skip_groups -= 1
+                lines_to_remove.append(line_id)
+
             if re.search(r"\(uri", line) is not None:
                 lines_to_remove.append(line_id)
-                uri_match = True
+                uri_match += 1
             if re.search(r'\(source\s"/', line):
                 lines_to_remove.append(line_id)
-                source_match = True
-            if (
-                re.search(
-                    r"\(date\s",
-                    line,
-                )
-                is not None
-            ):
+                source_match += 1
+            if re.search(r"\(date\s", line) is not None:
                 lines_to_remove.append(line_id)
-            if re.search(r'\(tool\s"Eeschema\s\d\.\d\.\d', line) is not None:
+                date_match += 1
+            if re.search(r'\(tool\s"Eeschema\s\d+\.\d+\.\d+', line) is not None:
                 lines_to_remove.append(line_id)
-                tool_match = True
+                tool_match += 1
 
         counter = 0
         for line_id in sorted(lines_to_remove):
@@ -47,16 +48,10 @@ class BomNetlist(KmakeTestCase, unittest.TestCase):
             del tar[line_id - counter]
             counter += 1
 
-        self.assertTrue(uri_match)
-        self.assertTrue(source_match)
-        self.assertTrue(tool_match)
-
-        # Check if every element was matched:uri, source, tool version, date
-        count_uri = 9
-        count_source = 1
-        # the date occurs two times (in the netlist header and title block section)
-        count_date = 2
-        count_eeschema = 1
-        self.assertEqual(len(lines_to_remove), count_uri + count_source + count_date + count_eeschema)
+        # Check if every element was matched: uri, source, tool version, date
+        self.assertEqual(uri_match, 9 if self.kpro.kicad_version_major == "9" else 10)
+        self.assertEqual(source_match, 1)
+        self.assertEqual(date_match, 2)  # the date occurs two times (in the netlist header and title block section)
+        self.assertEqual(tool_match, 1)
 
         self.assertListEqual(tar, ref)

@@ -30,9 +30,10 @@ class KmakeTestCase:
     TEST_DIR = Path(__file__).parent.resolve()
 
     def __init__(self, test_cmd: str, shared_dir: str = ""):
-        self.target_dir = KmakeTestCase.TEST_DIR / "test_project"
+        kicad_version_folder = f"kicad{KicadProject().kicad_version_major}"
+        self.target_dir = KmakeTestCase.TEST_DIR.parent / ".askiff" / "test_projects" / kicad_version_folder
         self.test_cmd = test_cmd
-        self.ref_dir = KmakeTestCase.TEST_DIR / "reference-outputs" / test_cmd
+        self.ref_dir = KmakeTestCase.TEST_DIR / "reference-outputs" / kicad_version_folder / test_cmd
         self.shared_dir = shared_dir
 
     def run_kmake_command(self, arguments: List[str]) -> None:

@@ -11,7 +11,7 @@
 		(company "Antmicro")
 	)
 	(lib_symbols
-		(symbol "Device:DIAC"
+		(symbol "test_project:DIAC"
 			(pin_numbers
 				(hide yes)
 			)
@@ -149,7 +149,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Graphic:Logo_Open_Hardware_Large"
+		(symbol "test_project:Logo_Open_Hardware_Large"
 			(exclude_from_sim no)
 			(in_bom no)
 			(on_board no)
@@ -286,7 +286,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Mechanical:MountingHole_Pad"
+		(symbol "test_project:MountingHole_Pad"
 			(pin_numbers
 				(hide yes)
 			)
@@ -393,7 +393,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "power:GND"
+		(symbol "test_project:GND"
 			(power)
 			(pin_numbers
 				(hide yes)
@@ -1480,7 +1480,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:MountingHole_Pad")
+		(lib_id "test_project:MountingHole_Pad")
 		(at 368.3 220.98 270)
 		(unit 1)
 		(exclude_from_sim yes)
@@ -1507,7 +1507,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2_DIN965_Pad"
+		(property "Footprint" "test_project-footprints:MountingHole_2.2mm_M2_DIN965_Pad"
 			(at 368.3 220.98 0)
 			(effects
 				(hide yes)
@@ -1553,7 +1553,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:MountingHole_Pad")
+		(lib_id "test_project:MountingHole_Pad")
 		(at 368.3 226.06 270)
 		(unit 1)
 		(exclude_from_sim yes)
@@ -1580,7 +1580,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2_DIN965_Pad"
+		(property "Footprint" "test_project-footprints:MountingHole_2.2mm_M2_DIN965_Pad"
 			(at 368.3 226.06 0)
 			(effects
 				(hide yes)
@@ -1626,7 +1626,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:MountingHole_Pad")
+		(lib_id "test_project:MountingHole_Pad")
 		(at 368.3 231.14 270)
 		(unit 1)
 		(exclude_from_sim yes)
@@ -1653,7 +1653,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2_DIN965_Pad"
+		(property "Footprint" "test_project-footprints:MountingHole_2.2mm_M2_DIN965_Pad"
 			(at 368.3 231.14 0)
 			(effects
 				(hide yes)
@@ -1699,7 +1699,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Graphic:Logo_Open_Hardware_Large")
+		(lib_id "test_project:Logo_Open_Hardware_Large")
 		(at 39.37 266.7 0)
 		(unit 1)
 		(exclude_from_sim yes)
@@ -1773,7 +1773,7 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
+		(lib_id "test_project:GND")
 		(at 365.76 240.03 0)
 		(unit 1)
 		(exclude_from_sim no)
