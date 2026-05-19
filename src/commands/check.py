@@ -228,6 +228,10 @@ class SpellCheck:
 
             for meta_name in ("title", "date", "rev", "company"):
                 meta = getattr(kfile.title_block, meta_name)
+                if meta is None:
+                    log.warning("TitleBlock: %s field doesn't exist in %s.", meta_name, kfile.fs_path)
+                    continue
+
                 context = SpellCheckIssueContext(kfile.fs_path, f"TitleBlock: {meta_name}", "", None)
                 self.check_str(meta, context)
             for comment in kfile.title_block.comment:
