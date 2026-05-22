@@ -32,6 +32,7 @@ dependencies = [
     "gitpython",
     "platformdirs==4.9.6",
     "pyspellchecker==0.9.0",
+    "pyyaml==6.0.3",
 ]
 
 [tool.setuptools_scm]
@@ -42,7 +43,7 @@ package-dir = { "kmake" = "src" }
 [tool.setuptools.package-data]
 kmake = ["logos/*"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest",
     "pytest-cov",

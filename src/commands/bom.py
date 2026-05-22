@@ -3,7 +3,8 @@ import csv
 import dataclasses
 import logging
 import sys
-from typing import Dict, List, Self, TextIO, Tuple
+from typing import Dict, List, Self, TextIO, Tuple, Any
+import yaml
 
 import kicad_netlist_reader
 
@@ -163,12 +164,13 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "bom",
         help="Generate Bill-of-Materials (BOM)",
         description="Generate Bill-of-Materials (BOM). Include ONLY populated components by default."
-        "Default format is `default` ."
+        "Default format is `csv` ."
         "None of the options include blacklisted components unless `--no-ignore` flag is passed.",
     )
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--dnp", action="store_true", help="Include ONLY DNP components.")
+    group.add_argument("-y", "--yaml", action="store_true", help="Generate BOM in YAML format.")
     group.add_argument("-a", "--all", action="store_true", help="Include populated and DNP components.")
     parser.add_argument("--no-ignore", action="store_true", help="Don't ignore blacklisted components.")
     parser.add_argument(
@@ -213,10 +215,10 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
         filename = pro.fs_path / args.output
     else:
         if args.group_references:
-            filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}.csv"
+            filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}"
         else:
             log.info("Using grouped references")
-            filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}-ReferenceNotGrouped.csv"
+            filename = pro.doc_dir / f"{pro.project_name}-BOM-{kind}-ReferenceNotGrouped"
 
     log.info(f"BoM file {filename}")
 
@@ -226,15 +228,41 @@ def run(pro: KicadProject, args: argparse.Namespace) -> None:
     else:
         headers = args.fields
 
-    log.info("Saving BoM to file")
-
-    with open(filename, "w", encoding="utf-8") as f:
-        save_csv(f, groups, headers, args.group_references)
-
-    log.info("Saved BOM to file")
+    if args.yaml:
+        yaml_path = filename.with_suffix(".yaml")
+        log.info(f"Saving BoM to {yaml_path}")
+        with open(yaml_path, "w", encoding="utf-8") as f:
+            save_yaml(f, groups, pro)
+    else:
+        csv_path = filename.with_suffix(".csv")
+        log.info(f"Saving BoM to file {csv_path}")
+        with open(csv_path, "w", encoding="utf-8") as f:
+            save_csv(f, groups, headers, args.group_references)
+    log.info("Saved BOM")
 
     if not ok:
         sys.exit(1)
+
+
+def save_yaml(output_file: TextIO, groups: list[ComponentGroup], pro: KicadProject) -> None:
+    items: list[dict[str, Any]] = []
+    for component in groups:
+        item_entry = {
+            "amount": len(component.refs),
+            "type": "PCBComponent",
+            "manufacturer": component.manufacturer,
+            "mpn": component.mpn,
+            "designators": component.refs,
+        }
+        items.append(item_entry)
+    content = {
+        "items": items,
+        "target": {
+            "name": pro.project_name,
+            "revision": pro.sch_root.title_block.rev,
+        },
+    }
+    yaml.dump(content, output_file, indent=4)
 
 
 def save_csv(output_file: TextIO, groups: list[ComponentGroup], headers: list[str], group_references: bool) -> None:
